@@ -73,6 +73,22 @@ jobs:
           name: verify-site-${{ matrix.profile }}
           path: site/verify-out/
 
+  phones-result:
+    # One check with a fixed name for branch protection: the matrix reports "phones (pixel)" and the others when it
+    # runs, and a single "phones" when it is skipped. Passes when every phone passed or the PR does not reach them.
+    needs: [changes, phones]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Phones passed or were skipped
+        env:
+          CHANGES: ${{ needs.changes.result }}
+          PHONES: ${{ needs.phones.result }}
+        run: |
+          echo "changes: $CHANGES, phones: $PHONES"
+          [ "$CHANGES" = success ] && { [ "$PHONES" = success ] || [ "$PHONES" = skipped ]; }
+
   visual-qa:
     # Oddities of the clothes on the real orbit of the site (front, profile, back, from below and above), each piece
     # with one of the other group: midriff between the pieces, jagged junction, threads, body poking through,
