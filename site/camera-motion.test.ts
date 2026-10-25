@@ -87,3 +87,41 @@ test('turning on reduced motion stops both a return and a rotation in progress',
     expect(controls.enableDamping).toBe(false);
   }
 });
+
+test('the idle return keeps the zoom; the reset brings back the full body', () => {
+  const { camera, controls, home, radius, motion } = setup();
+  const near = new Vector3(0, 1.3, 0);
+  motion.frame(near, 2, 0);
+  motion.update(900);
+  expect(camera.position.distanceTo(controls.target)).toBeCloseTo(2, 10);
+  expect(controls.target.equals(near)).toBe(true);
+  camera.position.setFromSpherical(new Spherical(2, 1.3, 2)).add(near);
+  motion.interact(1_000);
+  motion.update(11_000);
+  motion.update(11_900);
+  expect(camera.position.distanceTo(controls.target)).toBeCloseTo(2, 10);
+  expect(controls.target.equals(near)).toBe(true);
+  expect(controls.autoRotate).toBe(true);
+  motion.reset(12_000);
+  motion.update(12_900);
+  expect(camera.position.distanceTo(home)).toBeLessThan(1e-10);
+  expect(controls.target.y).toBeCloseTo(1, 10);
+  expect(camera.position.distanceTo(controls.target)).toBeCloseTo(radius, 10);
+});
+
+test('framing keeps the angle and, with reduced motion, jumps there at once', () => {
+  const { camera, controls, motion, turn } = setup(true);
+  turn(1, 1.4);
+  const angle = Math.atan2(camera.position.x - controls.target.x, camera.position.z - controls.target.z);
+  motion.frame(new Vector3(0, .6, 0), 2.2, 0);
+  expect(camera.position.distanceTo(controls.target)).toBeCloseTo(2.2, 10);
+  expect(Math.atan2(camera.position.x - controls.target.x, camera.position.z - controls.target.z)).toBeCloseTo(angle, 10);
+});
+
+test('the first visit starts the showcase without waiting 10 s', () => {
+  const { controls, motion } = setup();
+  motion.showcase(5_000);
+  expect(motion.update(5_000)).toBe(true);
+  motion.update(5_900);
+  expect(controls.autoRotate).toBe(true);
+});

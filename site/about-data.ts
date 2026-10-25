@@ -28,7 +28,9 @@ export type CuratedLook = {
 };
 
 export type Link = { label: string; href: string };
-export type Person = { name: string; role: string; link?: Link };
+/** Groups of the team, in the order shown on the page. */
+export const TEAM_AREAS = ['Coordenação e produção', 'Moda', 'Audiovisual e roteiro', 'Design e tecnologia', 'Brechós parceiros'] as const;
+export type Person = { name: string; role: string; area: (typeof TEAM_AREAS)[number] };
 
 export type EditorialPhoto = { src: string; alt: string; looks?: string[] };
 
@@ -53,21 +55,21 @@ export const ABOUT = {
   /** Credits of the project team. */
   advisor: 'Prof. Dr. Hermes Renato Hildebrand',
   team: [
-    { name: 'Mayara Pereira', role: 'Coordenação geral e pesquisa' },
-    { name: 'Brunna Aprigio', role: 'Produção executiva' },
-    { name: 'Iolanda Russo', role: 'Direção de produção e mediação educativa' },
-    { name: 'Otávio Pigatto', role: 'Eventos e logística' },
-    { name: 'Gabriela Souza', role: 'Assistente de produção' },
-    { name: 'Isadora Cardoso', role: 'Fotografia de moda' },
-    { name: 'Hector Deganello', role: 'Mídias sociais e artes visuais' },
-    { name: 'Lucas Marzagão', role: 'Desenvolvimento de mídias interativas' },
-    { name: 'Livia Nara', role: 'Styling e direção de arte de moda' },
-    { name: 'Luísa da Cruz Firmino', role: 'Styling e direção de arte de moda' },
-    { name: 'Moska', role: 'Curadoria de moda e acervo, Jundiaí', link: { label: '@moska.brecho', href: 'https://www.instagram.com/moska.brecho/' } },
-    { name: 'VTU', role: 'Curadoria de moda e acervo, Jundiaí', link: { label: '@vtugarimpo', href: 'https://www.instagram.com/vtugarimpo/' } },
-    { name: 'Elisa Valderano', role: 'Captação audiovisual' },
-    { name: 'Sophia Medina', role: 'Montagem e edição' },
-    { name: 'Beatriz Rodrigues', role: 'Roteiro e pesquisa' },
-    { name: 'Oli', role: 'Ilustração e design digital' },
+    { name: 'Mayara Pereira', role: 'Coordenação geral e pesquisa', area: 'Coordenação e produção' },
+    { name: 'Brunna Aprigio', role: 'Produção executiva', area: 'Coordenação e produção' },
+    { name: 'Iolanda Russo', role: 'Direção de produção e mediação educativa', area: 'Coordenação e produção' },
+    { name: 'Otávio Pigatto', role: 'Eventos e logística', area: 'Coordenação e produção' },
+    { name: 'Gabriela Souza', role: 'Assistente de produção', area: 'Coordenação e produção' },
+    { name: 'Isadora Cardoso', role: 'Fotografia de moda', area: 'Moda' },
+    { name: 'Hector Deganello', role: 'Mídias sociais e artes visuais', area: 'Design e tecnologia' },
+    { name: 'Lucas Marzagão', role: 'Desenvolvimento de mídias interativas', area: 'Design e tecnologia' },
+    { name: 'Livia Nara', role: 'Styling e direção de arte de moda', area: 'Moda' },
+    { name: 'Luísa da Cruz Firmino', role: 'Styling e direção de arte de moda', area: 'Moda' },
+    { name: 'Moska', role: 'Curadoria de moda e acervo, Jundiaí', area: 'Brechós parceiros' },
+    { name: 'VTU', role: 'Curadoria de moda e acervo, Jundiaí', area: 'Brechós parceiros' },
+    { name: 'Elisa Valderano', role: 'Captação audiovisual', area: 'Audiovisual e roteiro' },
+    { name: 'Sophia Medina', role: 'Montagem e edição', area: 'Audiovisual e roteiro' },
+    { name: 'Beatriz Rodrigues', role: 'Roteiro e pesquisa', area: 'Audiovisual e roteiro' },
+    { name: 'Oli', role: 'Ilustração e design digital', area: 'Design e tecnologia' },
   ] as Person[],
 };
