@@ -52,7 +52,7 @@ Na ordem em que costumam rodar:
 | `repose_sleeves.py` | gira ombro, braço e antebraço da peça para a manga acompanhar o braço do manequim |
 | `hood.py` | deita nas costas o capuz e a gola que ficavam em pé atrás da nuca (`--check` confere o limite de encolhimento) |
 | `lining.py` | apaga o forro pendurado abaixo da barra da frente |
-| `top_over_bottom.py` | puxa para fora a barra das jaquetas que entrava na cintura das peças de baixo |
+| `top_over_bottom.py` | puxa para fora a barra das jaquetas que entrava na cintura das peças de baixo; com `--columns`, a barra canelada (037) anda só na frente e só em z, coluna a coluna, para ficar 8 mm à frente da peça de baixo mais da frente, com a dobra de dentro junto |
 
 ## Ajuste das peças de baixo
 

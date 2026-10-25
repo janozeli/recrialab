@@ -22,7 +22,6 @@
  },
  "junction": {
   "007.022": "jagged-junction",
-  "007.037": "jagged-junction",
   "008.023": "jagged-junction"
  },
  "threads": {
@@ -31,7 +30,6 @@
   "005.020": "spiky-hems",
   "006": "spiky-hems",
   "006.021": "spiky-hems",
-  "007.037": "spiky-hems",
   "008": "spiky-hems",
   "009": "spiky-hems",
   "011.026": "spiky-hems",

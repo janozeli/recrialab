@@ -6,20 +6,70 @@ displacement_field.py, but the collider is the union of the 15 bottom garments (
 and back of the torso below the waist move (|x| < 20 cm, y < 1.08 m): what is closer than SLACK to some pair of pants
 moves out along its normal, and the whole field is smoothed by a gaussian kernel of RADIUS, lining and outer cloth
 together. Only positions and normals change; UV and texture stay. Refuses edge stretch p99 above MAX_STRETCH.
-usage: python3 tools/fit/top_over_bottom.py IN.glb OUT.glb"""
+With --columns (rib hem, like the one on hoodie 037): the per-vertex field pulls the shell away from the inner fold
+of the rib, and the fold then counts as lining hanging below the hem (site/fit.test.ts). Here only the front moves,
+only in z, column by column (2 x 2 cm of x and height): each column advances what the shell needs to sit COL_SLACK in
+front of the frontmost bottom garment from that height up, and shell and fold move together. The push fades out from
+COL_HEM[1] down to COL_HEM[0] and towards the sides (|x| from 16 to 22 cm), and the field is smoothed by the kernel of
+COL_RADIUS. x and y of every vertex stay as they were (hood.py --check).
+usage: python3 tools/fit/top_over_bottom.py [--columns] IN.glb OUT.glb"""
 import sys, numpy as np, trimesh
+from scipy.ndimage import gaussian_filter
 from scipy.spatial import cKDTree
 from scipy.sparse import coo_matrix, diags
-from garment import Garment
+from garment import Garment, kernel
+from metric import body
 from paths import GARMENTS
+from repose_sleeves import weights
 
 SLACK = .005        # from each pair of pants (less leaves the pants poking through the hem)
 RADIUS = .06        # smaller stretches the print past MAX_STRETCH
 ROUNDS = 60
 MAX_STRETCH = .10
 HIP = .75           # of the pants, only from here up
+COL_HEM = (.93, 1.02)
+COL_SLACK = .008
+COL_RADIUS = .08    # 6 cm stretches the print past 12%
+COL_XMAX, COL_CELL = .22, .02
 
-if __name__ == '__main__':
+
+def columns(src, dst):
+    B = body('B').vertices
+    T = B[(np.abs(B[:, 0]) < .15) & (np.abs(B[:, 1] - 1.2) < .1)]; zc = (T[:, 2].min() + T[:, 2].max()) / 2
+    y0, y1 = COL_HEM; yb = y0 - .23
+    NX, NY = int(2 * COL_XMAX / COL_CELL), int((y1 + .05 - yb) / COL_CELL) + 1
+    C = np.vstack([B[np.abs(B[:, 0]) < .19]] + [Garment(GARMENTS + f'{i:03d}.glb').vertices() for i in range(1, 16)])
+    C = C[(C[:, 1] > yb) & (C[:, 1] < y1 + .05) & (np.abs(C[:, 0]) < COL_XMAX) & (C[:, 2] > zc)]
+
+    def cell(p):
+        return (np.clip(((p[:, 0] + COL_XMAX) / COL_CELL).astype(int), 0, NX - 1),
+                np.clip(((p[:, 1] - yb) / COL_CELL).astype(int), 0, NY - 1))
+    g = Garment(src); P0 = g.vertices()
+    _, inv = np.unique(np.round(P0, 5), axis=0, return_inverse=True); inv = inv.ravel()
+    X0 = np.zeros((inv.max() + 1, 3)); X0[inv] = P0
+    # the sleeves stay where they are
+    arm = np.zeros(len(X0)); np.maximum.at(arm, inv, np.maximum(weights(P0, 1, B)[1], weights(P0, -1, B)[1]))
+    w = np.clip((y1 - X0[:, 1]) / (y1 - y0), 0, 1)
+    w = w * w * (3 - 2 * w) * (1 - arm) * np.clip((COL_XMAX - np.abs(X0[:, 0])) / .06, 0, 1)
+    front = np.zeros((NX, NY)); np.maximum.at(front, cell(C), C[:, 2] - zc)
+    target = np.maximum.accumulate(front[:, ::-1], axis=1)[:, ::-1] + COL_SLACK   # frontmost from that height up
+    k = (X0[:, 2] > zc) & (w > 0); xi, yi = cell(X0[k])
+    shell = np.full((NX, NY), -np.inf); np.maximum.at(shell, (xi, yi), X0[k, 2] - zc); has = np.isfinite(shell)
+    d = gaussian_filter(np.where(has, np.maximum(target - shell, 0), 0), 1.5, mode='nearest')
+    d /= np.maximum(gaussian_filter(has.astype(float), 1.5, mode='nearest'), 1e-3)
+    D = np.zeros_like(X0); D[k, 2] = d[xi, yi] * w[k]
+    D = kernel(X0, COL_RADIUS) @ D; X = X0 + D
+    E = trimesh.Trimesh(X0, inv[g.mesh(P0).faces], process=False).edges_unique
+    L = np.linalg.norm(X0[E[:, 0]] - X0[E[:, 1]], axis=1)
+    e = np.abs(np.linalg.norm(X[E[:, 0]] - X[E[:, 1]], axis=1) / np.maximum(L, 1e-9) - 1); ps = np.percentile(e, 99)
+    print(f'{src}: stretch p99 {100 * ps:.1f}%; front moves up to {100 * D[:, 2].max():.1f} cm')
+    if ps > MAX_STRETCH: sys.exit(f'{src}: print distorts too much; nothing written')
+    g.save(dst, P0 + D[inv], before=P0)   # x and y exactly as they were (hood.py --check)
+
+
+if __name__ == '__main__' and sys.argv[1] == '--columns':
+    columns(*sys.argv[2:4])
+elif __name__ == '__main__':
     src, dst = sys.argv[1:3]
     Ss, Ns = [], []
     for i in range(1, 16):
