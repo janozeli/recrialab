@@ -6,7 +6,7 @@ import { execSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { extname, join } from 'node:path';
 import { createRequire } from 'node:module';
-import { SCREENS, auditFilters, auditAbout, auditStageOnDress, auditFittingRoom } from './layout.mjs';
+import { SCREENS, auditFilters, auditAbout, auditStageOnDress, auditFittingRoom, auditExpandedStage } from './layout.mjs';
 
 // The project's Playwright or the global one (`npm i -g playwright`), with no new dependency on the site.
 const require = createRequire(import.meta.url);
@@ -138,6 +138,7 @@ try {
   await page.screenshot({ path: join(out, '1-look.png') });
   for (const p of await auditFittingRoom(page)) check(false, `layout on ${profileName}: ${p}`);
   for (const p of await auditFilters(page)) check(false, `filters on ${profileName}: ${p}`);
+  for (const p of await auditExpandedStage(page)) check(false, `enlarged stage on ${profileName}: ${p}`);
 
   // 3. Swapping the top through the collection updates the address.
   const other = page.locator('#clothes-grid [data-piece][data-slot="top"][aria-pressed="false"]').first();
@@ -168,6 +169,7 @@ try {
     await p.screenshot({ path: join(out, `screen-${screen}.png`) });
     for (const x of await auditFittingRoom(p)) check(false, `layout on ${screen}: ${x}`);
     for (const x of await auditFilters(p)) check(false, `filters on ${screen}: ${x}`);
+    for (const x of await auditExpandedStage(p)) check(false, `enlarged stage on ${screen}: ${x}`);
     await p.locator('#export-look').click();
     await p.waitForSelector('#look-export-dialog[open] img[src]');
     await p.waitForTimeout(500);

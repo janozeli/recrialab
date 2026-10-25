@@ -48,7 +48,8 @@ const all = (arg('looks') ? arg('looks').split(',') : plan(arg('plan', 'all')))
 const [part, parts] = arg('part', '0/1').split('/').map(Number);
 const looks = all.filter((_, i) => i % parts === part);
 
-// The site orbit (dressup.ts): target at 1.0 m, camera at 4.4 m, from 22° above to 22° below the chest.
+// The site orbit angles (dressup.ts), from 22° above to 22° below the chest, at a fixed reference distance: target at
+// 1.0 m, camera at 4.4 m. The site's own framing and zoom may change; the measure stays comparable with its baselines.
 const VIEWS = [
   ...[0, 45, 90, 135, 180, 225, 270, 315].map(az => ({ name: `eye-${az}`, az, polar: 88 })),
   ...[0, 90, 180, 270].map(az => ({ name: `low-${az}`, az, polar: 111.6 })),
@@ -92,8 +93,8 @@ async function photograph({ views, W, H, beauty }) {
   const cam = camera.clone();
   cam.aspect = W / H;
   cam.updateProjectionMatrix();
-  const target = controls.target.clone();
-  const radius = camera.position.distanceTo(target);
+  const target = new THREE.Vector3(0, 1, 0);
+  const radius = Math.hypot(.15, 4.4);
   const gl = renderer.getContext();
   const buf = new Uint8Array(W * H * 4), posBuf = new Uint8Array(W * H * 4), depthBuf = new Uint8Array(W * H * 4), wholeBuf = new Uint8Array(W * H * 4);
   const white = new THREE.MeshBasicMaterial({ color: 0xffffff });
