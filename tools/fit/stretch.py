@@ -3,7 +3,7 @@
 Each shape tool (leg_shape.py, pant_leg_cloth.py, displacement_field.py...) refuses what stretches too much, but each
 measures in its own way and against its own input. Here the published piece is compared with the one in ORIGINAL, per
 region (pant_leg_cloth.regions: the middle between the legs, the cuff and the rest): p99 of the change in edge length
-and in area of the faces that changed. Per region, because in the p99 of the whole piece a small region that
+and in area of the faces that changed; and the printed area turned over (up to pant_leg_cloth.MAX_FLIPPED). Per region, because in the p99 of the whole piece a small region that
 stretches a lot, like the bridge between the legs, does not show.
 Each published vertex finds its own in the original by UV (slivers.py and islands.py remove triangles; separate_legs.py
 cuts the bridge into two copies with the same UV). The inner walls of separate_legs.py (UV of a single point, plain
@@ -12,7 +12,7 @@ Skirt 009 stays out (EXCLUDED): hem.py shortened it as in the photo and cords.py
 usage: python3 tools/fit/stretch.py [IDs]"""
 import os, sys, tempfile, numpy as np
 from garment import Garment
-from pant_leg_cloth import MAX, measures, weld, uvs
+from pant_leg_cloth import MAX, MAX_FLIPPED, measures, weld, uvs
 from paths import GARMENTS
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '../visual-qa'))
 from known_issues import FILE as KNOWN_ISSUES, known_issues  # noqa: E402
@@ -78,6 +78,7 @@ if __name__ == '__main__':
            for pid, (issue, _) in AS_IS.items() if pid not in issues.get(issue, ())]
     for pid in sys.argv[1:] or [f'{i:03d}' for i in range(1, 16) if f'{i:03d}' not in EXCLUDED]:
         m, flipped = measure(pid); ceiling = {**MAX, **AS_IS.get(pid, ('', {}))[1]}
-        print(pid + ' ' + ', '.join(f'{k} {100 * e:.1f}% (area {100 * a:.1f}%)' for k, (e, a) in m.items()))
+        print(pid + ' ' + ', '.join(f'{k} {100 * e:.1f}% (area {100 * a:.1f}%)' for k, (e, a) in m.items()) + f', flipped {100 * flipped:.2f}%')
         bad += [f'{pid} {k} {100 * m[k][i]:.1f}% > {100 * ceiling[k][i]:.1f}%' for k in MAX for i in (0, 1) if m[k][i] > ceiling[k][i] + 1e-4]
+        bad += [f'{pid} flipped {100 * flipped:.2f}% > {100 * MAX_FLIPPED:.1f}%'] * bool(flipped > MAX_FLIPPED)
     if bad: sys.exit('print stretched too much against the original: ' + ', '.join(bad))
