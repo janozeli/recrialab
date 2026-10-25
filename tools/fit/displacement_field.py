@@ -11,10 +11,11 @@ Refuses edge stretch p99 above MAX_STRETCH or a flipped triangle: then the garme
 and the field cannot fix it. Only positions and normals change; UV and texture stay. SLACK is small because pants
 pushed farther out poke through the hem of the tops (layer_check.py).
 usage: python3 tools/fit/displacement_field.py IN.glb OUT.glb [RADIUS_M]   (002 and 007: 0.05; 004: 0.07)"""
-import os, sys, numpy as np, trimesh
+import sys, numpy as np, trimesh
 from scipy.spatial import cKDTree
 from garment import Garment, kernel
 from metric import body, POSE_C
+from paths import piece_id
 
 SLACK = .002        # minimum distance from the body
 ROUNDS = 60
@@ -24,7 +25,7 @@ FAR = .04           # cloth farther than this from the body does not move (at 2 
 
 src, dst = sys.argv[1:3]
 RADIUS = float(sys.argv[3]) if len(sys.argv) > 3 else .05
-pid = os.path.basename(src)[5:8]
+pid = piece_id(src)
 b = body('C' if pid in POSE_C else 'B')
 S, fi = trimesh.sample.sample_surface_even(b, 300000, seed=1); SN = b.face_normals[fi]; ST = cKDTree(S)
 g = Garment(src); P0 = g.vertices(); m = g.mesh(P0)
