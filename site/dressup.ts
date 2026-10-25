@@ -108,6 +108,15 @@ const GARMENT_URLS: Record<string, string> = {
   '038': garment038,
 };
 const PIECES: Piece[] = CATALOG.map(p => ({ ...p, url: GARMENT_URLS[p.id] }));
+/** Opened without `?look=`: the mannequin is never shown naked; the address stays clean until the first change. */
+const DEFAULT_LOOK = ['004', '024'];
+/** Full-body view: the figure (feet at 0 m, head at 1.8 m) fills about 88% of the canvas height, a little room for the
+ * floor under the feet. It was 74% with the camera at 4.4 m aimed at 1.0 m. */
+const HOME_TARGET = new THREE.Vector3(0, .87, 0);
+const HOME_CAMERA = new THREE.Vector3(0, 1.0, 3.88);
+/** Close view of each group of pieces, for the zoom button. */
+const CLOSE_UP: Record<Slot, { y: number; radius: number }> = { top: { y: 1.25, radius: 2.4 }, bottom: { y: .55, radius: 2.7 } };
+const MIN_RADIUS = 1.4;
 const icon = (name: string): string => `<svg class="icon" aria-hidden="true"><use href="#i-${name}" /></svg>`;
 
 export function initDressUp(): void {
@@ -134,13 +143,14 @@ export function initDressUp(): void {
   const lookNames = $('#look-names');
   let exportFile: File | null = null;
   const params = new URLSearchParams(location.search);
-  const initialLook = parseLook(params.get('look'));
+  const linkedLook = parseLook(params.get('look'));
+  const initialLook = linkedLook.length ? linkedLook : DEFAULT_LOOK;
   let exportUrl: string | null = null;
   const wornIds = (): string[] => [...worn.values()].map(entry => entry.piece.id);
-  let syncedLook = encodeLook(initialLook);
+  let syncedLook = encodeLook(linkedLook.length ? linkedLook : initialLook);
   /** Keeps `?look=` in the address bar: the link reopens the same look. */
   function syncLookUrl(): void {
-    if (bodyState !== 'ready' || restoring) return;
+    if (bodyState !== 'ready' || restoring || !lookRestored) return;
     const look = encodeLook(wornIds());
     if (look === syncedLook) return;
     syncedLook = look;
@@ -149,6 +159,8 @@ export function initDressUp(): void {
     history.replaceState(null, '', url);
   }
   let restoring = false;
+  // The address follows the look only after the opening look is on: the default look keeps a bare address.
+  let lookRestored = false;
   /** Wears exactly these pieces and takes the others off. */
   async function applyLook(ids: string[]): Promise<boolean> {
     const pieces = ids.map(id => PIECES.find(piece => piece.id === id)).filter(piece => piece !== undefined);
@@ -194,7 +206,7 @@ export function initDressUp(): void {
   // --- 3D stage --------------------------------------------------------------
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(30, 1, 0.1, 30);
-  camera.position.set(0, 1.15, 4.4);
+  camera.position.copy(HOME_CAMERA);
 
   // on a dense screen antialiasing costs a lot and adds little: the pixel ratio already smooths
   const renderer = new THREE.WebGLRenderer({ antialias: devicePixelRatio < 2, alpha: true });
@@ -208,14 +220,17 @@ export function initDressUp(): void {
   const controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = !reducedMotion.matches;
   controls.enablePan = false;
-  controls.enableZoom = false;
+  // Zoom by pinch and wheel, between the full body and a close look at the print.
+  controls.enableZoom = true;
+  controls.minDistance = MIN_RADIUS;
   // From above, the camera saw into the collars and the inside of the clothes (made from photos taken at chest
   // height). The orbit stays between ~22° above and ~22° below the chest line.
   controls.minPolarAngle = Math.PI * 0.38;
   controls.maxPolarAngle = Math.PI * 0.62;
-  controls.target.set(0, 1.0, 0);
+  controls.target.copy(HOME_TARGET);
   controls.autoRotateSpeed = 1;
   const cameraMotion = createCameraMotion(camera, controls, reducedMotion.matches);
+  controls.maxDistance = cameraMotion.homeRadius;
   const activePointers = new Set<number>();
 
   const key = addGarmentLights(scene, renderer);
@@ -242,6 +257,21 @@ export function initDressUp(): void {
     needsRender = true;
   };
 
+  /** Screen box of the dressed figure in the stage, read by layout.mjs: the toolbar must never cover it. */
+  const figureBox = new THREE.Box3(), corner = new THREE.Vector3();
+  function markFigure(): void {
+    figureBox.setFromObject(mannequin);
+    for (const { object } of worn.values()) figureBox.expandByObject(object);
+    if (figureBox.isEmpty()) return;
+    const canvas = renderer.domElement, w = canvas.clientWidth, h = canvas.clientHeight, top = canvas.offsetTop;
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (let k = 0; k < 8; k++) {
+      corner.set(k & 1 ? figureBox.max.x : figureBox.min.x, k & 2 ? figureBox.max.y : figureBox.min.y, k & 4 ? figureBox.max.z : figureBox.min.z).project(camera);
+      const x = (corner.x + 1) / 2 * w, y = top + (1 - corner.y) / 2 * h;
+      x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y);
+    }
+    stage.dataset.figure = [x0, y0, x1, y1].map(Math.round).join(' ');
+  }
   function resize(): void {
     const w = stage.clientWidth;
     const top = 8;
@@ -252,6 +282,7 @@ export function initDressUp(): void {
     camera.updateProjectionMatrix();
     renderer.setSize(w, h);
     requestRender();
+    if (bodyState === 'ready') markFigure();
   }
   const observer = new ResizeObserver(() => requestAnimationFrame(resize));
   observer.observe(stage);
@@ -268,6 +299,7 @@ export function initDressUp(): void {
     if (!recentred && !cameraMoved && !needsRender) return;
     needsRender = false;
     followCamera();
+    syncZoomButton();
     renderer.render(scene, camera);
   });
 
@@ -294,7 +326,65 @@ export function initDressUp(): void {
     cameraMotion.reset();
     requestRender();
   }
+  // Zoom button: the close view of the open tab's group (Em cima, Embaixo) and back to the full body.
+  const zoomButton = $<HTMLButtonElement>('#zoom-stage');
+  const zoomedIn = (): boolean => camera.position.distanceTo(controls.target) < cameraMotion.homeRadius * .85;
+  let zoomShown = false;
+  function syncZoomButton(): void {
+    const zoomed = zoomedIn();
+    if (zoomed === zoomShown) return;
+    zoomShown = zoomed;
+    // The floor is drawn by the page, not the 3D: it would float under a close view.
+    stage.classList.toggle('zoomed', zoomed);
+    zoomButton.setAttribute('aria-pressed', String(zoomed));
+    zoomButton.setAttribute('aria-label', zoomed ? 'Ver o corpo inteiro' : 'Aproximar da peça');
+    zoomButton.title = zoomButton.getAttribute('aria-label')!;
+    zoomButton.querySelector('use')!.setAttribute('href', zoomed ? '#i-zoom-out' : '#i-zoom');
+  }
+  function toggleZoom(): void {
+    if (zoomedIn()) {
+      cameraMotion.frame(HOME_TARGET, cameraMotion.homeRadius);
+      announce('Corpo inteiro.');
+    } else {
+      const close = CLOSE_UP[activeSlot];
+      cameraMotion.frame(new THREE.Vector3(0, close.y, 0), close.radius);
+      announce(activeSlot === 'top' ? 'Perto da peça de cima.' : 'Perto da peça de baixo.');
+    }
+    requestRender();
+  }
+  function zoomBy(factor: number): void {
+    const radius = THREE.MathUtils.clamp(camera.position.distanceTo(controls.target) * factor, MIN_RADIUS, cameraMotion.homeRadius);
+    cameraMotion.frame(controls.target, radius);
+    requestRender();
+  }
+  // Enlarged stage: the stage takes the whole window inside the page. The phone's back, Esc and the same button leave.
+  const app = stage.closest<HTMLElement>('.app')!;
+  const expandButton = $<HTMLButtonElement>('#expand-stage');
+  function setExpanded(expanded: boolean): void {
+    app.classList.toggle('stage-expanded', expanded);
+    expandButton.setAttribute('aria-pressed', String(expanded));
+    expandButton.setAttribute('aria-label', expanded ? 'Voltar ao tamanho normal' : 'Ampliar o manequim');
+    expandButton.title = expandButton.getAttribute('aria-label')!;
+    expandButton.querySelector('use')!.setAttribute('href', expanded ? '#i-shrink' : '#i-expand');
+  }
+  function toggleExpanded(): void {
+    if (app.classList.contains('stage-expanded')) {
+      if (history.state?.stageExpanded) history.back(); else setExpanded(false);
+    } else {
+      history.pushState({ stageExpanded: true }, '');
+      setExpanded(true);
+    }
+  }
+  window.addEventListener('popstate', () => setExpanded(Boolean(history.state?.stageExpanded)));
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && app.classList.contains('stage-expanded') && !exportDialog.open) toggleExpanded();
+  });
   renderer.domElement.addEventListener('keydown', (event) => {
+    if (['+', '=', '-', '0'].includes(event.key)) {
+      event.preventDefault();
+      if (event.key === '0') return front();
+      return zoomBy(event.key === '-' ? 1.25 : .8);
+    }
     if (!['ArrowLeft', 'ArrowRight', 'Home'].includes(event.key)) return;
     event.preventDefault();
     if (event.key === 'Home') return front();
@@ -572,6 +662,7 @@ export function initDressUp(): void {
 
   function update(): void {
     syncLookUrl();
+    if (bodyState === 'ready') markFigure();
     renderer.domElement.setAttribute('aria-label', stageLabel([...worn.values()].map(entry => entry.piece.name)));
     exportButton.disabled = exporting || !worn.size || pending.size > 0 || bodyState !== 'ready';
     exportButton.setAttribute('aria-busy', String(exporting));
@@ -639,6 +730,8 @@ export function initDressUp(): void {
     const piece = card && PIECES.find((p) => p.id === card.dataset.piece);
     if (piece) return void toggle(piece);
     if (target.closest('[data-reset]')) return front();
+    if (target.closest('#zoom-stage')) return toggleZoom();
+    if (target.closest('#expand-stage')) return toggleExpanded();
   });
   wide.addEventListener('change', update);
   // A document in the background does not need to keep rendering the rotation.
@@ -668,7 +761,15 @@ export function initDressUp(): void {
     stageStatus.textContent = '';
     requestRender();
     update();
-    void restoreInitialLook();
+    void restoreInitialLook().finally(() => { lookRestored = true; }).then(() => {
+      // First visit: the mannequin turns once on its own, showing that it turns, with no words on screen.
+      let visited = true;
+      try {
+        visited = localStorage.getItem('recrialab-visited') === '1';
+        localStorage.setItem('recrialab-visited', '1');
+      } catch { /* storage blocked: no showcase */ }
+      if (!visited) cameraMotion.showcase();
+    });
   }).catch((error) => {
     bodyState = 'error';
     stageStatus.textContent = 'Não foi possível carregar o manequim. Recarregue a página.';
