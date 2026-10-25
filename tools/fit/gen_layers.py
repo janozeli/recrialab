@@ -2,10 +2,15 @@
 Same rule as the body masks, with the bottom garment in place of the body. The ray along the normal catches the whole
 triangle even when only one corner of it is under the hem; so the triangle the cameras see uncovered (no top in front
 nor right behind) and that no camera sees poking through the top comes back. Without this the pants vanish in a
-jagged line right below the blouse hem (`layer_check.py` measures it)."""
+jagged line right below the blouse hem (`layer_check.py` measures it).
+The top behind the bottom only counts as a poke-through when the ray meets its outside, as in layer_check.py. Looking
+up through the hem of a loose jacket the ray meets the inside of its back, and the waistband there is where it
+belongs: counted as poking through, it vanished and the background showed in its place (jacket 033 over shorts 003,
+view from below). The site's own cameras vote too, besides the layer window."""
 import numpy as np
 from trimesh.ray.ray_pyembree import RayMeshIntersector
-from gen_mask import hits, samples, cameras, first
+from itertools import chain
+from gen_mask import hits, samples, cameras, first, site_cameras
 
 
 def to_ranges(idx):
@@ -23,25 +28,34 @@ UNDER = .15   # the same distance as the normal rule: the top up to 15 cm behind
 
 def uncovered(ri, m):
     """Per bottom triangle, how many camera rays see it uncovered (no top in front nor up to UNDER behind) and how
-    many see it poking through the top (the top up to UNDER behind)."""
+    many see it poking through the top (the top up to UNDER behind, showing its outside)."""
     rb = RayMeshIntersector(m); exposed = np.zeros(len(m.faces), int); pokes = exposed.copy()
-    for o, d in cameras(**WINDOW):
-        tg, _ = first(ri, o, d); tb, fb = first(rb, o, d)
+    for o, d in chain(cameras(**WINDOW), site_cameras()):
+        tg, fg = first(ri, o, d); tb, fb = first(rb, o, d)
         with np.errstate(invalid='ignore'):
-            seen = np.isfinite(tb)
-            np.add.at(exposed, fb[seen & ~(tg < tb + UNDER)], 1)
-            np.add.at(pokes, fb[seen & (tb < tg) & (tg - tb < UNDER)], 1)
+            seen = np.isfinite(tb); near = (tg < tb + UNDER) & outside(ri, fg, d)
+            np.add.at(exposed, fb[seen & ~near], 1)
+            np.add.at(pokes, fb[seen & (tb < tg) & near], 1)
     return exposed, pokes
 
 
+def outside(ri, fg, d):
+    """The top's face shows its outside to the ray (normal against it): the bottom went through it. Showing the
+    inside, the camera looks up through the hem into the top, and the bottom there is where it belongs."""
+    n = ri.mesh.face_normals[np.maximum(fg, 0)]
+    return (fg >= 0) & (np.einsum('ij,ij->i', n, d) < 0)
+
+
 def poking(ri, m, hide):
-    """Rays that see each visible triangle in front of the top with the top up to UNDER behind."""
+    """Rays that see each visible triangle in front of the top with the top up to UNDER behind, showing its
+    outside."""
     vis = np.nonzero(~hide)[0]; rv = RayMeshIntersector(m.submesh([vis], append=True))
     out = np.zeros(len(m.faces), int)
-    for o, d in cameras(**WINDOW):
-        tg, _ = first(ri, o, d); tv, fv = first(rv, o, d)
+    for o, d in chain(cameras(**WINDOW), site_cameras()):
+        tg, fg = first(ri, o, d); tv, fv = first(rv, o, d)
         with np.errstate(invalid='ignore'):
-            np.add.at(out, vis[fv[np.isfinite(tv) & (tv < tg) & (tg - tv < UNDER)]], 1)
+            f = np.isfinite(tv) & (tv < tg) & (tg - tv < UNDER) & outside(ri, fg, d)
+            np.add.at(out, vis[fv[f]], 1)
     return out
 
 
