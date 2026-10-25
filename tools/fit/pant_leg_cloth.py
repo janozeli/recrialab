@@ -111,6 +111,7 @@ def measures(Xo, X, F, printed=None, moved=None):
         k = move & (r == name); e = est[k][L0[k] > 1e-5]
         out[name] = (np.percentile(e, 99) if len(e) else 0.0, np.percentile(area[k & full], 99) if (k & full).any() else 0.0)
     flipped = (np.einsum('ij,ij->i', n0, n1) < 0) & (True if moved is None else moved[F].any(1))   # flipped in this step
+    if printed is not None: flipped &= printed   # a wall without print folding is no design turned over
     return out, a0[flipped].sum() / a0.sum()
 
 
