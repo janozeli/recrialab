@@ -4,7 +4,7 @@ import { test, expect } from 'bun:test';
 import { spawnSync } from 'node:child_process';
 
 const ROOT = new URL('../', import.meta.url).pathname;
-const PACKAGE: Record<string, string> = { pillow: 'PIL' };   // pip name → import name
+const PACKAGE: Record<string, string> = { pillow: 'PIL', 'warp-lang': 'warp' };   // pip name → import name
 
 const PY = `
 import ast, sys, glob, os, json
