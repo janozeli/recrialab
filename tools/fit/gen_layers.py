@@ -6,7 +6,9 @@ jagged line right below the blouse hem (`layer_check.py` measures it).
 The top behind the bottom only counts as a poke-through when the ray meets its outside, as in layer_check.py. Looking
 up through the hem of a loose jacket the ray meets the inside of its back, and the waistband there is where it
 belongs: counted as poking through, it vanished and the background showed in its place (jacket 033 over shorts 003,
-view from below). The site's own cameras vote too, besides the layer window."""
+view from below). A top closer than CLOSE behind still covers from either side: the inner fold of a rib hem lies
+right against the waistband, and showing it there left thin threads of the bottom (skirt 007 under hoodie 037). The
+site's own cameras vote too, besides the layer window."""
 import numpy as np
 from trimesh.ray.ray_pyembree import RayMeshIntersector
 from itertools import chain
@@ -23,6 +25,7 @@ def to_ranges(idx):
 
 # layer window: from the lowest hem (036, 0.57 m) to the chest, also looking up at the hem from below
 WINDOW = dict(step=.006, center=1.05, half=.62, elevs=(-.3, 0, .25))
+CLOSE = .03   # the top this close behind covers the bottom from either side (the fold of a rib hem)
 UNDER = .15   # the same distance as the normal rule: the top up to 15 cm behind is a poke-through, not uncovered
 
 
@@ -33,7 +36,7 @@ def uncovered(ri, m):
     for o, d in chain(cameras(**WINDOW), site_cameras()):
         tg, fg = first(ri, o, d); tb, fb = first(rb, o, d)
         with np.errstate(invalid='ignore'):
-            seen = np.isfinite(tb); near = (tg < tb + UNDER) & outside(ri, fg, d)
+            seen = np.isfinite(tb); near = (tg < tb + UNDER) & (outside(ri, fg, d) | (tg < tb + CLOSE))
             np.add.at(exposed, fb[seen & ~near], 1)
             np.add.at(pokes, fb[seen & (tb < tg) & near], 1)
     return exposed, pokes
@@ -54,7 +57,7 @@ def poking(ri, m, hide):
     for o, d in chain(cameras(**WINDOW), site_cameras()):
         tg, fg = first(ri, o, d); tv, fv = first(rv, o, d)
         with np.errstate(invalid='ignore'):
-            f = np.isfinite(tv) & (tv < tg) & (tg - tv < UNDER) & outside(ri, fg, d)
+            f = np.isfinite(tv) & (tv < tg) & (tg - tv < UNDER) & (outside(ri, fg, d) | (tg - tv < CLOSE))
             np.add.at(out, vis[fv[f]], 1)
     return out
 
