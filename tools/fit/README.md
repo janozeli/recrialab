@@ -50,7 +50,7 @@ Na ordem em que costumam rodar:
 | `top_cloth.py` | deixa a peça cair com o próprio peso, como tecido, até a gola encostar na nuca |
 | `resize.py` | diminui por igual as jaquetas grandes demais para o corpo |
 | `repose_sleeves.py` | gira ombro, braço e antebraço da peça para a manga acompanhar o braço do manequim |
-| `cloth.py` | faz o mesmo e depois deixa o antebraço da manga assentar como tecido em volta do braço e da mão, com o corpo como colisor (simulador Newton): para o punho elástico que, centrado na mão, atravessaria o pulso (034) |
+| `cloth.py` | leva a manga à pose de `repose_sleeves.py` como tecido (simulador Newton, o corpo como colisor): a cava se move com colisão do tecido consigo, para a dobra da axila não atravessar as costas, e o antebraço assenta em volta do pulso e da mão; a barra abaixo do punho fica no lugar (034) |
 | `hood.py` | deita nas costas o capuz e a gola que ficavam em pé atrás da nuca (`--check` confere o limite de encolhimento) |
 | `lining.py` | apaga o forro pendurado abaixo da barra da frente |
 | `top_over_bottom.py` | puxa para fora a barra das jaquetas que entrava na cintura das peças de baixo; com `--columns`, a barra canelada (037) anda só na frente e só em z, coluna a coluna, para ficar 8 mm à frente da peça de baixo mais da frente, com a dobra de dentro junto |
@@ -103,6 +103,7 @@ os pares cujo hash mudou.
 | `penetration.py` | roupa mais folgada ou mais enfiada no corpo que o valor registrado em `penetration.json`, que só pode baixar |
 | `stretch.py` | estampa esticada em relação ao modelo original, região por região |
 | `hood.py --check` | capuz ou gola achatados além do limite em relação ao modelo original |
+| `back_inside.py` | avesso da peça de cima à vista pelas costas (dobra da axila atravessando as costas), além do valor registrado |
 
 `metric.py` e `anchors.py` só medem folga e apoio, para diagnóstico, sem reprovar nada. `arm.py` mexe
 no manequim, não nas peças: deixa antebraço e mão das poses B e C no comprimento de uma pessoa.

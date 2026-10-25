@@ -74,6 +74,8 @@ jobs:
         run: python3 tools/fit/stretch.py
       - name: Hoods and collars lie on the back, within the shrink limits against the original GLB
         run: python3 tools/fit/hood.py --check
+      - name: The inside of the tops does not show from behind more than recorded
+        run: python3 tools/fit/back_inside.py
 
   secrets:
     runs-on: ubuntu-latest
