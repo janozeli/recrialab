@@ -166,12 +166,14 @@ def legs_without_holes(body, garment, hide, below=.9):
 
 
 def first(ri, o, d, front_only=False, cut=None):
-    """First intersection of each ray. front_only ignores back faces (the site does not draw them) and cut(points)
-    says which points the shader discards (the body under the waistband, waist.py)."""
+    """First intersection of each ray. front_only ignores back faces (the site does not draw them); a boolean array
+    per triangle ignores them only where it is True (Garment.single_sided). cut(points) says which points the shader
+    discards (the body under the waistband, waist.py)."""
     t = np.full(len(o), np.inf); tri = np.full(len(o), -1)
     loc, ir, it = ri.intersects_location(o, d, multiple_hits=True)
-    if front_only and len(ir):
+    if np.any(front_only) and len(ir):
         f = np.einsum('ij,ij->i', ri.mesh.face_normals[it], d[ir]) < 0
+        if not np.isscalar(front_only): f |= ~np.asarray(front_only)[it]
         loc, ir, it = loc[f], ir[f], it[f]
     if cut is not None and len(ir):
         f = ~cut(loc); loc, ir, it = loc[f], ir[f], it[f]
