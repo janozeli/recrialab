@@ -39,7 +39,8 @@ jobs:
   phones:
     needs: changes
     if: needs.changes.outputs.phones == 'true'
-    runs-on: ubuntu-latest
+    # Playwright 1.56.1 has no browser builds for Ubuntu 26.04 (ubuntu-latest).
+    runs-on: ubuntu-24.04
     timeout-minutes: 25
     strategy:
       fail-fast: false
@@ -78,7 +79,8 @@ jobs:
     # see-through cloth, loose bits, dark patches the photo does not have, sunken waistband.
     needs: changes
     if: needs.changes.outputs.visual_qa != ''
-    runs-on: ubuntu-latest
+    # Playwright 1.56.1 has no browser builds for Ubuntu 26.04 (ubuntu-latest).
+    runs-on: ubuntu-24.04
     timeout-minutes: 45
     env:
       VISUAL_QA: ${{ needs.changes.outputs.visual_qa }}
