@@ -63,10 +63,23 @@ button:active:not(:disabled), .action:active { scale: .97; }
 .tool[aria-pressed="true"] { color: var(--paper); background: var(--ink); }
 .tool:disabled { color: var(--muted); }
 .tool-separator { width: 24px; height: 2px; margin: 4px 0; border-radius: 1px; background: #1f2a5e4d; }
-/* Enlarged stage: the stage takes the whole window, inside the page (not the browser's fullscreen). */
-.app.stage-expanded .site-header, .app.stage-expanded .wardrobe { display: none; }
-.app.stage-expanded .workspace { display: flex; padding: 0; gap: 0; }
+/* Enlarged stage, inside the page (not the browser's fullscreen): header and filters leave and the wardrobe shrinks to a
+   strip of pictures, under the stage in portrait and on its left in landscape, so the mannequin grows and the pieces
+   still swap. layout.mjs checks both. */
+.app.stage-expanded .site-header, .app.stage-expanded .filters, .app.stage-expanded .name { display: none; }
+.app.stage-expanded .workspace { display: flex; flex-direction: column; padding: 0; gap: 0; }
 .app.stage-expanded .stage { margin: 0; border: 0; border-radius: 0; }
+.app.stage-expanded .wardrobe { min-height: 0; gap: 6px; padding: 6px 0 calc(4px + env(safe-area-inset-bottom)); border: 0; border-top: 2px solid var(--ink); border-radius: 0; }
+.app.stage-expanded .chips button[data-slot] { font-size: 16px; }
+.app.stage-expanded .clothes-grid { flex: none; grid-auto-flow: column; grid-template-columns: none; grid-auto-columns: 72px; gap: 10px; padding: 2px var(--gutter) 4px; overflow-x: auto; overflow-y: hidden; scroll-snap-type: x proximity; }
+@media (orientation: landscape) {
+  .app.stage-expanded .workspace { flex-direction: row; }
+  .app.stage-expanded .wardrobe { order: -1; width: 112px; padding: 8px 0 calc(8px + env(safe-area-inset-bottom)); border-top: 0; border-right: 2px solid var(--ink); }
+  .app.stage-expanded .wardrobe-controls { padding: 0 8px; }
+  .app.stage-expanded .chips { flex-direction: column; align-items: stretch; gap: 6px; }
+  .app.stage-expanded .chips button[data-slot] { flex: none; padding: 0 4px; font-size: 15px; }
+  .app.stage-expanded .clothes-grid { flex: 1; min-height: 0; grid-auto-flow: row; grid-auto-columns: auto; grid-template-columns: 80px; justify-content: center; align-content: start; gap: 10px; padding: 4px 8px; overflow-x: hidden; overflow-y: auto; scroll-snap-type: none; }
+}
 .toast { position: absolute; left: 50%; top: 10px; z-index: 4; width: max-content; max-width: calc(100% - 24px); padding: 6px 12px; translate: -50% -8px; border-radius: 999px; color: #fff; background: #1f2a5ee6; font-size: 14px; line-height: 1.4; text-align: center; opacity: 0; pointer-events: none; transition: opacity .18s, translate .18s; }
 .toast.show { opacity: 1; translate: -50% 0; }
 

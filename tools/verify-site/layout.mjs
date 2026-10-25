@@ -116,18 +116,43 @@ function toolbarOverFigure() {
   return overlap ? [`the stage toolbar covers the mannequin (toolbar from x ${Math.round(t.left)}, figure up to x ${Math.round(x1)})`] : [];
 }
 
-/** Enlarged stage: takes the whole window, keeps the toolbar clear of the figure, and Esc brings the page back. */
+/** Enlarged stage: a taller stage (a larger mannequin) with the pieces still in view and swappable, the toolbar clear of
+ *  the figure, and Esc brings the page back. */
+function expandedWardrobe() {
+  const vw = innerWidth, vh = innerHeight;
+  const onScreen = el => { const r = el.getBoundingClientRect(); return r.width > 0 && r.left >= -1 && r.right <= vw + 1 && r.top >= -1 && r.bottom <= vh + 1; };
+  return {
+    cards: [...document.querySelectorAll('#clothes-grid [data-piece]')].filter(onScreen).length,
+    chips: [...document.querySelectorAll('#chips [data-slot]')].filter(onScreen).length,
+    scroll: document.documentElement.scrollHeight > vh + 1,
+  };
+}
+
 export async function auditExpandedStage(page) {
   const out = [];
+  const stageHeight = () => page.evaluate(() => document.querySelector('#stage').getBoundingClientRect().height);
+  const normal = await stageHeight();
   await page.locator('#expand-stage').click();
   await page.waitForTimeout(400);
-  const cover = await page.evaluate(() => { const r = document.querySelector('#stage').getBoundingClientRect(); return r.width * r.height / (innerWidth * innerHeight); });
-  if (cover < .9) out.push(`enlarged stage covers ${Math.round(cover * 100)}% of the window (minimum 90%)`);
+  const expanded = await stageHeight();
+  if (expanded < normal * 1.1) out.push(`enlarged stage ${Math.round(expanded)} px tall, normal ${Math.round(normal)} px (minimum +10%)`);
+  const strip = await page.evaluate(expandedWardrobe);
+  if (strip.cards < 3) out.push(`only ${strip.cards} whole garments in view on the enlarged stage (minimum 3)`);
+  if (strip.chips < 2) out.push('the top and bottom tabs are not both in view on the enlarged stage');
+  if (strip.scroll) out.push('the enlarged stage scrolls the page');
   out.push(...await page.evaluate(commonProblems), ...await page.evaluate(toolbarOverFigure));
+  // Swapping a piece without leaving: the first visible garment not worn becomes worn.
+  const card = page.locator('#clothes-grid [data-piece][aria-pressed="false"]:visible').first();
+  const id = await card.getAttribute('data-piece');
+  await card.click();
+  try {
+    await page.locator(`#clothes-grid [data-piece="${id}"][aria-pressed="true"]`).waitFor({ timeout: 20_000 });
+  } catch { out.push(`tapping piece ${id} on the enlarged stage does not dress it`); }
+  if (!(await page.evaluate(() => document.querySelector('.app').classList.contains('stage-expanded')))) out.push('swapping a piece leaves the enlarged stage');
   await page.keyboard.press('Escape');
   await page.waitForTimeout(400);
   if (await page.evaluate(() => document.querySelector('.app').classList.contains('stage-expanded'))) out.push('Esc does not leave the enlarged stage');
-  if (!(await page.locator('#clothes-grid').isVisible())) out.push('the wardrobe does not come back after the enlarged stage');
+  if (!(await page.locator('#filters').isVisible())) out.push('the wardrobe does not come back after the enlarged stage');
   return out;
 }
 
