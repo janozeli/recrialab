@@ -15,6 +15,7 @@ import sys, re, os, numpy as np, trimesh
 from scipy.spatial import cKDTree
 from garment import Garment
 from metric import body, POSE_C
+from paths import piece_id
 
 BOTTOM = '--bottom' in sys.argv
 src, dst = [a for a in sys.argv[1:] if a != '--bottom']
@@ -29,7 +30,7 @@ MAX_STRETCH = .10    # edge p99
 MAX_AREA = .25       # p99 of the face area change (no slivers)
 MAX_FOLD = .003      # inside-out faces: up to 0.3% of the garment area
 
-b = body('C' if BOTTOM and os.path.basename(src)[5:8] in POSE_C else 'B')
+b = body('C' if BOTTOM and piece_id(src) in POSE_C else 'B')
 S, fi = trimesh.sample.sample_surface_even(b, 300000, seed=1); SN = b.face_normals[fi]; ST = cKDTree(S)
 g = Garment(src); P0 = g.vertices(); m = g.mesh(P0)
 # weld the vertices duplicated along UV seams: the cloth is one piece

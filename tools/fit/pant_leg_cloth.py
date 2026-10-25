@@ -18,11 +18,12 @@ usage: python3 tools/fit/separate_legs.py ORIGINAL.glb INPUT.glb ORIGINAL_SEP.gl
        python3 tools/fit/leg_shape.py SEPARATED.glb NNN.glb NNN --again (INPUT is the published GLB, already run through leg_shape.py)
        python3 tools/fit/pant_leg_cloth.py ORIGINAL_SEP.glb NNN.glb OUTPUT.glb   (ORIGINAL: tools/fit/reference/originals/tripo/NNN.glb;
        then install.py --bottom NNN, only the new mask (joining it with the old one opens holes), and install.py --bottom-line NNN)"""
-import os, sys, struct, numpy as np, trimesh
+import sys, struct, numpy as np, trimesh
 from scipy.spatial import cKDTree
 from garment import Garment
 from glb_patch import accessor_view
 from metric import body, POSE_C
+from paths import piece_id
 from separate_legs import leg_side
 
 SLACK = .004         # minimum distance from the body
@@ -132,7 +133,7 @@ def center_cuffs(X0, side, b, strength=1.):
 
 
 def dress(orig, src, dst):
-    pid = os.path.basename(src)[5:8]
+    pid = piece_id(src)
     b = body('C' if pid in POSE_C else 'B')
     S, fi = trimesh.sample.sample_surface_even(b, 400000, seed=1); SN = b.face_normals[fi]
     out = (np.abs(S[:, 0]) > ARM_X) & (S[:, 1] > .6); S, SN = S[~out], SN[~out]
