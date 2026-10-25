@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="only light" />
+    <meta name="description" content="Provador do ReCriaLab: monte looks em 3D com roupas reais de brechós de Jundiaí." />
+    <meta name="theme-color" content="#ffea00" />
+    <title>ReCriaLab — seu provador</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,600;0,700;1,700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="./base.css" />
+  </head>
+  <body>
+    <svg class="icon-library" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6" /></symbol>
+      <symbol id="i-reset" viewBox="0 0 24 24"><path d="M4 10a8 8 0 1 1 1 7M4 4v6h6" /></symbol>
+      <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18" /></symbol>
+      <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5" /></symbol>
+      <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 16V4m-5 5 5-5 5 5M4 16v5h16v-5" /></symbol>
+    </svg>
+    <div class="app">
+      <header class="site-header">
+        <a class="logo-link" href="/" aria-label="ReCriaLab, provador"><img class="logo" src="./recrialab.webp" alt="ReCriaLab" width="760" height="265" /></a>
+        <nav class="nav" aria-label="Navegação principal">
+          <a class="nav-link" href="/sobre">Sobre</a>
+        </nav>
+      </header>
+      <main class="workspace" id="workspace">
+        <h1 class="sr-only">Monte seu look</h1>
+        <div class="stage" id="stage" role="group" aria-label="Manequim">
+          <div class="floor" aria-hidden="true"></div>
+          <div class="stage-status" id="stage-status" role="status" aria-live="polite"></div>
+          <button class="icon-button stage-reset" data-reset aria-label="Virar o manequim de frente" title="Virar de frente"><svg class="icon" aria-hidden="true"><use href="#i-reset" /></svg></button>
+          <div class="toast" id="toast" role="status" aria-live="polite"></div>
+        </div>
+        <section class="wardrobe" id="wardrobe" aria-label="Roupas">
+          <div class="wardrobe-controls">
+            <div class="chips categories" id="chips" role="group" aria-label="Tipo de peça">
+              <button data-slot="top" class="active" aria-pressed="true">Em cima <span class="count" data-count="top"></span></button>
+              <button data-slot="bottom" aria-pressed="false">Embaixo <span class="count" data-count="bottom"></span></button>
+            </div>
+            <div class="filters" id="filters" role="group" aria-label="Filtrar por tipo"></div>
+          </div>
+          <p class="sr-only" id="results-count" role="status"></p>
+          <p class="sr-only" id="announcement" role="status" aria-live="polite"></p>
+          <div class="clothes-grid" id="clothes-grid" role="region" aria-label="Peças para experimentar" tabindex="0"></div>
+          <div class="look-actions">
+            <button class="look-action" id="export-look" title="Nada vestido ainda" disabled><svg class="icon" aria-hidden="true"><use href="#i-download" /></svg>Salvar</button>
+            <button class="look-action" id="import-look" title="Abrir um look salvo"><svg class="icon" aria-hidden="true"><use href="#i-upload" /></svg>Abrir</button>
+            <input id="import-file" type="file" accept="image/png" hidden />
+          </div>
+        </section>
+      </main>
+      <dialog class="look-export-dialog" id="look-export-dialog" aria-labelledby="look-names">
+        <button class="export-close icon-button" id="export-close" aria-label="Fechar"><svg class="icon" aria-hidden="true"><use href="#i-close" /></svg></button>
+        <img id="look-preview" alt="Prévia da imagem do seu look" />
+        <div class="export-side">
+          <h2 class="export-names" id="look-names"></h2>
+          <p class="export-code" id="look-code"></p>
+          <button class="export-share action action-primary" id="share-look" type="button" hidden>Compartilhar</button>
+          <a class="export-save action" id="save-look" download>Salvar imagem</a>
+        </div>
+      </dialog>
+    </div>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

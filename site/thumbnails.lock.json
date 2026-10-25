@@ -1,0 +1,157 @@
+{
+ "renderer": "dbd61bd82b3eb529b93d4d354361aac26db279e93480ef65fd1f89ef6ddf9025",
+ "pieces": {
+  "001": {
+   "glb": "22251cbbad66dd06ad1f46ca952d3d7b48dadf4af3ff0e39c9dc6fcc46fb5a18",
+   "tone": 1.381
+  },
+  "002": {
+   "glb": "484cdf5d054d56054135d6aee720d0b4c46bd840514988c7a56b899c65a67a24",
+   "tone": 1.373
+  },
+  "003": {
+   "glb": "68b4f060c1a653c40862757c3a435cc7498a874a291a632db74a1df8df44d911",
+   "tone": 0.834
+  },
+  "004": {
+   "glb": "bd7601fb9d295e382500ae1d9130e34bd7dbe720f98ed72cb34c2b39fa14f5ca",
+   "tone": 1.417
+  },
+  "005": {
+   "glb": "042b6bbad00b218684e25f3116de32e98df24b08ea2f4487fb1ffccbc13f3d78",
+   "tone": 1.669
+  },
+  "006": {
+   "glb": "022cea4946795efea838b4f34f1bac9ca9deb8d8ba90ce411f08d02a4e56e1c3",
+   "tone": 0.962
+  },
+  "007": {
+   "glb": "1a45144231eb61945179c9f9e05d7359cee33b8424d06db8150a1d971ff0cd83",
+   "tone": 1.131
+  },
+  "008": {
+   "glb": "e5c569b5a16071c41a5a70a9bd4a56ba7f4d11dfdd814a167a6c3ebc958447ee",
+   "tone": 0.977
+  },
+  "009": {
+   "glb": "de7e0dd590a70d5c68320e98c88203590b7b18c8f504c2937cb46891466aea7a",
+   "tone": 0.475
+  },
+  "010": {
+   "glb": "31688a8cad6d105e6712c69a2dbd6d91699b0330faf363e36946f15188daa96b",
+   "tone": 0.759
+  },
+  "011": {
+   "glb": "c56469c46156569b4a74bb31bc8f78a8fe2d65d0d481d2a5f25f478c343678fd",
+   "tone": 1.131
+  },
+  "012": {
+   "glb": "037085c03d33d12f0229e92109c502bf50fcd5309e8131525cfa4b5dc61d012b",
+   "tone": 1.256
+  },
+  "013": {
+   "glb": "60dc6173b85b7bf9face5f0598e911f570fc4d8929f842e7d1c12a28761e960c",
+   "tone": 0.903
+  },
+  "014": {
+   "glb": "93dbfc5ba734c74b374c8da91d9d6a2e9953d7f07571a6cf11ee470c4817cd7b",
+   "tone": 1.227
+  },
+  "015": {
+   "glb": "88e4f3fe0cbf3709a6bc71feebe934a6c81119c338f7f87f8fac02b39d84d9e4",
+   "tone": 0.486
+  },
+  "016": {
+   "glb": "12c9b174a75c40ed4f1629d8feaed6a4eca7808b1123b92ca0b26faacfb04267",
+   "tone": 0.811
+  },
+  "017": {
+   "glb": "67917c15988d0c03d4163525a183ba2c6e33eca3a67d7aa5dd40bfae9023a32e",
+   "tone": 0.751
+  },
+  "018": {
+   "glb": "df089c821c4b1abc26cbd4c374525bedfd1a57bbc9da64b2ac5d05944692f094",
+   "tone": 1.115
+  },
+  "019": {
+   "glb": "1a80e4bd7512dc2201ff8dc96fd4fbdeb87f2f43a8db9694f712a56af7ca8d7f",
+   "tone": 1.671
+  },
+  "020": {
+   "glb": "d7d9a60c14ebb5e483ede12b401d5f4dd8f61157c70dc4a40114cdc3e68941ea",
+   "tone": 1.795
+  },
+  "021": {
+   "glb": "6ca6e3a6a03cc7636abbacd4b78fe12cd47c35d7f427428d2325fa8a66151cdb",
+   "tone": 1.434
+  },
+  "022": {
+   "glb": "1229ecf318aee62b0eb2187a36cc86af8258af82850d58a4b55445d4f3b23f8c",
+   "tone": 1.186
+  },
+  "023": {
+   "glb": "e1c4cf840bd3550bbd2e08599c4fa976e991d84af495603ade5faef447561fe7",
+   "tone": 0.887
+  },
+  "024": {
+   "glb": "c9c0291c5f8199ecfa2f113afc32e59f26e40470e58a8a1f3a3563eec91e3ae1",
+   "tone": 1.095
+  },
+  "025": {
+   "glb": "dc6d77e41e62823e38ce5eee1709826609db72e2abcf7bfec25d8d147d961a5e",
+   "tone": 0.726
+  },
+  "026": {
+   "glb": "700f64e7b474252a55ccde86ad311d4fcae1229eb227eec162ef8bc3813bff43",
+   "tone": 0.837
+  },
+  "027": {
+   "glb": "988a459242b7754414a17850bfd532e9074844a6dde8eb87de13561475eb1057",
+   "tone": 0.764
+  },
+  "028": {
+   "glb": "ab8e1de2143e9a8f5155b7c239fbf1cbde1fece1276fa49cbe12c708aab3dd26",
+   "tone": 0.837
+  },
+  "029": {
+   "glb": "411f4a5201eb63dc26bff9ef95daf126cd79cd9a535eeaeb51a8fa391092e317",
+   "tone": 0.89
+  },
+  "030": {
+   "glb": "c23d3456e962d240e33bab0bcc690e4287519346a341e500eb9c968a5ff2f066",
+   "tone": 0.654
+  },
+  "031": {
+   "glb": "e1d3b0817f8718b9a0283a1aca4a89dda170ea8607cea215500d2462dd084af3",
+   "tone": 1.526
+  },
+  "032": {
+   "glb": "ae38e294b719fcf3a54123765e4d86ee7b17bf269916757a3c4d2b717f470b76",
+   "tone": 1.836
+  },
+  "033": {
+   "glb": "6cf895d44b17dca4123ac3a7ce993026e5d82e91df2bcb631600270d62636939",
+   "tone": 0.816
+  },
+  "034": {
+   "glb": "0bde27e796491f2361f69094b32164e767944a1d41578c90be00ce3d30bfe620",
+   "tone": 0.95
+  },
+  "035": {
+   "glb": "a94c1d11845cb5e49d2d70217bef511aea7332cadb50b9772a942c4e72e51a89",
+   "tone": 0.95
+  },
+  "036": {
+   "glb": "b86de1553a02f2208179501aa849573c338c66b9e8ef301caaea8ea63826a2b4",
+   "tone": 0.898
+  },
+  "037": {
+   "glb": "a00853d348cf4703db0bcdc47af5ced830d1a1c06f24aa27616917b92b464528",
+   "tone": 2.18
+  },
+  "038": {
+   "glb": "0114baca80337a4c63a82ccd33e0f5f479e0623d38b766a8ec9e82e37de81d1f",
+   "tone": 1.208
+  }
+ }
+}

@@ -1,0 +1,21 @@
+{
+  "schema": "recria-body-poses-v1",
+  "defaultPose": "B",
+  "poseCBottomIds": [
+    "006",
+    "011",
+    "012",
+    "013",
+    "014"
+  ],
+  "poses": {
+    "B": {
+      "asset": "pose-b.glb",
+      "hash": "4fa3694c53f4657383b1c4f522772014dfa80ab81bd19ab5b8a7f1a637c18da9"
+    },
+    "C": {
+      "asset": "pose-c.glb",
+      "hash": "6a7c966f5a612f5ccffc78d6888c8e6d76c269043f3f3487e1d2e245c1afdcfc"
+    }
+  }
+}

@@ -1,0 +1,157 @@
+:root {
+  color-scheme: only light;
+  --ink: #1f2a5e;
+  --muted: #59617b;
+  --paper: #ffea00;
+  --pink: #ff2d95;
+  --pink-soft: #ffe1ee;
+  --panel: #fff59c;
+  --card: #fffdf0;
+  --display: 'Barlow Condensed', 'Arial Narrow', Impact, sans-serif;
+  --gutter: 16px;
+  --header: 56px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  color: var(--ink);
+  background: var(--paper);
+  font-synthesis: none;
+}
+*, *::before, *::after { box-sizing: border-box; }
+* { margin: 0; }
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+body { min-width: 280px; overscroll-behavior: none; }
+button, input { font: inherit; color: inherit; }
+button { border: 0; cursor: pointer; background: none; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+a { -webkit-tap-highlight-color: transparent; }
+button:disabled { cursor: default; }
+button:not(:disabled), .action { transition: background .16s, color .16s, box-shadow .16s, scale .16s, opacity .16s; }
+button:active:not(:disabled), .action:active { scale: .97; }
+:focus-visible { outline: 3px solid var(--ink); outline-offset: 3px; }
+[hidden] { display: none !important; }
+.icon-library { position: absolute; width: 0; height: 0; overflow: hidden; }
+.icon { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+/* One screen, no page scroll: stage on top and the piece tray below (portrait phone), or stage on the left and the
+   wardrobe on the right (desktop and landscape phone). The stage never disappears. */
+.app { height: 100svh; height: 100dvh; min-height: 320px; display: flex; flex-direction: column; overflow: hidden; padding: env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-area-inset-left); }
+.site-header { flex: none; height: var(--header); display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 0 var(--gutter); }
+.logo-link { display: flex; align-items: center; min-height: 44px; }
+.logo { display: block; width: 104px; height: auto; }
+.nav { display: flex; gap: 8px; }
+/* A discreet About link: small text, no background, border or shadow. */
+.nav-link { display: inline-flex; align-items: center; min-height: 44px; padding: 0 8px; color: var(--ink); font-size: 14px; text-decoration: underline; text-underline-offset: 3px; }
+
+.workspace { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.stage { position: relative; flex: 1; min-height: 0; margin: 0 10px; isolation: isolate; overflow: hidden; border: 2px solid var(--ink); border-bottom: 0; border-radius: 6px 6px 0 0; background: var(--pink); }
+/* Print on the edges: the centre stays clear for the garment. */
+.stage::before { content: ''; position: absolute; inset: 0; background: repeating-conic-gradient(from -8deg at 50% 46%, #1f2a5e 0deg 14deg, transparent 14deg 35deg); opacity: .13; mask-image: radial-gradient(ellipse at 50% 46%, transparent 20%, #000 90%); pointer-events: none; z-index: -1; }
+.stage::after { content: ''; position: absolute; inset: 0; background-image: radial-gradient(var(--ink) .8px, transparent .9px); background-size: 6px 6px; mask-image: linear-gradient(135deg, #000, transparent 32%, transparent 76%, #000); opacity: .25; pointer-events: none; z-index: -1; }
+.stage canvas { position: absolute; left: 0; top: 8px; z-index: 1; touch-action: none; cursor: grab; }
+.stage canvas:active { cursor: grabbing; }
+.floor { position: absolute; width: min(46%, 220px); height: 9%; left: 50%; bottom: 4%; transform: translateX(-50%) rotate(-3deg); border-radius: 50%; background: var(--paper); border: 2px solid var(--ink); box-shadow: 3px 3px 0 var(--ink); z-index: 0; pointer-events: none; }
+.stage-status { position: absolute; left: 50%; top: 50%; z-index: 3; width: max-content; max-width: calc(100% - 32px); padding: 12px 16px; translate: -50% -50%; border-radius: 10px; color: #fff; background: var(--ink); font-size: 15px; line-height: 1.4; text-align: center; pointer-events: none; }
+.stage-status:empty { display: none; }
+.stage-reset { position: absolute; right: 12px; bottom: 12px; z-index: 2; }
+.toast { position: absolute; left: 50%; top: 10px; z-index: 4; width: max-content; max-width: calc(100% - 24px); padding: 6px 12px; translate: -50% -8px; border-radius: 999px; color: #fff; background: #1f2a5ee6; font-size: 14px; line-height: 1.4; text-align: center; opacity: 0; pointer-events: none; transition: opacity .18s, translate .18s; }
+.toast.show { opacity: 1; translate: -50% 0; }
+
+.icon-button { width: 44px; height: 44px; flex: none; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; color: var(--ink); background: var(--panel); border: 2px solid var(--ink); box-shadow: 3px 3px 0 var(--ink); }
+
+/* Tray: tabs, the row of pieces that scrolls sideways and the look actions. */
+.wardrobe { flex: none; display: flex; flex-direction: column; gap: 4px; padding: 10px 0 calc(4px + env(safe-area-inset-bottom)); background: var(--panel); border-top: 2px solid var(--ink); }
+.wardrobe-controls { padding: 0 var(--gutter); }
+.chips { display: flex; gap: 8px; align-items: center; }
+.chips button[data-slot] { flex: 1; min-width: 0; min-height: 44px; padding: 0 12px; white-space: nowrap; border: 2px solid var(--ink); border-radius: 999px; color: var(--ink); background: var(--card); font-family: var(--display); font-size: 18px; line-height: 1; font-weight: 700; letter-spacing: .02em; text-transform: uppercase; }
+.chips button.active { background: var(--ink); color: var(--paper); box-shadow: 3px 3px 0 var(--pink); }
+.count { font-weight: 600; opacity: .75; }
+
+/* Discreet filters: text with a thin outline only; the touch area (44 px) is larger than the drawing. */
+.filters { display: flex; gap: 2px; margin: 4px calc(-1 * var(--gutter)) 0; padding: 0 calc(var(--gutter) - 8px); overflow-x: auto; scrollbar-width: none; }
+.filter { position: relative; isolation: isolate; flex: none; min-height: 44px; padding: 0 16px; color: var(--ink); font-size: 15px; font-weight: 600; white-space: nowrap; }
+.filter::before { content: ''; position: absolute; inset: 7px 4px; z-index: -1; border: 1.5px solid #1f2a5e66; border-radius: 999px; }
+.filter[aria-pressed="true"] { color: var(--paper); }
+.filter[aria-pressed="true"]::before { background: var(--ink); border-color: var(--ink); }
+.clothes-grid { display: grid; grid-auto-flow: column; grid-auto-columns: clamp(92px, 26vw, 124px); gap: 12px; padding: 4px var(--gutter) 6px; overflow-x: auto; overflow-y: hidden; overscroll-behavior-x: contain; scroll-snap-type: x proximity; scroll-padding-inline: var(--gutter); scrollbar-width: thin; scrollbar-color: #1f2a5e55 transparent; }
+.clothes-grid:focus-visible { outline-offset: -3px; }
+.card { position: relative; min-width: 0; display: flex; flex-direction: column; gap: 6px; padding: 0; text-align: left; scroll-snap-align: start; }
+.thumb { position: relative; flex: none; width: 100%; aspect-ratio: 1; display: flex; align-items: center; justify-content: center; overflow: hidden; border-radius: 4px; background: var(--card); border: 2px solid var(--ink); }
+.thumb img { width: 100%; height: 100%; object-fit: contain; padding: 4px; }
+.card:disabled .thumb { opacity: .55; }
+.selection-mark { position: absolute; right: 5px; top: 5px; width: 26px; height: 26px; background: var(--ink); color: var(--paper); border-radius: 50%; display: none; align-items: center; justify-content: center; }
+.selection-mark .icon { width: 15px; height: 15px; stroke-width: 2.6; }
+.worn .selection-mark { display: flex; }
+.worn .thumb { background: var(--pink-soft); box-shadow: 4px 4px 0 var(--pink); }
+/* On the phone row the picture is enough; the full name goes in the accessible label. */
+.name { display: none; font-family: var(--display); font-size: 17px; line-height: 1.1; font-weight: 700; letter-spacing: .01em; text-transform: uppercase; }
+.loading .thumb::after { content: ''; position: absolute; inset: 0; background: linear-gradient(110deg, transparent 20%, #ffffffb3 50%, transparent 80%); animation: loading 1s linear infinite; }
+@keyframes loading { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
+
+/* Save and Open are corner actions: small text, no background or shadow (checked by layout.mjs). */
+.look-actions { display: flex; justify-content: flex-end; gap: 4px; padding: 0 calc(var(--gutter) - 10px); }
+.look-action { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 10px; border-radius: 999px; color: var(--ink); font-family: var(--display); font-size: 17px; font-weight: 600; letter-spacing: .02em; text-transform: uppercase; white-space: nowrap; }
+.look-action .icon { width: 18px; height: 18px; }
+.look-action:disabled { color: var(--muted); }
+.action { flex: 1; min-width: 0; min-height: 48px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 0 12px; border: 2px solid var(--ink); border-radius: 999px; color: var(--ink); background: var(--card); font-family: var(--display); font-size: 19px; font-weight: 700; letter-spacing: .02em; text-transform: uppercase; text-decoration: none; white-space: nowrap; }
+.action-primary { background: var(--pink); box-shadow: 3px 3px 0 var(--ink); }
+.action:disabled { color: var(--muted); background: var(--card); border-style: dashed; box-shadow: none; }
+
+.look-export-dialog { margin: auto; width: min(420px, calc(100% - 24px)); max-height: calc(100dvh - 24px); overflow-y: auto; padding: 12px; border: 2px solid var(--ink); border-radius: 16px; background: var(--paper); color: var(--ink); }
+.look-export-dialog[open] { display: flex; flex-direction: column; gap: 10px; }
+.look-export-dialog::backdrop { background: #1f2a5ecc; }
+.look-export-dialog img { display: block; width: 100%; height: auto; aspect-ratio: 4 / 5; max-height: min(56dvh, 490px); object-fit: contain; }
+.export-side { display: flex; flex-direction: column; gap: 10px; }
+.export-names { font-family: var(--display); font-size: 26px; line-height: 1.1; font-weight: 700; letter-spacing: .02em; text-transform: uppercase; text-wrap: balance; }
+.export-code { margin-top: -6px; color: var(--muted); font-family: var(--display); font-size: 17px; font-weight: 600; letter-spacing: .04em; }
+.export-close { position: absolute; top: 18px; right: 18px; z-index: 1; }
+.export-side .action { flex: none; }
+
+@media (hover: hover) {
+  .card:hover:not(:disabled) .thumb { outline: 2px solid var(--ink); outline-offset: 2px; }
+  .icon-button:hover, .action:not(:disabled):hover, .look-action:not(:disabled):hover { background: var(--paper); }
+  .action-primary:not(:disabled):hover { background: #ff57aa; }
+}
+@media (max-width: 359px) {
+  :root { --gutter: 12px; }
+  .logo { width: 92px; }
+  .action { font-size: 17px; gap: 6px; padding: 0 8px; }
+  .chips button[data-slot] { font-size: 16px; padding: 0 8px; }
+}
+@media (max-height: 640px) and (orientation: portrait) {
+  :root { --header: 50px; }
+  .wardrobe { padding-top: 8px; }
+  .filters { margin-top: 0; }
+  .clothes-grid { grid-auto-columns: 84px; }
+}
+
+/* Side by side: desktop and landscape phone. The wardrobe shows name and picture. */
+@media (min-width: 900px), (orientation: landscape) and (max-height: 560px) {
+  .workspace { display: grid; grid-template-columns: minmax(0, 1fr) var(--side, 400px); grid-template-rows: minmax(0, 1fr); gap: 20px; padding: 0 20px 20px; }
+  .stage { margin: 0; border: 2px solid var(--ink); border-radius: 6px; }
+  .wardrobe { min-height: 0; padding: 16px 0; border: 2px solid var(--ink); border-radius: 16px 4px 4px 4px; }
+  .clothes-grid { flex: 1; min-height: 0; grid-auto-flow: row; grid-template-columns: repeat(var(--cols, 2), minmax(0, 1fr)); grid-auto-columns: auto; align-content: start; gap: 18px 14px; overflow-x: hidden; overflow-y: auto; overscroll-behavior-y: contain; scroll-snap-type: none; }
+  .name { display: block; }
+  .look-actions { padding-top: 4px; }
+}
+@media (min-width: 900px) {
+  :root { --gutter: 20px; --header: 76px; }
+  .logo { width: 136px; }
+}
+@media (min-width: 1280px) { .workspace { --side: 520px; --cols: 3; } }
+@media (orientation: landscape) and (max-height: 560px) {
+  :root { --header: 48px; --gutter: 12px; }
+  .logo { width: 84px; }
+  .workspace { --side: 46%; --cols: 3; gap: 12px; padding: 0 12px 10px; }
+  .wardrobe { gap: 8px; padding: 10px 0; }
+  .name { font-size: 15px; }
+  .clothes-grid { gap: 12px 10px; }
+  .action { min-height: 44px; font-size: 17px; }
+  .look-export-dialog { width: min(680px, calc(100% - 24px)); }
+  .look-export-dialog[open] { flex-direction: row; align-items: center; }
+  .look-export-dialog img { width: auto; height: calc(100dvh - 52px); max-height: none; }
+  .export-side { flex: 1; padding-right: 52px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+  .loading .thumb { opacity: .55; }
+}
+

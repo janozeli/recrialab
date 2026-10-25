@@ -1,0 +1,10 @@
+{
+  "name": "recrialab",
+  "compatibility_date": "2026-08-31",
+  // Always built from scratch by `bun run build` (it deletes dist/ first).
+  "assets": { "directory": "./dist" },
+  "routes": [
+    { "pattern": "recrialab.com", "custom_domain": true },
+    { "pattern": "www.recrialab.com", "custom_domain": true }
+  ]
+}

@@ -1,0 +1,136 @@
+// Layout and touch checks, measured on the real site (not in the CSS).
+
+/** Extra screens besides the profile's device: small phone, landscape, tablet and desktop. */
+export const SCREENS = {
+  'small-phone': { viewport: { width: 360, height: 640 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 },
+  'phone-landscape': { viewport: { width: 844, height: 390 }, isMobile: true, hasTouch: true, deviceScaleFactor: 3 },
+  tablet: { viewport: { width: 820, height: 1180 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 },
+  'desktop-1024': { viewport: { width: 1024, height: 700 } },
+  'desktop-1366': { viewport: { width: 1366, height: 768 } },
+};
+
+/** Layout problems common to both pages. Runs inside the page. */
+function commonProblems() {
+  const out = [];
+  const vw = innerWidth, vh = innerHeight;
+  const visible = el => {
+    const r = el.getBoundingClientRect(), cs = getComputedStyle(el);
+    return r.width > 0 && r.height > 0 && cs.visibility !== 'hidden' && +cs.opacity > 0
+      && !el.closest('[hidden], [inert], .sr-only, dialog:not([open])');
+  };
+  const name = el => (el.getAttribute('aria-label') || el.textContent || el.getAttribute('placeholder') || '').trim().replace(/\s+/g, ' ').slice(0, 40);
+  if (document.documentElement.scrollWidth > vw + 1) out.push(`page scrolls sideways (${document.documentElement.scrollWidth} px in ${vw})`);
+  const dialog = document.querySelector('dialog[open]');
+  for (const el of document.querySelectorAll('button, a[href], input:not([type=file]), select, textarea, [role=button]')) {
+    if (!visible(el)) continue;
+    if (dialog && !dialog.contains(el)) continue;
+    // An input inside a label is touched through the whole label, which is the target.
+    const target = el.tagName === 'INPUT' && el.closest('label') ? el.closest('label') : el;
+    const r = target.getBoundingClientRect();
+    // Touch: 44 × 44 px (WCAG 2.5.5, Apple HIG).
+    if (r.width < 43.5 || r.height < 43.5) out.push(`touch target ${Math.round(r.width)}×${Math.round(r.height)} px: "${name(el)}"`);
+    // Off screen only counts inside a scrolling row.
+    const scroller = el.closest('.clothes-grid');
+    if (!scroller && (r.right > vw + 1 || r.left < -1 || r.bottom > vh + 1 || r.top < -1) && getComputedStyle(document.body).overflowY !== 'visible'
+      && document.documentElement.scrollHeight <= vh + 1) out.push(`button off screen: "${name(el)}"`);
+    // Covered by another element (for example the piece row over the buttons in fullscreen).
+    const cx = Math.min(Math.max(r.left + r.width / 2, 1), vw - 1), cy = Math.min(Math.max(r.top + r.height / 2, 1), vh - 1);
+    const box = scroller?.getBoundingClientRect();
+    const inside = !box || (cx > box.left && cx < box.right && cy > box.top && cy < box.bottom);
+    if (inside && cx > r.left && cx < r.right && cy > r.top && cy < r.bottom) {
+      const top = document.elementFromPoint(cx, cy);
+      if (top && !target.contains(top) && !top.contains(target)) out.push(`"${name(el)}" covered by ${top.tagName.toLowerCase()}.${top.className}`);
+    }
+  }
+  const texts = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  const seen = new Set();
+  while (texts.nextNode()) {
+    const el = texts.currentNode.parentElement;
+    if (!texts.currentNode.textContent.trim() || !el || seen.has(el) || el.closest('svg') || !visible(el)) continue;
+    seen.add(el);
+    if (dialog && !dialog.contains(el)) continue;
+    const cs = getComputedStyle(el);
+    if (parseFloat(cs.fontSize) < 13) out.push(`text at ${cs.fontSize}: "${name(el)}"`);
+    // Text that does not fit its box.
+    if (el.scrollWidth > el.clientWidth + 1 && cs.textOverflow !== 'ellipsis' && cs.display !== 'inline') out.push(`text cut off: "${name(el)}"`);
+  }
+  return [...new Set(out)];
+}
+
+/** Visible text over the mannequin, in any element (an instruction badge, a confirmation bubble after dressing).
+ * Only the error notice may show there. */
+function textOnStage() {
+  const out = [];
+  const texts = document.createTreeWalker(document.querySelector('#stage'), NodeFilter.SHOW_TEXT);
+  while (texts.nextNode()) {
+    const el = texts.currentNode.parentElement, t = texts.currentNode.textContent.trim();
+    if (!t || !el.getBoundingClientRect().width || el.closest('.sr-only, [hidden]')) continue;
+    let vis = true;
+    for (let a = el; a; a = a.parentElement) { const cs = getComputedStyle(a); if (+cs.opacity === 0 || cs.visibility === 'hidden' || cs.display === 'none') vis = false; }
+    if (vis && !/não foi possível|recarregue/i.test(t)) out.push(t.slice(0, 40));
+  }
+  return out;
+}
+
+/** Right after dressing a garment: nothing written over the mannequin. */
+export async function auditStageOnDress(page) {
+  return (await page.evaluate(textOnStage)).map(t => `text over the mannequin when dressing: "${t}"`);
+}
+
+/** Fitting room: a single screen, a large mannequin and garments in view at the same time, actions and About reachable. */
+function fittingRoomProblems() {
+  const out = [];
+  const vw = innerWidth, vh = innerHeight;
+  if (document.documentElement.scrollHeight > vh + 1) out.push(`fitting room scrolls vertically (${document.documentElement.scrollHeight} px in ${vh})`);
+  const stage = document.querySelector('#stage').getBoundingClientRect();
+  if (stage.top < -1 || stage.bottom > vh + 1 || stage.left < -1 || stage.right > vw + 1) out.push('stage goes off screen');
+  // A large mannequin: in portrait the stage has at least half the height; in landscape, almost all of it.
+  const minimum = vh > vw ? .5 : .7;
+  if (stage.height < vh * minimum) out.push(`stage at ${Math.round(stage.height / vh * 100)}% of the height (minimum ${minimum * 100}%)`);
+  const onScreen = el => { const r = el.getBoundingClientRect(); return r.width > 0 && r.left >= -1 && r.right <= vw + 1 && r.top >= -1 && r.bottom <= vh + 1; };
+  const cards = [...document.querySelectorAll('#clothes-grid [data-piece]')].filter(onScreen).length;
+  if (cards < 3) out.push(`only ${cards} whole garments in view next to the mannequin (minimum 3)`);
+  for (const sel of ['#export-look', '#import-look', 'a[href="/sobre"]']) {
+    const el = document.querySelector(sel);
+    if (!el || !onScreen(el)) out.push(`${sel} is not in view`);
+  }
+  // Save and Open in view, but not highlighted: no background, no shadow, no border, small type. The About link too.
+  for (const sel of ['#export-look', '#import-look', 'a[href="/sobre"]']) {
+    const cs = getComputedStyle(document.querySelector(sel));
+    const bg = cs.backgroundColor.match(/[\d.]+/g)?.map(Number) ?? [];
+    if ((bg.length === 4 ? bg[3] : bg.length ? 1 : 0) > 0 || cs.boxShadow !== 'none' || parseFloat(cs.borderTopWidth) > 0 || parseFloat(cs.fontSize) > 18)
+      out.push(`${sel} highlighted: background ${cs.backgroundColor}, shadow ${cs.boxShadow}, border ${cs.borderTopWidth}, type ${cs.fontSize}`);
+  }
+  return out;
+}
+
+export async function auditFittingRoom(page) {
+  return [...await page.evaluate(commonProblems), ...await page.evaluate(fittingRoomProblems),
+    ...(await page.evaluate(textOnStage)).map(t => `text over the mannequin: "${t}"`)];
+}
+
+/** Filters by type (in place of search): "Saia" under EMBAIXO shows only the skirts. */
+export async function auditFilters(page) {
+  const out = [];
+  await page.locator('#chips [data-slot="bottom"]').click();
+  await page.locator('#filters [data-filter="Saia"]').click();
+  const names = await page.$$eval('#clothes-grid [data-piece]', els => els.map(e => e.getAttribute('aria-label')));
+  if (!names.length || names.some(n => !/saia/i.test(n))) out.push(`the Saia filter showed [${names}]`);
+  out.push(...await page.evaluate(commonProblems));
+  await page.locator('#filters [data-filter="Saia"]').click();
+  const all = await page.locator('#clothes-grid [data-piece]').count();
+  if (all <= names.length) out.push('tapping the active filter does not show everything again');
+  if (await page.locator('input[type=search]').count()) out.push('a search field is present: the collection uses filters');
+  await page.locator('#chips [data-slot="top"]').click();
+  return out;
+}
+
+export async function auditAbout(page) {
+  const out = await page.evaluate(commonProblems);
+  const back = page.locator('a[href="/"]:visible', { hasText: /provador/i });
+  if (!(await back.count())) out.push('about page without a visible link reading "provador"');
+  // Real content only: no sample badge nor placeholder ("… entram aqui").
+  const empty = await page.locator('main :visible', { hasText: /\bexemplo\b|entram? aqui|em breve/i }).count();
+  if (empty) out.push('about page with sample content or a placeholder');
+  return out;
+}

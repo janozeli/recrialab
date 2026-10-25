@@ -1,0 +1,546 @@
+{
+ "measure": 2,
+ "_": "baseline of tools/fit/penetration.py (mannequin with the arm from arm.py; the arm is left out): % of the covered body area in each band; it only goes down (--update)",
+ "pieces": {
+  "001": {
+   "bands": {
+    "total": {
+     "penetrates": 0.2,
+     "penetrates_visible": 0.2,
+     "gap_over_4cm": 4.1
+    },
+    "waist": {
+     "penetrates": 0.0,
+     "penetrates_visible": 0.0,
+     "gap_over_4cm": 0.0
+    },
+    "hip": {
+     "penetrates": 0.0,
+     "penetrates_visible": 0.0,
+     "gap_over_4cm": 1.4
+    },
+    "thigh": {
+     "penetrates": 0.4,
+     "penetrates_visible": 0.4,
+     "gap_over_4cm": 8.4
+    },
+    "knee": {
+     "penetrates": 0.0,
+     "penetrates_visible": 0.0,
+     "gap_over_4cm": 0.4
+    },
+    "shin": {
+     "penetrates": 0.0,
+     "penetrates_visible": 0.0,
+     "gap_over_4cm": 0.0
+    }
+   }
+  },
+  "002": {
+   "goal": {
+    "target_penetrates": 2,
+    "bands": [
+     "thigh",
+     "shin"
+    ],
+    "why": "the Tripo mannequin leg is thinner than the neutral body; dress it again with the body as collider (open issue fit-structure)"
+   },
+   "bands": {
+    "total": {
+     "penetrates": 2.3,
+     "penetrates_visible": 0.0,
+     "gap_over_4cm": 0.6
+    },
+    "waist": {
+     "penetrates": 1.1,
+     "penetrates_visible": 1.1,
+     "gap_over_4cm": 0.0
+    },
+    "hip": {
+     "penetrates": 0.0,
+     "penetrates_visible": 0.0,
+     "gap_over_4cm": 0.1
+    },
+    "thigh": {
+     "penetrates": 2.7,
+     "penetrates_visible": 0.0,
+     "gap_over_4cm": 0.5
+    },
+    "knee": {
+     "penetrates": 1.7,
+     "penetrates_visible": 0.0,
+     "gap_over_4cm": 0.0
+    },
+    "shin": {
+     "penetrates": 3.4,
+     "penetrates_visible": 0.0,
+     "gap_over_4cm": 0.3
+    },
+    "ankle": {
+     "penetrates": 1.7,
+     "penetrates_visible": 0.0,
+     "gap_over_4cm": 9.1
+    }
+   }
+  },
+  "003": {
+   "bands": {
+    "total": {
+     "penetrates": 1.2,
+     "penetrates_visible": 0.2,
+     "gap_over_4cm": 22.1
+    },
+    "waist": {
+     "penetrates": 0.0,
+     "penetrates_visible": 0.0,
+     "gap_over_4cm": 5.2
+    },
+    "hip": {
+     "penetrates": 0.0,
+     "penetrates_visible": 0.0,
+     "gap_over_4cm": 3.5
+    },
+    "thigh": {
+     "penetrates": 0.0,
+     "penetrates_visible": 0.0,
+     "gap_over_4cm": 22.8
+    },
+    "knee": {
+     "penetrates": 0.0,
+     "penetrates_visible": 0.0,
+     "gap_over_4cm": 35.6
+    },
+    "shin": {
+     "penetrates": 10.1,
+     "penetrates_visible": 1.4,
+     "gap_over_4cm": 23.0
+    }
+   }
+  },
+  "004": {
+   "goal": {
+    "target_penetrates": 2,
+    "bands": [
+     "thigh"
+    ],
+    "why": "the Tripo mannequin leg is thinner than the neutral body; dress it again with the body as collider (open issue fit-structure)"
+   },
+   "bands": {
+    "total": {
+     "penetrates": 1.2,
+     "penetrates_visible": 0.3,
+     "gap_over_4cm": 1.5
+    },
+    "waist": {
+     "penetrates": 5.4,
+     "penetrates_visible": 5.4,
+     "gap_over_4cm": 0.0
+    },
+    "hip": {
+     "penetrates": 1.9,
+     "penetrates_visible": 1.0,
+     "gap_over_4cm": 0.1
+    },
+    "thigh": {
+     "penetrates": 2.2,
+     "penetrates_visible": 0.0,
+     "gap_over_4cm": 1.4
+    },
+    "knee": {
+     "penetrates": 0.0,
+     "penetrates_visible": 0.0,
+     "gap_over_4cm": 0.0
+    },
+    "shin": {
+     "penetrates": 0.0,
+     "penetrates_visible": 0.0,
+     "gap_over_4cm": 0.7
+    },
+    "ankle": {
+     "penetrates": 0.0,
+     "penetrates_visible": 0.0,
+     "gap_over_4cm": 21.5
+    }
+   }
+  },
+  "005": {
+   "bands": {
+    "total": {
+     "penetrates": 0.0,
+     "penetrates_visible": 0.0,
+     "gap_over_4cm": 7.0
+    },
+    "waist": {
+     "penetrates": 0.0,
+     "penetrates_visible": 0.0,
+     "gap_over_4cm": 0.0
+    },
+    "hip": {
+     "penetrates": 0.0,
+     "penetrates_visible": 0.0,
+     "gap_over_4cm": 0.2
+    },
+    "thigh": {
+     "penetrates": 0.0,
+     "penetrates_visible": 0.0,
+     "gap_over_4cm": 5.4
+    },
+    "knee": {
+     "penetrates": 0.0,
+     "penetrates_visible": 0.0,
+     "gap_over_4cm": 5.9
+    },
+    "shin": {
+     "penetrates": 0.0,
+     "penetrates_visible": 0.0,
+     "gap_over_4cm": 10.6
+    },
+    "ankle": {
+     "penetrates": 0.0,
+     "penetrates_visible": 0.0,
+     "gap_over_4cm": 25.4
+    }
+   }
+  },
+  "006": {
+   "goal": {
+    "target_penetrates": 2,
+    "bands": [
+     "thigh"
+    ],
+    "why": "the Tripo mannequin leg is thinner than the neutral body; dress it again with the body as collider (open issue fit-structure)"
+   },
+   "bands": {
+    "total": {
+     "penetrates": 13.6,
+     "penetrates_visible": 5.4,
+     "gap_over_4cm": 4.2
+    },
+    "waist": {
+     "penetrates": 82.9,
+     "penetrates_visible": 82.9,
+     "gap_over_4cm": 0.0
+    },
+    "hip": {
+     "penetrates": 39.0,
+     "penetrates_visible": 15.4,
+     "gap_over_4cm": 0.1
+    },
+    "thigh": {
+     "penetrates": 15.0,
+     "penetrates_visible": 0.0,
+     "gap_over_4cm": 9.6
+    },
+    "knee": {
+     "penetrates": 0.0,
+     "penetrates_visible": 0.0,
+     "gap_over_4cm": 0.0
+    },
+    "shin": {
+     "penetrates": 0.0,
+     "penetrates_visible": 0.0,
+     "gap_over_4cm": 1.5
+    },
+    "ankle": {
+     "penetrates": 0.0,
+     "penetrates_visible": 0.0,
+     "gap_over_4cm": 17.9
+    }
+   }
+  },
+  "007": {
+   "bands": {
+    "total": {
+     "penetrates": 0.8,
+     "penetrates_visible": 0.7,
+     "gap_over_4cm": 7.2
+    },
+    "waist": {
+     "penetrates": 0.0,
+     "penetrates_visible": 0.0,
+     "gap_over_4cm": 0.0
+    },
+    "hip": {
+     "penetrates": 1.8,
+     "penetrates_visible": 1.8,
+     "gap_over_4cm": 0.1
+    },
+    "thigh": {
+     "penetrates": 0.2,
+     "penetrates_visible": 0.1,
+     "gap_over_4cm": 12.7
+    }
+   }
+  },
+  "008": {
+   "bands": {
+    "total": {
+     "penetrates": 4.8,
+     "penetrates_visible": 1.3,
+     "gap_over_4cm": 1.8
+    },
+    "waist": {
+     "penetrates": 0.1,
+     "penetrates_visible": 0.1,
+     "gap_over_4cm": 0.0
+    },
+    "hip": {
+     "penetrates": 5.9,
+     "penetrates_visible": 2.3,
+     "gap_over_4cm": 1.3
+    },
+    "thigh": {
+     "penetrates": 4.8,
+     "penetrates_visible": 0.2,
+     "gap_over_4cm": 3.4
+    }
+   }
+  },
+  "009": {
+   "bands": {
+    "total": {
+     "penetrates": 0.0,
+     "penetrates_visible": 0.0,
+     "gap_over_4cm": 9.4
+    },
+    "waist": {
+     "penetrates": 0.0,
+     "penetrates_visible": 0.0,
+     "gap_over_4cm": 0.0
+    },
+    "hip": {
+     "penetrates": 0.0,
+     "penetrates_visible": 0.0,
+     "gap_over_4cm": 4.1
+    },
+    "thigh": {
+     "penetrates": 0.0,
+     "penetrates_visible": 0.0,
+     "gap_over_4cm": 11.8
+    },
+    "knee": {
+     "penetrates": 0.0,
+     "penetrates_visible": 0.0,
+     "gap_over_4cm": 14.4
+    }
+   }
+  },
+  "010": {
+   "bands": {
+    "total": {
+     "penetrates": 0.0,
+     "penetrates_visible": 0.0,
+     "gap_over_4cm": 12.9
+    },
+    "hip": {
+     "penetrates": 0.0,
+     "penetrates_visible": 0.0,
+     "gap_over_4cm": 0.2
+    },
+    "thigh": {
+     "penetrates": 0.0,
+     "penetrates_visible": 0.0,
+     "gap_over_4cm": 12.4
+    },
+    "knee": {
+     "penetrates": 0.0,
+     "penetrates_visible": 0.0,
+     "gap_over_4cm": 24.9
+    }
+   }
+  },
+  "011": {
+   "bands": {
+    "total": {
+     "penetrates": 3.5,
+     "penetrates_visible": 3.5,
+     "gap_over_4cm": 2.1
+    },
+    "waist": {
+     "penetrates": 69.2,
+     "penetrates_visible": 69.2,
+     "gap_over_4cm": 0.0
+    },
+    "hip": {
+     "penetrates": 3.1,
+     "penetrates_visible": 2.9,
+     "gap_over_4cm": 0.1
+    },
+    "thigh": {
+     "penetrates": 0.0,
+     "penetrates_visible": 0.0,
+     "gap_over_4cm": 6.3
+    },
+    "knee": {
+     "penetrates": 0.0,
+     "penetrates_visible": 0.0,
+     "gap_over_4cm": 0.2
+    },
+    "shin": {
+     "penetrates": 0.2,
+     "penetrates_visible": 0.0,
+     "gap_over_4cm": 0.0
+    },
+    "ankle": {
+     "penetrates": 0.0,
+     "penetrates_visible": 0.0,
+     "gap_over_4cm": 0.4
+    }
+   }
+  },
+  "012": {
+   "bands": {
+    "total": {
+     "penetrates": 0.7,
+     "penetrates_visible": 0.7,
+     "gap_over_4cm": 5.2
+    },
+    "waist": {
+     "penetrates": 17.1,
+     "penetrates_visible": 17.1,
+     "gap_over_4cm": 0.0
+    },
+    "hip": {
+     "penetrates": 0.5,
+     "penetrates_visible": 0.5,
+     "gap_over_4cm": 0.1
+    },
+    "thigh": {
+     "penetrates": 0.0,
+     "penetrates_visible": 0.0,
+     "gap_over_4cm": 11.2
+    },
+    "knee": {
+     "penetrates": 0.0,
+     "penetrates_visible": 0.0,
+     "gap_over_4cm": 6.8
+    },
+    "shin": {
+     "penetrates": 0.0,
+     "penetrates_visible": 0.0,
+     "gap_over_4cm": 1.2
+    },
+    "ankle": {
+     "penetrates": 0.0,
+     "penetrates_visible": 0.0,
+     "gap_over_4cm": 1.8
+    }
+   }
+  },
+  "013": {
+   "bands": {
+    "total": {
+     "penetrates": 2.9,
+     "penetrates_visible": 2.6,
+     "gap_over_4cm": 5.2
+    },
+    "waist": {
+     "penetrates": 52.9,
+     "penetrates_visible": 52.9,
+     "gap_over_4cm": 0.0
+    },
+    "hip": {
+     "penetrates": 5.1,
+     "penetrates_visible": 3.3,
+     "gap_over_4cm": 0.1
+    },
+    "thigh": {
+     "penetrates": 0.0,
+     "penetrates_visible": 0.0,
+     "gap_over_4cm": 12.2
+    },
+    "knee": {
+     "penetrates": 0.0,
+     "penetrates_visible": 0.0,
+     "gap_over_4cm": 4.6
+    },
+    "shin": {
+     "penetrates": 0.0,
+     "penetrates_visible": 0.0,
+     "gap_over_4cm": 1.5
+    },
+    "ankle": {
+     "penetrates": 0.0,
+     "penetrates_visible": 0.0,
+     "gap_over_4cm": 0.0
+    }
+   }
+  },
+  "014": {
+   "goal": {
+    "target_penetrates": 2,
+    "bands": [
+     "thigh",
+     "shin"
+    ],
+    "why": "the Tripo mannequin leg is thinner than the neutral body; dress it again with the body as collider (open issue fit-structure)"
+   },
+   "bands": {
+    "total": {
+     "penetrates": 21.6,
+     "penetrates_visible": 6.0,
+     "gap_over_4cm": 3.2
+    },
+    "waist": {
+     "penetrates": 70.3,
+     "penetrates_visible": 70.3,
+     "gap_over_4cm": 0.0
+    },
+    "hip": {
+     "penetrates": 46.2,
+     "penetrates_visible": 17.0,
+     "gap_over_4cm": 0.1
+    },
+    "thigh": {
+     "penetrates": 17.2,
+     "penetrates_visible": 0.0,
+     "gap_over_4cm": 7.9
+    },
+    "knee": {
+     "penetrates": 1.3,
+     "penetrates_visible": 0.0,
+     "gap_over_4cm": 0.0
+    },
+    "shin": {
+     "penetrates": 16.0,
+     "penetrates_visible": 0.7,
+     "gap_over_4cm": 1.0
+    },
+    "ankle": {
+     "penetrates": 45.1,
+     "penetrates_visible": 2.3,
+     "gap_over_4cm": 13.6
+    }
+   }
+  },
+  "015": {
+   "bands": {
+    "total": {
+     "penetrates": 0.6,
+     "penetrates_visible": 0.0,
+     "gap_over_4cm": 11.2
+    },
+    "waist": {
+     "penetrates": 0.0,
+     "penetrates_visible": 0.0,
+     "gap_over_4cm": 0.0
+    },
+    "hip": {
+     "penetrates": 0.0,
+     "penetrates_visible": 0.0,
+     "gap_over_4cm": 0.3
+    },
+    "thigh": {
+     "penetrates": 0.9,
+     "penetrates_visible": 0.0,
+     "gap_over_4cm": 17.0
+    },
+    "knee": {
+     "penetrates": 0.8,
+     "penetrates_visible": 0.0,
+     "gap_over_4cm": 15.4
+    }
+   }
+  }
+ }
+}

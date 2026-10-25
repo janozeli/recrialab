@@ -1,0 +1,26 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "lib": [
+      "ESNext",
+      "DOM",
+      "DOM.Iterable"
+    ]
+  },
+  "exclude": [
+    "node_modules",
+    "dist",
+    "*.test.ts",
+    "verify-dist.ts",
+    "check-live.ts",
+    "about-look.ts",
+    "known-issues.ts",
+    "ci-filter.ts",
+    "thumbnails.ts"
+  ]
+}

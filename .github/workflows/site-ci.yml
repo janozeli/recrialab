@@ -1,0 +1,93 @@
+name: Site CI
+
+# Runs on pull requests, on their merge with main; pushes to main are not rebuilt. What the change does not reach is skipped (site/ci-filter.ts).
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A new push on the PR cancels the run of the old commit.
+concurrency:
+  group: site-ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: site
+    outputs:
+      fit: ${{ steps.filter.outputs.fit }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # the PR merge and main: the filter and the baselines that may only go down (penetration.test.ts)
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.4.2'
+      - name: What the PR reaches
+        id: filter
+        run: bun ci-filter.ts >> "$GITHUB_OUTPUT"
+        env:
+          EVENT: ${{ github.event_name }}
+      - run: bun install --frozen-lockfile
+      - run: bun run check
+      - run: bun run test
+      - name: Build and bundle check (size, leftovers, commit stamp)
+        run: bun run build
+
+  fit:
+    needs: validate
+    if: needs.validate.outputs.fit == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: python3 -m pip install -r tools/fit/requirements.txt
+      - name: The body neither pokes through the pieces nor shows through the tops
+        run: python3 tools/fit/poke_through.py --max-pokes 50 --max-holes 35000 --max-bottom-pokes 30
+      - name: A bottom neither vanishes in a jagged edge under the hem nor pokes through the top
+        run: python3 tools/fit/layer_check.py --max-pokes 1500 --max-holes 5500 --max-total-pokes 90000 --max-total-holes 185000
+      - name: No tear in the front of the bottoms showing the body
+        run: python3 tools/fit/holes.py
+      - name: Legs of short 008 apart below the crotch, as in the photo
+        run: python3 tools/fit/crotch.py --measure --max 15 008
+      - name: No loose cloth outside the trouser leg, from the shin down
+        run: python3 tools/fit/cuff.py
+      - name: No black texture patch between the legs of the bottoms
+        run: python3 tools/fit/texture.py --max 5
+      - name: Skirt 009 without the cords hanging in front (the photo has buttons)
+        run: python3 tools/fit/cords.py --measure --max 10
+      - name: Bottoms neither looser nor deeper in the body than the baseline (which only goes down)
+        run: python3 tools/fit/penetration.py
+      - name: Print of the bottoms not stretched against the original GLB, region by region
+        run: python3 tools/fit/stretch.py
+      - name: Hoods and collars lie on the back, within the shrink limits against the original GLB
+        run: python3 tools/fit/hood.py --check
+
+  secrets:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read  # gitleaks lists the commits of the PR
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      # free for repositories of personal accounts; under an organization it needs a GITLEAKS_LICENSE secret
+      - name: Look for committed keys and tokens
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

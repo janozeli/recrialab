@@ -1,0 +1,6 @@
+numpy==2.5.3
+scipy==1.18.1
+trimesh==5.1.1
+embreex==4.4.0
+networkx==3.7   # trimesh: section().discrete (cuff.py, shin_tube.py)
+pillow==12.3.0

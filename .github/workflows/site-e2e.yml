@@ -1,0 +1,123 @@
+name: Site E2E
+
+# Drives the build on emulated phones, in place of physical devices (tools/verify-site/drive.mjs). Runs on each
+# pull request; what the change does not reach is skipped, and visual QA photographs only the pieces that changed
+# (site/ci-filter.ts). Run by hand (workflow_dispatch) for the showcase of the 38 pieces.
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A new push on the PR cancels the run of the old commit.
+concurrency:
+  group: site-e2e-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      phones: ${{ steps.filter.outputs.phones }}
+      visual_qa: ${{ steps.filter.outputs.visual_qa }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2  # the PR merge and its base
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.4.2'
+      - name: What the PR reaches
+        id: filter
+        run: bun site/ci-filter.ts >> "$GITHUB_OUTPUT"
+        env:
+          EVENT: ${{ github.event_name }}
+
+  phones:
+    needs: changes
+    if: needs.changes.outputs.phones == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        profile: [pixel, budget-android, iphone]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.4.2'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: bun install --frozen-lockfile
+        working-directory: site
+      - run: bun run build
+        working-directory: site
+      - run: npm i -g playwright@1.56.1 && npx playwright install --with-deps ${{ matrix.profile == 'iphone' && 'webkit' || 'chromium' }}
+      - name: Look by link, piece swap, About, build.json, time and size (${{ matrix.profile }})
+        run: node tools/verify-site/drive.mjs --profile ${{ matrix.profile }}
+      - name: Fit showcase (front, profile and back of the 38 pieces)
+        if: matrix.profile == 'pixel' && github.event_name == 'workflow_dispatch'
+        run: node tools/verify-site/showcase.mjs
+      - name: Keep the screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: verify-site-${{ matrix.profile }}
+          path: site/verify-out/
+
+  visual-qa:
+    # Oddities of the clothes on the real orbit of the site (front, profile, back, from below and above), each piece
+    # with one of the other group: midriff between the pieces, jagged junction, threads, body poking through,
+    # see-through cloth, loose bits, dark patches the photo does not have, sunken waistband.
+    needs: changes
+    if: needs.changes.outputs.visual_qa != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      VISUAL_QA: ${{ needs.changes.outputs.visual_qa }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.4.2'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: python3 -m pip install -r tools/visual-qa/requirements.txt
+      - run: bun install --frozen-lockfile
+        if: env.VISUAL_QA != 'check'
+        working-directory: site
+      - run: bun run build
+        if: env.VISUAL_QA != 'check'
+        working-directory: site
+      - run: npm i -g playwright@1.56.1 && npx playwright install --with-deps chromium
+        if: env.VISUAL_QA != 'check'
+      - name: Photograph each piece worn with one of the other group, from 14 points of the orbit (${{ needs.changes.outputs.visual_qa }})
+        if: env.VISUAL_QA != 'check'
+        run: |
+          filter=(); [ "$VISUAL_QA" = all ] || filter=(--changed "$VISUAL_QA")
+          pids=()
+          for i in 0 1 2 3; do node tools/verify-site/visual-qa.mjs --plan ci "${filter[@]}" --part $i/4 --beauty & pids+=($!); done
+          for p in "${pids[@]}"; do wait $p; done
+      - name: Measure and compare with the defects linked to open known issues
+        run: |
+          mkdir -p site/verify-out/visual-qa
+          python3 tools/visual-qa/measure.py site/verify-out/visual-qa --ci
+      - name: Keep the photos and the measures
+        if: always() && env.VISUAL_QA != 'check'
+        uses: actions/upload-artifact@v4
+        with:
+          name: visual-qa
+          path: site/verify-out/visual-qa/

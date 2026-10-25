@@ -1,0 +1,64 @@
+{
+ "_readme": "defect above a limit of tools/visual-qa/measure.py, per look of the ci plan, linked to the open known issue that fixes it. Once fixed, remove the entry and close the issue in the same change. Never raise the limit to make it fit.",
+ "_accepted": {
+  "tear": {
+   "003": {
+    "up_to": 8.0,
+    "by": "project team: skin showing through the tear that is in the thrift-shop photo; knee of the shorts"
+   },
+   "007": {
+    "up_to": 5.0,
+    "by": "project team: skin showing through the tear that is in the thrift-shop photo; tears at the front of the skirt"
+   },
+   "010": {
+    "up_to": 6.5,
+    "by": "project team: skin showing through the tear that is in the thrift-shop photo; tear at the side of the skirt"
+   }
+  }
+ },
+ "midriff": {
+  "001.016": "short-tops-midriff",
+  "005.035": "short-tops-midriff"
+ },
+ "junction": {
+  "007.022": "jagged-junction",
+  "007.037": "jagged-junction",
+  "008.023": "jagged-junction"
+ },
+ "threads": {
+  "002.032": "spiky-hems",
+  "003.033": "spiky-hems",
+  "005.020": "spiky-hems",
+  "006": "spiky-hems",
+  "006.021": "spiky-hems",
+  "007.037": "spiky-hems",
+  "008": "spiky-hems",
+  "009": "spiky-hems",
+  "011.026": "spiky-hems",
+  "014.029": "spiky-hems"
+ },
+ "pokes": {
+  "007.022": "body-framed-by-cloth",
+  "007.037": "body-framed-by-cloth",
+  "010": "body-framed-by-cloth",
+  "010.025": "body-framed-by-cloth"
+ },
+ "tear": {
+  "001.016": "short-tops-midriff",
+  "003.018": "body-framed-by-cloth",
+  "003.033": "body-framed-by-cloth",
+  "005.020": "body-framed-by-cloth",
+  "006.021": "body-framed-by-cloth",
+  "006.036": "short-tops-midriff",
+  "007.022": "body-framed-by-cloth",
+  "007.037": "body-framed-by-cloth",
+  "008.038": "body-framed-by-cloth",
+  "010.025": "body-framed-by-cloth",
+  "015.030": "body-framed-by-cloth"
+ },
+ "see_through": {
+  "003.033": "jagged-junction",
+  "006.036": "short-tops-midriff",
+  "007.037": "jagged-junction"
+ }
+}

@@ -1,0 +1,19 @@
+{
+  "name": "recrialab",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun index.html",
+    "build": "rm -rf dist && bun build index.html sobre.html --outdir=dist --minify && cp _redirects dist/ && bun verify-dist.ts --stamp",
+    "check": "tsc --noEmit",
+    "test": "bun test",
+    "deploy": "bun run check && bun run test && bun run build && bun verify-dist.ts --require-clean && bunx wrangler deploy && bun check-live.ts"
+  },
+  "dependencies": {
+    "three": "^0.185.1"
+  },
+  "devDependencies": {
+    "@types/three": "^0.185.4",
+    "typescript": "5.9.3"
+  }
+}
