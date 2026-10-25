@@ -58,19 +58,26 @@ def columns(src, dst):
     d = gaussian_filter(np.where(has, np.maximum(target - shell, 0), 0), 1.5, mode='nearest')
     d /= np.maximum(gaussian_filter(has.astype(float), 1.5, mode='nearest'), 1e-3)
     D = np.zeros_like(X0); D[k, 2] = d[xi, yi] * w[k]
+    # the kernel carries the push around the hem to the sides and the back (555 vertices behind the torso's middle);
+    # holding it to the front brings back the lining of the fold (66.7 cm2) and the threads of 007.037 (12.5)
     D = kernel(X0, COL_RADIUS) @ D; X = X0 + D
     E = trimesh.Trimesh(X0, inv[g.mesh(P0).faces], process=False).edges_unique
     L = np.linalg.norm(X0[E[:, 0]] - X0[E[:, 1]], axis=1)
-    e = np.abs(np.linalg.norm(X[E[:, 0]] - X[E[:, 1]], axis=1) / np.maximum(L, 1e-9) - 1); ps = np.percentile(e, 99)
+    e = np.abs(np.linalg.norm(X[E[:, 0]] - X[E[:, 1]], axis=1) / np.maximum(L, 1e-9) - 1)
+    moves = (np.linalg.norm(D, axis=1)[E] > 1e-4).any(1)   # the edges that stay would dilute the p99
+    ps = np.percentile(e[moves], 99) if moves.any() else 0.
     print(f'{src}: stretch p99 {100 * ps:.1f}%; front moves up to {100 * D[:, 2].max():.1f} cm')
     if ps > MAX_STRETCH: sys.exit(f'{src}: print distorts too much; nothing written')
     g.save(dst, P0 + D[inv], before=P0)   # x and y exactly as they were (hood.py --check)
 
 
-if __name__ == '__main__' and sys.argv[1] == '--columns':
-    columns(*sys.argv[2:4])
+args = [a for a in sys.argv[1:] if a != '--columns']
+if __name__ == '__main__' and len(args) != 2:
+    sys.exit(__doc__)
+elif __name__ == '__main__' and '--columns' in sys.argv:
+    columns(*args)
 elif __name__ == '__main__':
-    src, dst = sys.argv[1:3]
+    src, dst = args
     Ss, Ns = [], []
     for i in range(1, 16):
         m = Garment(GARMENTS + f'{i:03d}.glb').mesh()
