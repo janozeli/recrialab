@@ -132,5 +132,10 @@ export async function auditAbout(page) {
   // Real content only: no sample badge nor placeholder ("… entram aqui").
   const empty = await page.locator('main :visible', { hasText: /\bexemplo\b|entram? aqui|em breve/i }).count();
   if (empty) out.push('about page with sample content or a placeholder');
+  // Team: every entry the same height, so the grid stays even whatever the length of the role.
+  const heights = await page.$$eval('.m-team-group li', els => els.map(e => ({ h: Math.round(e.getBoundingClientRect().height), name: e.querySelector('strong')?.textContent })));
+  const tallest = Math.max(...heights.map(x => x.h)), shortest = Math.min(...heights.map(x => x.h));
+  if (!heights.length) out.push('about page without the team');
+  else if (tallest - shortest > 1) out.push(`team entries of different heights (${shortest} to ${tallest} px): ${heights.filter(x => x.h !== shortest).map(x => x.name).join(', ')}`);
   return out;
 }

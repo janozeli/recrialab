@@ -38,16 +38,17 @@ h2 { font-size: 34px; margin-bottom: 14px; }
 .m-timeline { list-style: none; padding: 0 0 0 18px; border-left: 3px solid var(--ink); display: grid; gap: 22px; }
 .m-workshop { position: relative; }
 .m-workshop::before { content: ''; position: absolute; left: -28px; top: 4px; width: 14px; height: 14px; border-radius: 50%; background: var(--pink); border: 2px solid var(--ink); }
+.m-workshop-head { display: grid; gap: 2px; margin-bottom: 8px; }
 .m-date { font-family: var(--display); font-weight: 700; font-size: 18px; text-transform: uppercase; }
-.m-workshop h3 { font-size: 26px; margin: 2px 0; }
-.m-place { color: var(--muted); font-size: 14px; margin-bottom: 6px; }
+.m-workshop h3 { font-size: 26px; }
+.m-place { display: flex; align-items: center; gap: 5px; color: var(--muted); font-size: 14px; }
+.m-place svg { width: 15px; height: 15px; flex: none; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .m-photos { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; margin-top: 10px; }
 .m-photos img { width: 100%; aspect-ratio: 4 / 5; object-fit: cover; border: 2px solid var(--ink); border-radius: 3px; background: var(--panel); }
 /* Profiles as aligned tags: loose @ handles on 44 px lines looked scattered. */
 .m-profiles { list-style: none; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
 .m-profiles a { display: inline-flex; align-items: center; min-height: 44px; padding: 0 12px; border: 1.5px solid var(--ink); border-radius: 999px; background: #fffdf0; font-size: 14px; font-weight: 600; text-decoration: none; }
-.m-team a, .m-footer a { display: inline-flex; align-items: center; min-height: 44px; }
-.m-team a { font-size: 14px; font-weight: 600; }
+.m-footer a { display: inline-flex; align-items: center; min-height: 44px; }
 .m-audio { margin-top: 10px; }
 .m-audio audio { width: 100%; }
 .m-audio figcaption { font-size: 14px; color: var(--muted); }
@@ -64,11 +65,17 @@ h2 { font-size: 34px; margin-bottom: 14px; }
 .m-note { font-size: 14px; color: var(--muted); }
 .m-names { padding-left: 16px; margin-top: 4px; font-size: 13px; color: var(--muted); }
 
-.m-advisor { margin-bottom: 12px; }
-.m-team { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px 14px; }
-.m-team li { display: flex; flex-direction: column; padding-left: 10px; border-left: 3px solid var(--pink); }
-.m-team strong { font-family: var(--display); font-size: 19px; text-transform: uppercase; line-height: 1.1; }
-.m-team span { font-size: 14px; color: var(--muted); }
+/* Team: every entry is the same height (name on one row, role on two reserved rows), checked by
+   auditAbout in tools/verify-site/layout.mjs. The pink goes on the group heading, not on each name. */
+.m-team-groups { display: grid; gap: 22px; }
+.m-team-group h3 { padding-bottom: 4px; margin-bottom: 10px; border-bottom: 2px solid var(--pink); font-size: 17px; font-weight: 600; letter-spacing: .06em; color: var(--muted); }
+.m-team { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 150px), 1fr)); gap: 12px 16px; }
+.m-team li { display: grid; grid-template-rows: auto calc(2 * 1.4em); gap: 2px; min-width: 0; }
+.m-team strong { font-family: var(--display); font-size: clamp(16px, 4.8vw, 19px); font-weight: 700; text-transform: uppercase; line-height: 1.1; overflow-wrap: anywhere; }
+.m-team span { font-size: 14px; line-height: 1.4; color: var(--muted); }
+.m-advisor { grid-template-columns: 1fr; }
+.m-advisor li { grid-template-rows: auto auto; }
+.m-advisor strong { font-size: 22px; }
 
 .m-footer { padding: 20px var(--gutter) max(20px, env(safe-area-inset-bottom)); border-top: 2px solid var(--ink); font-size: 14px; color: var(--muted); text-align: center; }
 
