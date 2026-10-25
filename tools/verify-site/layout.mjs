@@ -164,5 +164,8 @@ export async function auditAbout(page) {
   const tallest = Math.max(...heights.map(x => x.h)), shortest = Math.min(...heights.map(x => x.h));
   if (!heights.length) out.push('about page without the team');
   else if (tallest - shortest > 1) out.push(`team entries of different heights (${shortest} to ${tallest} px): ${heights.filter(x => x.h !== shortest).map(x => x.name).join(', ')}`);
+  // The role rows are reserved, so a longer role would spill over the next entry without changing the height.
+  const spilled = await page.$$eval('.m-team-group li span', els => els.filter(e => e.scrollHeight > e.clientHeight + 1).map(e => e.textContent));
+  if (spilled.length) out.push(`team roles longer than their two lines: ${spilled.join(', ')}`);
   return out;
 }
