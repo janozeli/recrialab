@@ -8,7 +8,8 @@ lean with the arm), and each rim point's drop below the plane is compared with t
 each side): a tip is what drops more than its neighbours. The cuff's vertices below the plane, minus the neighbours'
 drop, minus TOL, go up to that height; only y changes, so print and UV stay, and the tip's triangles flatten onto the
 rim.
-usage: python3 tools/fit/cuff_tip.py --check   (CI: fails where a cuff tip drops more than MAX below its neighbours)
+usage: python3 tools/fit/cuff_tip.py --check   (CI: fails where a cuff tip drops more than MAX below its neighbours, or a
+                                                primitive at the wrist (at_wrist()) is left out of CUFFS)
        python3 tools/fit/cuff_tip.py 021        (writes; then install.py on the piece)"""
 import os, sys, numpy as np
 from garment import Garment
@@ -18,6 +19,7 @@ from known_issues import known_issues
 
 BIN, TOL, MAX = 10, .01, .03   # degrees, m, m
 NEIGHBOURS = (-4, -3, -2, 2, 3, 4)
+WRIST_TOP, WRIST_X, WRIST_MIN = 1.02, .18, 50   # m, m, vertices
 # tips left as they are, at today's value, while the known issue that owns them names the piece (tools/known-issues.yaml):
 # 034 and 037 also go through hood.py, whose --check holds y against the GLB from before it
 KNOWN = {
@@ -30,9 +32,19 @@ CUFFS = {
     '021': [6, 7],
     '027': [5, 6],
     '028': [8, 9],
-    '034': [4, 5],
-    '037': [9],
+    '034': [4, 5, 6],
+    '037': [9, 10],
 }
+
+
+def at_wrist(g):
+    """Primitives of a top that lie wholly at the wrist beside the body (below WRIST_TOP, mean |x| above WRIST_X, more
+    than WRIST_MIN vertices): a separate cuff, which must be in CUFFS (a hand list missed 037's right cuff)."""
+    V = g.vertices(); out = []
+    for part in range(len(g.sizes)):
+        P = V[cuff_vertices(g, part)]
+        if len(P) > WRIST_MIN and P[:, 1].max() < WRIST_TOP and abs(P[:, 0].mean()) > WRIST_X: out.append(part)
+    return out
 
 
 def cuff_vertices(g, part):
@@ -87,12 +99,15 @@ def worst(pid):
 if __name__ == '__main__':
     if sys.argv[1:] == ['--check']:
         bad = []; issues = known_issues()
+        for pid in [f'{i:03d}' for i in range(16, 39)]:
+            missing = set(at_wrist(Garment(GARMENTS + f'{pid}.glb'))) - set(CUFFS.get(pid, []))
+            if missing: bad.append(f'{pid} (cuff primitives {sorted(missing)} not in CUFFS)')
         for pid in CUFFS:
             d, part = worst(pid); print(f'{pid} cuff {part}: tip {100 * d:.1f} cm below its neighbours')
             cap, issue = KNOWN.get(pid, (MAX, None))
             if issue and pid not in issues.get(issue, ()): cap = MAX
             if d > cap: bad.append(f'{pid} (cuff {part}, {100 * d:.1f} cm)')
-        if bad: sys.exit(f'cuff tip more than {100 * MAX:.0f} cm below the rim (run cuff_tip.py on them): ' + ', '.join(bad))
+        if bad: sys.exit(f'cuff tip more than {100 * MAX:.0f} cm below the rim (run cuff_tip.py on them), or cuff left out of CUFFS: ' + ', '.join(bad))
         sys.exit()
     for pid in sys.argv[1:]:
         path = GARMENTS + f'{pid}.glb'; g = Garment(path); A = g.vertices(); Q = A.copy(); moved = 0
