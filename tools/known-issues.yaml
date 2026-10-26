@@ -25,3 +25,7 @@
 - id: waistband-010
   title: "Skirt 010 with its waistband on the hips"
   pieces: ["010"]
+
+- id: hem-over-shoe
+  title: "Trouser hem lying flat over the sneaker"
+  pieces: ["005"]

@@ -8,3 +8,4 @@ newton==1.7.0      # cloth.py: cloth solver (VBD) with the body as collider
 warp-lang==1.18.0
 xatlas==0.0.11     # project_print.py: UV unwrap of the generated shape
 fast_simplification==0.2.0   # project_print.py: the generated shape comes with 1.4 million triangles
+rtree==1.4.1       # trimesh.proximity (project_print.py: closest point and signed distance to the body)

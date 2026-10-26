@@ -10,8 +10,8 @@ reprova arquivo alterado, faltando ou sobrando.
 | Pasta | O que é | Quem usa |
 |---|---|---|
 | `originals/tripo/` | peças de baixo (001 a 015) como o Tripo entregou, só com menos triângulos e sem fragmentos soltos; a 014 como `project_print.py` a montou (a estampa é pintada nessa forma) | `stretch.py` (verificação de estampa), `pant_leg_cloth.py` |
-| `originals/tripo-shape/` | a forma da 014 que o Tripo gerou vestida no manequim neutro, sem textura, reduzida a 60 mil triângulos | `project_print.py` |
-| `originals/print-source/` | a 014 que o Tripo gerou da foto antes (a de `originals/tripo/` até então), de onde vem a estampa | `project_print.py` |
+| `originals/tripo-shape/` | a forma da 014 que o Tripo gerou vestida no manequim neutro, sem textura, reduzida a 60 mil triângulos (geração paga autorizada pela dona do projeto em 26/10/2026: três image-to-image de 15 créditos e um multiview-to-model de 20, 65 créditos) | `project_print.py` |
+| `originals/print-source/` | a 014 que o Tripo gerou da foto antes (a de `originals/tripo/` até então), de onde vem a estampa | `project_print.py`, `print_check.py` (verificação da estampa projetada) |
 | `originals/before-hood/` | peças com capuz ou gola (030, 033 a 037) antes de rodar `hood.py` pela primeira vez (a 034 e a 036 já com a manga assentada por `cloth.py`, que roda antes de `hood.py`; a 036 com `--keep-side`, a partir da `before-hood/036.glb` anterior, sha256 9d284948…) | `hood.py` e `hood.py --check` (limite de encolhimento) |
 | `originals/before-drape/` | peças de cima (016 a 038) e o short 008 antes de `drape.py` e `zipper.py` | `drape.py`, `zipper.py` |
 

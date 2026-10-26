@@ -8,6 +8,8 @@ stretches a lot, like the bridge between the legs, does not show.
 Each published vertex finds its own in the original by UV (slivers.py and islands.py remove triangles; separate_legs.py
 cuts the bridge into two copies with the same UV). The inner walls of separate_legs.py (UV of a single point, plain
 colour) have no print and stay out.
+Trousers 014 have a new mesh (project_print.py): their original is the projection itself, so here they only show what
+later tools stretch; print_check.py measures the projection against the piece the print came from.
 Skirt 009 stays out (EXCLUDED): hem.py shortened it as in the photo and cords.py removed the cords the photo does not have.
 usage: python3 tools/fit/stretch.py [IDs]"""
 import os, sys, tempfile, numpy as np

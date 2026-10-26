@@ -471,7 +471,7 @@
     "total": {
      "penetrates": 0.0,
      "penetrates_visible": 0.0,
-     "gap_over_4cm": 1.2
+     "gap_over_4cm": 0.9
     },
     "waist": {
      "penetrates": 0.0,
@@ -496,12 +496,12 @@
     "shin": {
      "penetrates": 0.0,
      "penetrates_visible": 0.0,
-     "gap_over_4cm": 1.0
+     "gap_over_4cm": 0.0
     },
     "ankle": {
      "penetrates": 0.0,
      "penetrates_visible": 0.0,
-     "gap_over_4cm": 5.7
+     "gap_over_4cm": 12.1
     }
    }
   },

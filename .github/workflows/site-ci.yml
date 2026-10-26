@@ -69,6 +69,8 @@ jobs:
         run: python3 tools/fit/crotch.py --measure --max 15 008
       - name: No loose cloth outside the trouser leg, from the shin down
         run: python3 tools/fit/cuff.py
+      - name: Trouser hem open above the sneaker, not wrapped over it
+        run: python3 tools/fit/shoe.py
       - name: No black texture patch between the legs of the bottoms
         run: python3 tools/fit/texture.py --max 5
       - name: Skirt 009 without the cords hanging in front (the photo has buttons)
@@ -77,6 +79,8 @@ jobs:
         run: python3 tools/fit/penetration.py
       - name: Print of the bottoms not stretched against the original GLB, region by region
         run: python3 tools/fit/stretch.py
+      - name: Print of the projected bottoms against the piece it was taken from (stripes' width, continuity, inner side)
+        run: python3 tools/fit/print_check.py
       - name: Hoods and collars lie on the back, within the shrink limits against the original GLB
         run: python3 tools/fit/hood.py --check
       - name: The inside of the tops does not show from behind more than recorded
