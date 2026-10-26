@@ -49,7 +49,7 @@ Na ordem em que costumam rodar:
 | `shoulder.py` | arredonda a ponta do ombro, que ficava quadrada acima do braço |
 | `top_cloth.py` | deixa a peça cair com o próprio peso, como tecido, até a gola encostar na nuca |
 | `resize.py` | diminui por igual as jaquetas grandes demais para o corpo |
-| `repose_sleeves.py` | gira ombro, braço e antebraço da peça para a manga acompanhar o braço do manequim |
+| `repose_sleeves.py` | gira ombro, braço e antebraço da peça para a manga acompanhar o braço do manequim; com `--short`, a manga que acaba acima do pulso (022) gira só no ombro e no braço, sem mexer no alto do ombro |
 | `cloth.py` | leva a manga à pose de `repose_sleeves.py` como tecido (simulador Newton, o corpo como colisor): a cava se move com colisão do tecido consigo, para a dobra da axila não atravessar as costas, e o antebraço assenta em volta do pulso e da mão; a barra abaixo do punho fica no lugar (034) |
 | `hood.py` | deita nas costas o capuz e a gola que ficavam em pé atrás da nuca (`--check` confere o limite de encolhimento) |
 | `lining.py` | apaga o forro pendurado abaixo da barra da frente |
@@ -81,7 +81,7 @@ lista os triângulos da peça de baixo que somem sob cada peça de cima (mais em
 | `install.py` | gera de novo as máscaras (poses B e C) e as tabelas de camadas de uma peça (`--bottom` para peça de baixo) |
 | `gen_mask.py` | calcula a máscara de uma peça |
 | `gen_layers.py`, `layer_tables.py` | calculam e gravam as tabelas de camadas (`site/assets/layers/`), uma linha por peça de cima |
-| `waist.py`, `collar.py` | medem a altura do cós e da gola em volta do corpo; o site corta o corpo nessa linha, pixel a pixel |
+| `waist.py`, `collar.py`, `sleeve.py` | medem a altura do cós, da gola e da barra da manga em volta do corpo; o site corta o corpo nessa linha, pixel a pixel |
 | `top_hem.py` | mede a barra da peça de cima em volta do corpo, a mesma linha usada em `site/garment-hem.ts` |
 | `strap.py` | esconde o ombro que atravessa a alça das regatas (chamado por `install.py`) |
 | `mask_io.py`, `garment.py`, `glb_patch.py` | leitura e escrita de máscaras e GLBs |

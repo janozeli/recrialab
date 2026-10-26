@@ -23,6 +23,7 @@ from gen_mask import cameras, first, zones, ORBIT
 from mask_io import hidden_indices
 from waist import cut_from, TIGHT
 import collar, strap
+from sleeve import cut_from as sleeve_cut, below_from as below_sleeve, FAR as SLEEVE_FAR
 from paths import GARMENTS, MASKS
 
 # Baselines per piece (the recorded counts; they may only go down).
@@ -67,7 +68,10 @@ BOTTOM_HOLES = {
 def measure_top(pid):
     b = body('B'); F = b.faces
     g = Garment(GARMENTS + f'{pid}.glb').mesh(); rg = RayMeshIntersector(g)
-    mask = json.load(open(MASKS + f'pose-b/{pid}.json')); cut = collar.cut_from(mask)
+    mask = json.load(open(MASKS + f'pose-b/{pid}.json'))
+    clips = [(c, far) for c, far in ((collar.cut_from(mask), collar.FAR), (sleeve_cut(mask), SLEEVE_FAR)) if c]
+    cut = (lambda P: np.any([c(P) for c, _ in clips], 0)) if clips else None
+    below = below_sleeve(mask)
     hid = np.zeros(len(F), bool); hid[hidden_indices(mask)] = True
     near, sleeve = zones(b, g, rg)
     vis = np.nonzero(~hid)[0]
@@ -79,14 +83,16 @@ def measure_top(pid):
         with np.errstate(invalid='ignore'):
             m = np.isfinite(tb) & np.isfinite(tg) & (tb < tg)
         f = vis[fb[m]]; gap = tg[m] - tb[m]
-        pokes += int(((near[f] & (gap < .03)) | (sleeve[f] & (gap < .15))).sum())
+        out = below(o[m] + dd[m] * tb[m, None]) if below else np.zeros(m.sum(), bool)   # the arm under a clipped sleeve's hem
+        pokes += int((((near[f] & (gap < .03)) | (sleeve[f] & (gap < .15))) & ~out).sum())
         on_shoulder += int((shoulder[f] & (gap < .03)).sum())
         tt, ft = first(rt, o, dd, front_only=True)
         with np.errstate(invalid='ignore'):
             hole = np.isfinite(tt) & ~(tg < tt + .05) & hid[np.maximum(ft, 0)] & (ft >= 0)
-            if cut is not None:   # neck clipped by the shader (collar.py): a gap if there is no cloth up to FAR behind
-                k = np.isfinite(tt); c = np.zeros(len(tt), bool); c[k] = cut(o[k] + dd[k] * tt[k, None])
-                hole = (hole & ~c) | (c & ~(tg < tt + collar.FAR))
+            # neck and arm clipped by the shader (collar.py, sleeve.py): a gap if there is no cloth up to FAR behind
+            for clip, far in clips:
+                k = np.isfinite(tt); c = np.zeros(len(tt), bool); c[k] = clip(o[k] + dd[k] * tt[k, None])
+                hole = (hole & ~c) | (c & ~(tg < tt + far))
             holes += int(hole.sum())
     return pid, pokes, holes, on_shoulder
 

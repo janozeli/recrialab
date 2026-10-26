@@ -55,7 +55,7 @@ jobs:
           python-version: '3.13'
       - run: python3 -m pip install -r tools/fit/requirements.txt
       - name: The body neither pokes through the pieces nor shows through the tops
-        run: python3 tools/fit/poke_through.py --max-pokes 50 --max-holes 35000 --max-bottom-pokes 30
+        run: python3 tools/fit/poke_through.py --max-pokes 50 --max-holes 7000 --max-bottom-pokes 30
       - name: A bottom neither vanishes in a jagged edge under the hem nor pokes through the top
         run: python3 tools/fit/layer_check.py --max-pokes 1500 --max-holes 5500 --max-total-pokes 90000 --max-total-holes 185000
       - name: No tear in the front of the bottoms showing the body
