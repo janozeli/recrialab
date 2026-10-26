@@ -76,6 +76,8 @@ jobs:
         run: python3 tools/fit/hood.py --check
       - name: The inside of the tops does not show from behind more than recorded
         run: python3 tools/fit/back_inside.py
+      - name: The arm clip under short sleeves stays where every site camera sees the sleeve over the arm
+        run: python3 tools/fit/sleeve.py --check
 
   secrets:
     runs-on: ubuntu-latest

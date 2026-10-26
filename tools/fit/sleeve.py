@@ -9,8 +9,9 @@ arm (beyond |x| = ARM_X, closer than RADIUS to the axis) between that line and B
 (site/body-occlusion.ts). Whole triangles in that band, and below it down to BELOW, are no longer hidden: the shader
 clips at the line. The arm axis leans like the mannequin's arm: AXIS_X and AXIS_Z at height AXIS_Y, moving by AXIS_DX
 and AXIS_DZ per metre up (mirrored on the left).
-usage: python3 tools/fit/sleeve.py [IDs]   (writes sleeve_line and shows the band again; run once, on the mask without the clip)"""
-import sys, os, json, numpy as np
+usage: python3 tools/fit/sleeve.py [IDs]   (writes sleeve_line and shows the band again; run once, on the mask without the clip)
+       python3 tools/fit/sleeve.py --check   (fails where a stored line sits below where the cameras see the arm covered)"""
+import sys, os, json, numpy as np, trimesh
 from garment import Garment
 from mask_io import hidden_indices, save
 from metric import body
@@ -18,7 +19,7 @@ from gen_mask import first
 from trimesh.ray.ray_pyembree import RayMeshIntersector
 from paths import GARMENTS, MASKS
 
-STEP, ARM_X, RADIUS, BAND, BELOW, SLACK, FAR = 5, .17, .06, .10, .08, .004, .12   # degrees and meters
+STEP, ARM_X, RADIUS, BAND, BELOW, SLACK, FAR, DY = 5, .17, .06, .10, .08, .004, .12, .004   # degrees and meters
 AXIS_Y, AXIS_X, AXIS_Z, AXIS_DX, AXIS_DZ = 1.15, .215, -.033, -.07, -.127   # arm axis: point and lean per metre up
 LOW, HIGH = .9, 1.45   # the hem is looked for between the wrist and the armpit; no hem found: the line stays at HIGH
 INNER = (200, 350)     # degrees (0 front, 90 outward, 180 back): the side of the arm that faces the torso
@@ -34,8 +35,17 @@ def angle(P):
     q = plane(P); return np.degrees(np.arctan2(q[:, 0], q[:, 1])) % 360
 
 
-def line(garment, b):
-    """Hem height per angle and side, as a camera sees it: rays from the arm axis outward; at each height the sleeve
+def cameras():
+    """Directions toward the site's orbit cameras: eight around, level and 22° from below and above."""
+    out = []
+    for el in (-22, 0, 22):
+        for az in range(0, 360, 45):
+            e, a = np.radians(el), np.radians(az); out.append([np.sin(a) * np.cos(e), np.sin(e), np.cos(a) * np.cos(e)])
+    return np.array(out)
+
+
+def hem(garment, b):
+    """Hem height per angle and side, from the sleeve itself: rays from the arm axis outward; at each height the sleeve
     (garment beyond |x| = ARM_X) found outside the arm up to FAR from it, or just inside it (where the arm pokes
     through), counts. The line is the lowest height from which the sleeve covers the next 2 cm, median of five rays
     in the step, plus SLACK (the arm goes a little into the sleeve, so no background shows between them). On the
@@ -68,6 +78,38 @@ def line(garment, b):
         y = np.array(side); ok = np.isfinite(y)
         out += list(np.interp(np.arange(len(y)), np.nonzero(ok)[0], y[ok], period=len(y)))
     return np.array(out) + SLACK
+
+
+def bare(garment, b):
+    """Per angle and side, the lowest height from which clipping the arm over the whole band (BAND) shows no
+    background: rays from the arm axis outward find the arm's surface every DY, and the line from every camera
+    (cameras()) through that point meets the garment or the rest of the body. NaN where no such height exists."""
+    C = b.triangles_center; ys = np.arange(LOW, HIGH, DY); nb = int(round(BAND / DY)); D = cameras(); out = []
+    for s in (1, -1):
+        arm = (s * C[:, 0] > ARM_X) & (C[:, 1] > .6)
+        ra = RayMeshIntersector(b.submesh([np.nonzero(arm)[0]], append=True))
+        ro = RayMeshIntersector(trimesh.util.concatenate([garment, b.submesh([np.nonzero(~arm)[0]], append=True)]))
+        t = ys - AXIS_Y
+        axis = np.c_[s * (AXIS_X + AXIS_DX * t), ys, AXIS_Z + AXIS_DZ * t]
+        for k in range(360 // STEP):
+            a = np.radians(k * STEP); d = np.array([s * np.sin(a), 0, np.cos(a)])
+            tb, _ = first(ra, axis, np.repeat(d[None], len(ys), 0))
+            ok = np.isfinite(tb); p = (axis + np.where(ok, tb, 0)[:, None] * d)[ok]
+            covered = np.ones(len(ys), bool)
+            for c in D:
+                covered[ok] &= ro.intersects_any(p + 2 * c, np.repeat(-c[None], len(p), 0))
+            run = np.convolve(covered, np.ones(nb), 'valid') == nb
+            out.append(ys[np.argmax(run)] + SLACK if run.any() else np.nan)
+    return np.array(out)
+
+
+def line(garment, b):
+    """The hem line (hem()), raised where clipping there would show the background (bare()). On the side facing the
+    torso the shirt's own side hangs beside the arm and hem() joins the front and the back across it: the line fell
+    below where the sleeve covers, and the clip opened a slit to the background between the arm and the torso (022,
+    seen from the front). Where no height is free of background, the hem line stays."""
+    L, B = hem(garment, b), bare(garment, b)
+    return np.where(np.isfinite(B), np.maximum(L, B), L)
 
 
 def on_line(P, L):
@@ -124,7 +166,24 @@ IDS = [
     '032',
 ]
 
-if __name__ == '__main__':
+def check():
+    """Every stored line at or above bare() of the garment and body as they are now (CI): below it, the clip cuts
+    arm that a camera sees against the background."""
+    bad = []
+    for pid in IDS:
+        g = Garment(GARMENTS + f'{pid}.glb').mesh()
+        for pose, path in [('B', f'pose-b/{pid}.json'), ('C', f'pose-c/{pid}.json')]:
+            if not os.path.exists(MASKS + path): continue
+            L = bare(g, body(pose)); stored = np.array(json.load(open(MASKS + path))['sleeve_line'])
+            low = np.nan_to_num(L - stored, nan=0)
+            print(pid, pose, 'stored line below where the clip shows no background by up to', round(float(low.max()) * 100, 1), 'cm', flush=True)
+            if low.max() > DY: bad.append(f'{pid} {pose}')
+    if bad: sys.exit('sleeve line below where the clip shows no background (rerun install.py on them): ' + ', '.join(bad))
+
+
+if __name__ == '__main__' and sys.argv[1:] == ['--check']:
+    check()
+elif __name__ == '__main__':
     ids = sys.argv[1:] or IDS
     for pid in ids:
         g = Garment(GARMENTS + f'{pid}.glb').mesh()
