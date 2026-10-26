@@ -57,6 +57,8 @@ export function filter(files: string[], read: (f: string, when: 'before' | 'afte
   const looks = new Set<string>();
   let all = false, check = false;
   for (const a of files) {
+    // fit.test.ts holds limits that calibration.py runs against the saved defects in the fit job.
+    if (a === 'site/fit.test.ts') { f.fit = true; continue; }
     if (NOTHING.some(r => r.test(a))) continue;
     if (a === 'tools/known-issues.yaml') { check = true; continue; }
     if (a === '.github/workflows/site-ci.yml' || a.startsWith('tools/fit/')) { f.fit = true; continue; }

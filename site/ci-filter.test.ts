@@ -6,8 +6,12 @@ const none = () => null;
 const wf = (f: string) => readFileSync(new URL(`../.github/workflows/${f}`, import.meta.url), 'utf8');
 
 test('docs, tests and text neither photograph nor measure anything', () => {
-  expect(filter(['README.md', 'site/fit.test.ts', 'AGENTS.md'], none))
+  expect(filter(['README.md', 'site/ux.test.ts', 'AGENTS.md'], none))
     .toEqual({ fit: false, phones: false, visualQa: '' });
+});
+
+test('a change to the fit limits runs the fit job, where calibration.py holds them against the saved defects', () => {
+  expect(filter(['site/fit.test.ts'], none)).toEqual({ fit: true, phones: false, visualQa: '' });
 });
 
 test('site code, the body or a tool changed: everything runs', () => {

@@ -12,3 +12,31 @@ reprova arquivo alterado, faltando ou sobrando.
 | `originals/tripo/` | peças de baixo (001 a 015) como o Tripo entregou, só com menos triângulos e sem fragmentos soltos | `stretch.py` (verificação de estampa), `pant_leg_cloth.py` |
 | `originals/before-hood/` | peças com capuz ou gola (030, 033 a 037) antes de rodar `hood.py` pela primeira vez (a 034 e a 036 já com a manga assentada por `cloth.py`, que roda antes de `hood.py`; a 036 com `--keep-side`, a partir da `before-hood/036.glb` anterior, sha256 9d284948…) | `hood.py` e `hood.py --check` (limite de encolhimento) |
 | `originals/before-drape/` | peças de cima (016 a 038) e o short 008 antes de `drape.py` e `zipper.py` | `drape.py`, `zipper.py` |
+
+## Calibração
+
+`calibration/<caso>/before/` e `after/` guardam, nos mesmos caminhos de `site/assets/`, a peça como estava quando o
+defeito foi visto e depois de consertada. `python3 tools/fit/calibration.py` roda as verificações do caso numa cópia
+temporária do repositório, com cada estado no lugar do publicado (`site/assets/` não é tocado); cada verificação tem
+de reprovar o antes e aprovar o depois. Roda no CI, no job `fit`: quando uma trava aperta e o depois deixa de passar,
+o PR que apertou fica vermelho e atualiza o depois.
+
+| Caso | Defeito | Verificações que separam |
+|---|---|---|
+| `bridge-013/` | tira de tecido pendurada no vão entre as pernas da calça 013, descendo até o tênis | `cuff.py 013` (103,9 → 0 cm²) |
+| `large-jackets/` | jaquetas 036 e 038 grandes demais para o corpo: manga passando dos dedos, barra no gancho | `site/fit.test.ts`: `-t 'long sleeves'` pega os dois testes de manga (no braço de perfil e terminando no pulso); `-t 'no lining hanging'`, o forro abaixo da barra |
+
+Estado de cada arquivo:
+
+| Arquivo | Estado |
+|---|---|
+| `bridge-013/before/` | a 013 com a ponte, como foi vista |
+| `bridge-013/after/` | a 013 logo depois do conserto da ponte; não é a publicada, que mudou depois |
+| `large-jackets/before/` | 036 e 038 grandes demais, como foram vistas |
+| `large-jackets/after/` 036 | a 036 publicada com a manga vestida como tecido e o punho sobre a palma |
+| `large-jackets/after/` 038 | GLB igual ao publicado; máscaras da época do conserto |
+
+Ficaram de fora o quadrado branco na braguilha da 006 (o conserto veio do shader e do gerador da máscara, então o antes e
+o depois guardados dão os mesmos números com o corpo de hoje) e as pontas sob o braço (máscaras feitas para o braço
+antigo do manequim). `stretch.py` não separa a ponte da 013 (meio 11,0% → 5,4%, limite 15%): ela mede outra coisa, a
+estampa esticada.

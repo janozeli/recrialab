@@ -53,7 +53,12 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.4.2'
       - run: python3 -m pip install -r tools/fit/requirements.txt
+      - run: bun install --frozen-lockfile
+        working-directory: site
       - name: The body neither pokes through the pieces nor shows through the tops
         run: python3 tools/fit/poke_through.py --max-pokes 50 --max-holes 7000 --max-bottom-pokes 30
       - name: A bottom neither vanishes in a jagged edge under the hem nor pokes through the top
@@ -76,8 +81,10 @@ jobs:
         run: python3 tools/fit/hood.py --check
       - name: The inside of the tops does not show from behind more than recorded
         run: python3 tools/fit/back_inside.py
-      - name: The arm clip under short sleeves stays where every site camera sees the sleeve over the arm
+      - name: The arm clip under short sleeves never shows the background from a site camera
         run: python3 tools/fit/sleeve.py --check
+      - name: Each check still fails the saved defect and passes its fix (reference/calibration/)
+        run: python3 tools/fit/calibration.py
 
   secrets:
     runs-on: ubuntu-latest
