@@ -81,7 +81,7 @@ jobs:
         run: python3 tools/fit/hood.py --check
       - name: The inside of the tops does not show from behind more than recorded
         run: python3 tools/fit/back_inside.py
-      - name: The arm clip under short sleeves never shows the background from a site camera
+      - name: The arm clip under short sleeves follows its line, with no more slit to the background than recorded
         run: python3 tools/fit/sleeve.py --check
       - name: Each check still fails the saved defect and passes its fix (reference/calibration/)
         run: python3 tools/fit/calibration.py

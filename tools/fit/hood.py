@@ -20,11 +20,12 @@ The check in site/fit.test.ts (hoodBehindCm) measures how far behind the body's 
 usage: python3 tools/fit/hood.py --measure   (each top, in cm)
        python3 tools/fit/hood.py --check     (published piece against ORIGINAL: only z changes, within the limits)
        python3 tools/fit/hood.py 033 037     (writes; then install.py --mask 033 037 and layer_tables.py)"""
-import os, sys, tempfile, numpy as np
+import os, sys, json, hashlib, tempfile, numpy as np
 from trimesh.ray.ray_pyembree import RayMeshIntersector
 from garment import Garment, kernel
 from metric import body
-from paths import GARMENTS
+from paths import GARMENTS, MASKS
+from mask_io import hidden_indices
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'visual-qa'))
 from known_issues import known_issues
 
@@ -40,6 +41,12 @@ CLOSE = {
     '035': .012,               # m outside the neck: the front of the high collar sat inside it (open collar)
 }
 NECK_Z, COLLAR_Y, COLLAR_R, CLOSE_RADIUS, CLOSE_ROUNDS = -.008, 1.44, .17, .04, 6   # m, m, m, m, rounds
+# body triangles the mask of the piece hides below KEPT_BELOW, kept by hand from before close() (sha256 of the sorted
+# indices, 16 hex): a fresh install.py hides more of the torso at the hem and opens the 005.035 tear
+KEPT_BELOW = 1.40
+KEPT = {
+    '035': '4045696c1c3e8f2d',
+}
 MAX_COLLAR_STRETCH = .90         # p99 of the collar edges that stretch: a collapsed plain collar opening around the neck
 MAX_INSIDE = .03                 # m: deepest a closed collar vertex may stay inside the neck; on 035 two points at the top centre stay 2.9 cm in, under the collar, and one more round passes MAX_COLLAR_STRETCH
 ORIGINAL = 'tools/fit/reference/originals/before-hood'   # pieces before hood.py first ran
@@ -162,6 +169,11 @@ if __name__ == '__main__':
                 summary, refused = summary + ', collar stretched without the known issue stretched-collar', True
             if pid in CLOSE and (inside := (neck_gap(Q[top], b)[0] < -MAX_INSIDE).sum()):
                 summary, refused = summary + f', {inside} collar vertices more than {100 * MAX_INSIDE:.0f} cm inside the neck', True
+            for pose in 'BC' if pid in KEPT else '':
+                C = body(pose).triangles_center; m = json.load(open(MASKS + f'pose-{pose.lower()}/{pid}.json'))
+                h = np.array(sorted(i for i in hidden_indices(m) if C[i, 1] < KEPT_BELOW), '<i4')
+                if hashlib.sha256(h.tobytes()).hexdigest()[:16] != KEPT[pid]:
+                    summary, refused = summary + f', pose {pose} mask below {KEPT_BELOW} m not the one kept (KEPT)', True
             print(pid, summary)
             if refused: bad.append(f'{pid}: {summary}')
         if bad: sys.exit('hood and collar outside the shrink limits against ' + ORIGINAL + ': ' + '; '.join(bad))

@@ -10,7 +10,8 @@ arm (beyond |x| = ARM_X, closer than RADIUS to the axis) between that line and B
 clips at the line. The arm axis leans like the mannequin's arm: AXIS_X and AXIS_Z at height AXIS_Y, moving by AXIS_DX
 and AXIS_DZ per metre up (mirrored on the left).
 usage: python3 tools/fit/sleeve.py [IDs]   (writes sleeve_line and shows the band again; run once, on the mask without the clip)
-       python3 tools/fit/sleeve.py --check   (fails where a stored line is off line(): too low shows the background, too high the arm over the sleeve)"""
+       python3 tools/fit/sleeve.py --check   (fails where a stored line is off line(): too low shows the background, too high the arm over the sleeve;
+                                             and where the slit to the background passes the recorded SLIT)"""
 import sys, os, json, numpy as np, trimesh
 from garment import Garment
 from mask_io import hidden_indices, save
@@ -18,12 +19,14 @@ from metric import body
 from gen_mask import first
 from trimesh.ray.ray_pyembree import RayMeshIntersector
 from paths import GARMENTS, MASKS
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'visual-qa'))
+from known_issues import known_issues
 
 STEP, ARM_X, RADIUS, BAND, BELOW, SLACK, FAR, DY = 5, .17, .06, .10, .08, .004, .12, .004   # degrees and meters
 AXIS_Y, AXIS_X, AXIS_Z, AXIS_DX, AXIS_DZ = 1.15, .215, -.033, -.07, -.127   # arm axis: point and lean per metre up
 LOW, HIGH = .9, 1.45   # the hem is looked for between the wrist and the armpit; no hem found: the line stays at HIGH
 SPIKE = 5              # angles in the median that smooths the raised line
-POKE = .15             # m: garment this close behind a visible arm point makes it an arm over the sleeve (poke_through.py)
+POKE = .015            # m: sleeve cloth this close behind a visible arm point makes it an arm over the sleeve (021: 0.6 cm); the lining inside the arm sits 2 to 3.5 cm behind (022)
 INNER = (200, 350)     # degrees (0 front, 90 outward, 180 back): the side of the arm that faces the torso
 
 
@@ -86,13 +89,14 @@ def views(garment, b):
     """What the site's cameras (cameras()) see of the arm, per angle and side (rows) and height every DY from LOW
     (columns): rays from the arm axis outward find the arm's surface. covered: the line from every camera through
     the point meets the garment or the rest of the body, so clipping it shows no background. poke: some camera that
-    faces the point sees it first, with the garment less than POKE behind it (the arm over the sleeve's cloth)."""
+    faces the point sees it first, with the sleeve's cloth (garment beyond ARM_X) less than POKE behind it (the arm over
+    the sleeve's cloth; the shirt's side and the lining that crosses the arm further in do not count)."""
     C = b.triangles_center; ys = np.arange(LOW, HIGH, DY); D = cameras(); covered, poke = [], []
     for s in (1, -1):
         arm = (s * C[:, 0] > ARM_X) & (C[:, 1] > .6)
         am = b.submesh([np.nonzero(arm)[0]], append=True); ra = RayMeshIntersector(am)
         ro = RayMeshIntersector(trimesh.util.concatenate([garment, b.submesh([np.nonzero(~arm)[0]], append=True)]))
-        rg = RayMeshIntersector(garment)
+        G = garment.triangles_center; rg = RayMeshIntersector(garment.submesh([np.nonzero(s * G[:, 0] > ARM_X)[0]], append=True))
         t = ys - AXIS_Y
         axis = np.c_[s * (AXIS_X + AXIS_DX * t), ys, AXIS_Z + AXIS_DZ * t]
         for k in range(360 // STEP):
@@ -109,14 +113,14 @@ def views(garment, b):
     return ys, np.array(covered), np.array(poke)
 
 
-def line(garment, b):
+def line(garment, b, seen=None):
     """The hem line (hem()), raised on the side facing the torso (INNER) to where clipping shows no background over
     the whole band (BAND). There the shirt's own side hangs beside the arm and hem() joins the front and the back
     across it: the line fell below where the sleeve covers, and the clip opened a slit to the background between the
     arm and the torso (022, seen from the front). The line is not raised where the arm it would show sits over the
     sleeve's cloth (views() poke: 021, at the back), nor outside INNER; a lift at one or two angles only is dropped
     by the median over SPIKE angles."""
-    L = hem(garment, b); ys, cov, poke = views(garment, b); nb = int(round(BAND / DY)); M = L.copy(); n = len(L) // 2
+    L = hem(garment, b); ys, cov, poke = seen or views(garment, b); nb = int(round(BAND / DY)); M = L.copy(); n = len(L) // 2
     for k in range(len(L)):
         if not INNER[0] < (k % n) * STEP < INNER[1]: continue
         run = np.convolve(cov[k], np.ones(nb), 'valid') == nb
@@ -126,6 +130,13 @@ def line(garment, b):
     M = np.concatenate([np.median([np.roll(h, k) for k in range(-(SPIKE // 2), SPIKE // 2 + 1)], 0) for h in (M[:n], M[n:])])
     inner = np.array([INNER[0] < (k % n) * STEP < INNER[1] for k in range(len(L))])
     return np.where(inner, np.maximum(L, M), L)
+
+
+def slit(L, ys, cov):
+    """Cells (angle in INNER, height every DY) inside the clip band of line L that a camera sees against the background:
+    arm discarded with nothing behind it, the slit between the arm and the torso."""
+    n = len(L) // 2
+    return int(sum((~cov[k][(ys >= L[k]) & (ys < L[k] + BAND)]).sum() for k in range(len(L)) if INNER[0] < (k % n) * STEP < INNER[1]))
 
 
 def on_line(P, L):
@@ -165,6 +176,14 @@ def below_from(mask, H):
     return None if L is None else (lambda P: near(P) & (P[:, 1] < on_line(P, np.minimum(np.array(L), H))))
 
 
+def raised_from(mask, H):
+    """Arm between the hem line H (hem()) and the clip line where line() raised it above H (the torso side)."""
+    L = mask.get('sleeve_line')
+    if L is None: return None
+    L = np.array(L)
+    return lambda P: near(P) & (P[:, 1] >= on_line(P, np.minimum(L, H))) & (P[:, 1] < on_line(P, L))
+
+
 # pieces clipped at the sleeve hem: short sleeves where it closes the gap under the hem without the arm poking
 # through the sleeve (poke_through.py)
 IDS = [
@@ -182,20 +201,44 @@ IDS = [
     '030',
     '032',
 ]
+# slit cells (slit()) left per piece and pose, where raising the line would show the arm over the sleeve; only goes down,
+# and holds only while the known issue sleeve-slit names the piece (tools/known-issues.yaml)
+SLIT = {
+    '018 B': 14,
+    '018 C': 14,
+    '019 B': 10,
+    '019 C': 10,
+    '020 B': 20,
+    '020 C': 20,
+    '021 B': 10,
+    '021 C': 10,
+    '022 B': 249,
+    '022 C': 249,
+    '024 B': 40,
+    '024 C': 40,
+    '026 B': 10,
+    '026 C': 10,
+    '029 B': 6,
+    '029 C': 6,
+    '030 B': 10,
+    '030 C': 10,
+}
+
 
 def check():
     """Every stored line equal to line() of the garment and body as they are now (CI): below it, the clip cuts arm
     that a camera sees against the background; above it, the arm shows over the sleeve's cloth."""
-    bad = []
+    bad = []; issue = known_issues().get('sleeve-slit', set())
     for pid in IDS:
         g = Garment(GARMENTS + f'{pid}.glb').mesh()
         for pose, path in [('B', f'pose-b/{pid}.json'), ('C', f'pose-c/{pid}.json')]:
             if not os.path.exists(MASKS + path): continue
-            L = line(g, body(pose)); stored = np.array(json.load(open(MASKS + path))['sleeve_line'])
-            low = L - stored
-            print(pid, pose, 'stored line off line() by up to', round(float(np.abs(low).max()) * 100, 1), 'cm', flush=True)
+            b = body(pose); seen = views(g, b); L = line(g, b, seen); stored = np.array(json.load(open(MASKS + path))['sleeve_line'])
+            low = L - stored; s = slit(stored, seen[0], seen[1]); cap = SLIT.get(f'{pid} {pose}', 0) if pid in issue else 0
+            print(pid, pose, 'stored line off line() by up to', round(float(np.abs(low).max()) * 100, 1), 'cm, slit', s, 'cells (recorded', cap, ')', flush=True)
             if np.abs(low).max() > DY: bad.append(f'{pid} {pose}')
-    if bad: sys.exit('sleeve line off line() (rerun install.py on them): ' + ', '.join(bad))
+            if s > cap: bad.append(f'{pid} {pose} slit {s} > {cap}')
+    if bad: sys.exit('sleeve line off line() (rerun install.py on them) or slit to the background above SLIT: ' + ', '.join(bad))
 
 
 if __name__ == '__main__' and sys.argv[1:] == ['--check']:
