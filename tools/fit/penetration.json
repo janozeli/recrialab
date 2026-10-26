@@ -1,5 +1,5 @@
 {
- "measure": 2,
+ "measure": 3,
  "_": "baseline of tools/fit/penetration.py (mannequin with the arm from arm.py; the arm is left out): % of the covered body area in each band; it only goes down (--update)",
  "pieces": {
   "001": {
@@ -49,7 +49,7 @@
     "total": {
      "penetrates": 2.3,
      "penetrates_visible": 0.0,
-     "gap_over_4cm": 0.6
+     "gap_over_4cm": 0.4
     },
     "waist": {
      "penetrates": 1.1,
@@ -79,7 +79,7 @@
     "ankle": {
      "penetrates": 1.7,
      "penetrates_visible": 0.0,
-     "gap_over_4cm": 9.1
+     "gap_over_4cm": 5.0
     }
    }
   },
@@ -129,7 +129,7 @@
     "total": {
      "penetrates": 1.2,
      "penetrates_visible": 0.3,
-     "gap_over_4cm": 1.5
+     "gap_over_4cm": 0.9
     },
     "waist": {
      "penetrates": 5.4,
@@ -159,7 +159,7 @@
     "ankle": {
      "penetrates": 0.0,
      "penetrates_visible": 0.0,
-     "gap_over_4cm": 21.5
+     "gap_over_4cm": 14.5
     }
    }
   },
@@ -168,7 +168,7 @@
     "total": {
      "penetrates": 0.0,
      "penetrates_visible": 0.0,
-     "gap_over_4cm": 7.0
+     "gap_over_4cm": 6.5
     },
     "waist": {
      "penetrates": 0.0,
@@ -198,7 +198,7 @@
     "ankle": {
      "penetrates": 0.0,
      "penetrates_visible": 0.0,
-     "gap_over_4cm": 25.4
+     "gap_over_4cm": 37.3
     }
    }
   },
@@ -212,9 +212,9 @@
    },
    "bands": {
     "total": {
-     "penetrates": 13.6,
-     "penetrates_visible": 5.4,
-     "gap_over_4cm": 4.2
+     "penetrates": 13.9,
+     "penetrates_visible": 5.5,
+     "gap_over_4cm": 3.9
     },
     "waist": {
      "penetrates": 82.9,
@@ -244,7 +244,7 @@
     "ankle": {
      "penetrates": 0.0,
      "penetrates_visible": 0.0,
-     "gap_over_4cm": 17.9
+     "gap_over_4cm": 15.3
     }
    }
   },
@@ -352,7 +352,7 @@
   "011": {
    "bands": {
     "total": {
-     "penetrates": 3.5,
+     "penetrates": 3.6,
      "penetrates_visible": 3.5,
      "gap_over_4cm": 2.1
     },
@@ -384,7 +384,7 @@
     "ankle": {
      "penetrates": 0.0,
      "penetrates_visible": 0.0,
-     "gap_over_4cm": 0.4
+     "gap_over_4cm": 0.0
     }
    }
   },
@@ -423,7 +423,7 @@
     "ankle": {
      "penetrates": 0.0,
      "penetrates_visible": 0.0,
-     "gap_over_4cm": 1.8
+     "gap_over_4cm": 0.0
     }
    }
   },
@@ -431,8 +431,8 @@
    "bands": {
     "total": {
      "penetrates": 2.9,
-     "penetrates_visible": 2.6,
-     "gap_over_4cm": 5.2
+     "penetrates_visible": 2.7,
+     "gap_over_4cm": 5.3
     },
     "waist": {
      "penetrates": 52.9,
@@ -471,7 +471,7 @@
     "total": {
      "penetrates": 0.0,
      "penetrates_visible": 0.0,
-     "gap_over_4cm": 0.6
+     "gap_over_4cm": 0.3
     },
     "waist": {
      "penetrates": 0.0,
@@ -501,7 +501,7 @@
     "ankle": {
      "penetrates": 0.0,
      "penetrates_visible": 0.0,
-     "gap_over_4cm": 12.1
+     "gap_over_4cm": 7.5
     }
    }
   },

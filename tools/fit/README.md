@@ -72,6 +72,7 @@ Na ordem em que costumam rodar:
 | `zipper.py` | fecha a braguilha do short 008 |
 | `crotch.py` | remove o tecido que o gerador deixou entre as coxas do short 008 |
 | `cords.py` | remove os cordões que o gerador pendurou na frente da saia 009 |
+| `cuff_tip.py` | sobe a ponta do punho que o gerador deixou pendurada abaixo da borda (021) |
 | `fringe.py`, `slivers.py`, `islands.py` | aparam as pontas da franja, as lascas soltas e os pedaços da malha 3D desligados da peça |
 
 ## Máscaras e camadas
@@ -101,6 +102,7 @@ os pares cujo hash mudou.
 | `holes.py` | rasgo na frente das peças de baixo mostrando o corpo |
 | `crotch.py --measure` | tecido no vão entre as coxas do short 008 |
 | `cuff.py` | tecido solto fora da perna da calça, da canela para baixo |
+| `cuff_tip.py --check` | ponta do punho mais de 3 cm abaixo da borda vizinha (034 e 037 presas ao valor de hoje) |
 | `texture.py` | mancha preta na textura entre as pernas, onde o gerador não enxergou a roupa |
 | `cords.py --measure` | cordões na frente da saia 009 |
 | `penetration.py` | roupa mais folgada ou mais enfiada no corpo que o valor registrado em `penetration.json`, que só pode baixar |

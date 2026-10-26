@@ -3,6 +3,8 @@
  "calibration/bridge-013/after/masks/pose-c/013.json": "d69735fb414d6e7d29efdf5d76e93dec4e7b5cebb76995d84820fee1436b40a0",
  "calibration/bridge-013/before/garments/013.glb": "2ff286375296fb95dba919cc8ae6513160407bb8ad9504fa26c09a27230663e8",
  "calibration/bridge-013/before/masks/pose-c/013.json": "b9e436bf0fcbedfddf9d576defb277bc008bb1d5e6aac3dcb20fcceff4210f09",
+ "calibration/cuff-tip-021/after/garments/021.glb": "f3203220e4477cb3bebf1a4f81269433c885c930869b4be73e627fca3acd35d2",
+ "calibration/cuff-tip-021/before/garments/021.glb": "6ca6e3a6a03cc7636abbacd4b78fe12cd47c35d7f427428d2325fa8a66151cdb",
  "calibration/large-jackets/after/garments/036.glb": "e088261b746b120d9d610529581f9e8886bbace41d843ef24d296b18eb11c41d",
  "calibration/large-jackets/after/garments/038.glb": "0114baca80337a4c63a82ccd33e0f5f479e0623d38b766a8ec9e82e37de81d1f",
  "calibration/large-jackets/after/masks/pose-b/036.json": "af8cf8b4d5b639b4f3fa7cd45ab23a7a24b4ab073fd87926c2ac7c05519fad6c",

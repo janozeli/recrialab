@@ -19,7 +19,6 @@ FLAT = .5
 MAX = 15.      # cm² (the other trousers: up to 6.9)
 # piece: (known issue, cm²) above MAX, held at the recorded value while the issue is open
 AS_IS = {
-    '005': ('hem-over-shoe', 71.0),
 }
 
 
