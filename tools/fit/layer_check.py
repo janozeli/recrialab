@@ -16,7 +16,9 @@ lowest hem to the chest; so the measure does not check the generator with its ow
 Per garment, its pokes and holes summed over all its pairs (a bottom with the 23 tops, a top over the 15 bottoms) may
 not rise above BASELINE: the hip of trousers 014 standing outside the tops' hems went from 2,086 pokes over its 23 pairs
 to 8,859 and no pair crossed the per-pair limit (calibration case hip-014). The sum is checked only for garments whose
-pairs are all in the run; --update lowers it where a garment improved and never raises it.
+pairs are all in the run, with SLACK on top: the same code and packages count up to 3.3% more pokes on the CI runner
+than on a cloud session (030 over its 15 pairs: 2,154 against 2,083; holes match), so the baseline is the larger of the
+two and SLACK absorbs the rest. --update lowers it where a garment improved and never raises it.
 usage: python3 tools/fit/layer_check.py [--max-pokes N] [--max-holes N] [--max-total-pokes N] [--max-total-holes N] [--no-cache] [--update] [BOTTOM.TOP ...]
        (no pairs: 15 × 23; the total catches holes traded for pokes spread over many pairs)"""
 import sys, os, json, numpy as np
@@ -31,6 +33,7 @@ POKE = .03   # m, the same as poke_through.py
 # poke caps with POKE, per pair and over the 345 pairs: they hold even when the command line passes a looser limit
 CEILING = {'pokes': 1500, 'total-pokes': 90000}
 BASELINE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'layer_baseline.json')
+SLACK = .05   # fraction over the baseline, ray casting differing between machines (see above)
 BOTTOMS, TOPS = [f'{i:03d}' for i in range(1, 16)], [f'{i:03d}' for i in range(16, 39)]
 
 
@@ -126,6 +129,6 @@ if __name__ == '__main__':
         if not all(q in run for q in ps): continue
         now = {'pokes': sum(run[q][0] for q in ps), 'holes': sum(run[q][1] for q in ps)}
         if '--update' in sys.argv: base[g] = {k: min(v, base[g][k]) for k, v in now.items()}
-        bad += [f'{g} {k} over its pairs {now[k]} > {base[g][k]}' for k in now if now[k] > base[g][k]]
+        bad += [f'{g} {k} over its pairs {now[k]} > {base[g][k]} + {SLACK:.0%}' for k in now if now[k] > base[g][k] * (1 + SLACK)]
     if '--update' in sys.argv: open(BASELINE, 'w').write(json.dumps(base, indent=1) + '\n')
     if bad: sys.exit('above the limit: ' + ', '.join(bad))
