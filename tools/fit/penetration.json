@@ -1,5 +1,9 @@
 {
  "measure": 3,
+ "redefined": [
+  "ankle",
+  "total"
+ ],
  "_": "baseline of tools/fit/penetration.py (mannequin with the arm from arm.py; the arm is left out): % of the covered body area in each band; it only goes down (--update)",
  "pieces": {
   "001": {
