@@ -147,7 +147,7 @@ const MAX_CUFF_TO_HAND_CM = 2;
 // Held at the recorded baseline while the known issue that owns them is open: 036 sits 3.7 cm off the arm in one slice,
 // and on 034 the oversized sleeve sits 4.0 cm off the arm on one side (tools/fit/cloth.py).
 const SLEEVE_PENDING: Record<string, { offset: number, cuff: number }> = {
-  '034': { offset: 4.1, cuff: MAX_CUFF_TO_HAND_CM }, '036': { offset: 4, cuff: MAX_CUFF_TO_HAND_CM },
+  '034': { offset: 4.1, cuff: MAX_CUFF_TO_HAND_CM },
 };
 function sleeveCenters(p: Float32Array, side: number, minX: number, low: number): Map<number, number> {
   const out = new Map<number, number>();

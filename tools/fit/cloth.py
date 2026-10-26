@@ -14,10 +14,11 @@ The hem below the cuff keeps the place it had (the pose turns it with the forear
 The rest shape is the garment as the generator made it, so the cloth only stretches as far as the pose and the
 collision make it. Only positions change; UV and texture stay.
 Refuses (writes nothing) if the cloth stretches past MAX_STRETCH (p99 of the edges that move, as repose_sleeves.py),
-a triangle flips, a vertex of the sleeve stays inside the hand, the cuff ends farther than MAX_CUFF from the hand, or
+a triangle flips, more vertices end inside the hand than in the GLB it got, the cuff ends farther than MAX_CUFF from the hand, or
 more of the inside of the garment shows from behind below the neck than before (MAX_BACK_INSIDE).
 It runs repose_sleeves.py itself (the start is its input); then hood.py and install.py, as after repose_sleeves.py.
-usage: python3 tools/fit/cloth.py in.glb out.glb   (in: the GLB repose_sleeves.py would take)"""
+usage: python3 tools/fit/cloth.py in.glb out.glb [--keep-side]   (in: the GLB repose_sleeves.py would take;
+--keep-side on 036; not on 034, whose oversized sleeve fills that band)"""
 import sys, numpy as np
 import warp as wp, newton
 from scipy.spatial import cKDTree
@@ -38,6 +39,7 @@ TRI_KE, EDGE_KE, DENSITY, RADIUS = 1e5, 1., .2, .003   # stiff in plane, bending
 CONTACT_KE, CONTACT_KD, MU = 1e4, 1e-2, .3
 SELF_RADIUS, SELF_MARGIN = .002, .004
 HAND = .9              # below this the arm is wrist and hand, which the masks never hide
+SIDE, ARMPIT = .18, 1.  # --keep-side: below the armpit, the torso inside |x| < SIDE (fading in over FADE / 2) stays
 HEM_NEAR, HEM_RAMP = .04, .08   # hem: beyond HEM_NEAR from the arm, back to its place over HEM_RAMP below the cuff
 MAX_BACK_INSIDE = .5   # cm² of inside seen from behind (back_inside.py) more than before
 
@@ -85,7 +87,7 @@ def simulate(X0, start, target, F, b, free, animate, edge_ke, self_contact):
 
 
 if __name__ == '__main__':
-    src, dst = sys.argv[1:3]
+    src, dst = sys.argv[1:3]; keep_side = '--keep-side' in sys.argv
     b = body('B'); B = b.vertices
     arm = cKDTree(B[np.abs(B[:, 0]) > .17])
     g = Garment(src); P0 = g.vertices(); m = g.mesh(P0)
@@ -99,27 +101,39 @@ if __name__ == '__main__':
     band = ((np.abs(X0[:, 0]) > x0) & (np.abs(X0[:, 0]) < x1) & (X0[:, 1] > y0) & (X0[:, 1] < y1)).astype(float)
     free = K @ band > .5
     X2 = simulate(X0, X0, X1, F, b, free, ANIMATE, ARMHOLE_EDGE_KE, True)
-    # pass 2: the forearm settles around the wrist and the hand, from the pose
+    def in_hand(P):
+        out = np.zeros(len(P), bool); near = (np.abs(P[:, 0]) > .19) & (P[:, 1] < HAND); out[near] = inside(b, P[near])
+        return out
+    before = in_hand(P0)
+    back0 = back_inside(m, P0)
+    # pass 2: the forearm settles around the wrist and the hand, from the pose; if that fails, a long cuff that already
+    # lay over the palm (036) stays where the pose put it: the collider cannot push cloth out from inside the hand, and
+    # freed it folds over the palm
     free = np.clip((ELBOW - X1[:, 1]) / FADE, 0, 1) * np.clip((np.abs(X1[:, 0]) - .17) / .03, 0, 1)
     free = K @ (free * (arm.query(X1)[0] < NEAR)) > .5
-    X3 = simulate(X0, X1, X1, F, b, free, 0, EDGE_KE, False)
-    # the armhole from pass 1, the rest from pass 2
-    w = np.clip(kernel(X0, .03) @ ((np.abs(X0[:, 0]) > x0) & (X0[:, 1] > y0)), 0, 1)
-    X3 = X3 + w[:, None] * (X2 - X3)
-    # the hem below the cuff, away from the arm, back to its place
-    W = np.ones(len(X0))
-    for s in (1, -1):
-        h = s * X0[:, 0] > 0
-        W[h] = np.clip((X0[h, 1] - (sleeve_end(X3[inv], B, s) - HEM_RAMP)) / HEM_RAMP, 0, 1)
-    W = np.clip(kernel(X0, .015) @ np.maximum(W, arm.query(X3)[0] < HEM_NEAR), 0, 1)
-    P = (X0 + W[:, None] * (X3 - X0))[inv]
-    p95, p99, flipped = check(m, P0, P)
-    cuff = max(cuff_to_hand(P, B, s) for s in (1, -1))
-    hand = int(inside(b, P[(np.abs(P[:, 0]) > .19) & (P[:, 1] < HAND)]).sum())
-    back, back0 = back_inside(m, P), back_inside(m, P0)
-    print('%s: stretch p95 %.1f%% p99 %.1f%%; flipped %d; cuff to hand %.1f cm; %d vertices inside the hand; '
-          'inside seen from behind %.1f cm² (before %.1f)' % (
-        src.split('/')[-1], 100 * p95, 100 * p99, flipped, 100 * cuff, hand, back, back0))
-    if p99 > MAX_STRETCH or flipped or cuff > MAX_CUFF or hand or back > back0 + MAX_BACK_INSIDE:
+    for pinned in (np.zeros(len(X0), bool), np.isin(np.arange(len(X0)), inv[before & in_hand(P1)])):
+        X3 = simulate(X0, X1, X1, F, b, free & ~pinned, 0, EDGE_KE, False)
+        # the armhole from pass 1, the rest from pass 2
+        w = np.clip(kernel(X0, .03) @ ((np.abs(X0[:, 0]) > x0) & (X0[:, 1] > y0)), 0, 1)
+        X3 = X3 + w[:, None] * (X2 - X3)
+        # the hem below the cuff, away from the arm, back to its place
+        W = np.ones(len(X0))
+        for s in (1, -1):
+            h = s * X0[:, 0] > 0
+            W[h] = np.clip((X0[h, 1] - (sleeve_end(X3[inv], B, s) - HEM_RAMP)) / HEM_RAMP, 0, 1)
+        W = np.maximum(W, arm.query(X3)[0] < HEM_NEAR)
+        if keep_side:   # the side of the torso beside the arm too, below the armpit (036: it pulls the lining and the hem)
+            W = np.minimum(W, np.maximum(X0[:, 1] > ARMPIT, np.clip((np.abs(X0[:, 0]) - SIDE) / (FADE / 2), 0, 1)))
+        W = np.clip(kernel(X0, .015) @ W, 0, 1)
+        P = (X0 + W[:, None] * (X3 - X0))[inv]
+        p95, p99, flipped = check(m, P0, P)
+        cuff = max(cuff_to_hand(P, B, s) for s in (1, -1))
+        hand, back = int(in_hand(P).sum()), back_inside(m, P)
+        print('%s, %d pinned: stretch p95 %.1f%% p99 %.1f%%; flipped %d; cuff to hand %.1f cm; %d vertices inside the '
+              'hand (before %d); inside seen from behind %.1f cm² (before %.1f)' % (
+            src.split('/')[-1], pinned.sum(), 100 * p95, 100 * p99, flipped, 100 * cuff, hand, before.sum(), back, back0))
+        if p99 <= MAX_STRETCH and not flipped and cuff <= MAX_CUFF and hand <= before.sum() and back <= back0 + MAX_BACK_INSIDE:
+            break
+    else:
         sys.exit(f'{src}: the cloth does not settle within the limits; nothing written')
     g.save(dst, P, before=P0)
