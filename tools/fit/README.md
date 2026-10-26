@@ -98,7 +98,7 @@ os pares cujo hash mudou.
 | Script | Reprova |
 |---|---|
 | `poke_through.py` | corpo atravessando a roupa ou aparecendo oco sob ela |
-| `layer_check.py` | peça de baixo com borda serrilhada sob a barra da de cima ou que a atravessa, nos 345 pares |
+| `layer_check.py` | peça de baixo com borda serrilhada sob a barra da de cima ou que a atravessa, nos 345 pares; por peça, a soma dos seus pares acima do valor registrado em `layer_baseline.json`, que só pode baixar |
 | `holes.py` | rasgo na frente das peças de baixo mostrando o corpo |
 | `crotch.py --measure` | tecido no vão entre as coxas do short 008 |
 | `cuff.py` | tecido solto fora da perna da calça, da canela para baixo |
