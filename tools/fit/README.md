@@ -99,7 +99,7 @@ os pares cujo hash mudou.
 | `holes.py` | rasgo na frente das peças de baixo mostrando o corpo |
 | `crotch.py --measure` | tecido no vão entre as coxas do short 008 |
 | `cuff.py` | tecido solto fora da perna da calça, da canela para baixo |
-| `cuff_tip.py --check` | ponta do punho mais de 3 cm abaixo da borda vizinha (034 e 037 presas ao valor de hoje) |
+| `cuff_tip.py --check` | ponta do punho mais de 3 cm abaixo da borda vizinha (034 e 037 presas ao valor de hoje), e punho separado na altura do pulso fora da lista `CUFFS` |
 | `texture.py` | mancha preta na textura entre as pernas, onde o gerador não enxergou a roupa |
 | `cords.py --measure` | cordões na frente da saia 009 |
 | `penetration.py` | roupa mais folgada ou mais enfiada no corpo que o valor registrado em `penetration.json`, que só pode baixar |
