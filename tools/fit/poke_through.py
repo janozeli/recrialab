@@ -23,7 +23,7 @@ from gen_mask import cameras, first, zones, ORBIT
 from mask_io import hidden_indices
 from waist import cut_from, TIGHT
 import collar, strap
-from sleeve import cut_from as sleeve_cut, below_from as below_sleeve, raised_from, hem as sleeve_hem, FAR as SLEEVE_FAR, POKE as SLEEVE_POKE
+from sleeve import cut_from as sleeve_cut, below_from as below_sleeve, hem as sleeve_hem, FAR as SLEEVE_FAR
 from paths import GARMENTS, MASKS
 
 # Baselines per piece (the recorded counts; they may only go down).
@@ -71,9 +71,7 @@ def measure_top(pid):
     mask = json.load(open(MASKS + f'pose-b/{pid}.json'))
     clips = [(c, far) for c, far in ((collar.cut_from(mask), collar.FAR), (sleeve_cut(mask), SLEEVE_FAR)) if c]
     cut = (lambda P: np.any([c(P) for c, _ in clips], 0)) if clips else None
-    H = sleeve_hem(g, b) if 'sleeve_line' in mask else None
-    below = below_sleeve(mask, H) if H is not None else None
-    raised = raised_from(mask, H) if H is not None else None
+    below = below_sleeve(mask, sleeve_hem(g, b)) if 'sleeve_line' in mask else None
     hid = np.zeros(len(F), bool); hid[hidden_indices(mask)] = True
     near, sleeve = zones(b, g, rg)
     vis = np.nonzero(~hid)[0]
@@ -86,10 +84,7 @@ def measure_top(pid):
             m = np.isfinite(tb) & np.isfinite(tg) & (tb < tg)
         f = vis[fb[m]]; gap = tg[m] - tb[m]
         out = below(o[m] + dd[m] * tb[m, None]) if below else np.zeros(m.sum(), bool)   # the arm under a clipped sleeve's hem
-        # between the hem and a line raised on the torso side, the arm shows by design: only sleeve cloth right
-        # behind it (sleeve.POKE, the rule that raised the line) makes it a poke
-        up = raised(o[m] + dd[m] * tb[m, None]) if raised else np.zeros(m.sum(), bool)
-        pokes += int((np.where(up, gap < SLEEVE_POKE, (near[f] & (gap < .03)) | (sleeve[f] & (gap < .15))) & ~out).sum())
+        pokes += int((((near[f] & (gap < .03)) | (sleeve[f] & (gap < .15))) & ~out).sum())
         on_shoulder += int((shoulder[f] & (gap < .03)).sum())
         tt, ft = first(rt, o, dd, front_only=True)
         with np.errstate(invalid='ignore'):

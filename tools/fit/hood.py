@@ -103,7 +103,7 @@ def shrink_limits(g, P, Q, closed=False):
     A0, A1 = m0.area_faces, m1.area_faces; fm = np.abs(A1 / np.maximum(A0, 1e-12) - 1) > 1e-6
     area = 1 - A1[fm].sum() / A0[fm].sum() if fm.any() else 0
     flipped = int(((m0.face_normals * m1.face_normals).sum(1) < 0).sum())
-    summary = f'stretch p99 {100 * stretch:.1f}%, shrink p99 {100 * shrink:.1f}%, area -{100 * area:.1f}%, {flipped} flipped'
+    summary = f'stretch p99 {100 * stretch:.1f}%, shrink p99 {100 * shrink:.1f}%, area {-100 * area:.1f}%, {flipped} flipped'
     if closed: summary += f', collar stretch p99 {100 * collar_stretch:.1f}%'
     bad = stretch > MAX_STRETCH or shrink > MAX_SHRINK or area > MAX_AREA or flipped or collar_stretch > MAX_COLLAR_STRETCH
     return summary, bad
