@@ -39,7 +39,7 @@ TRI_KE, EDGE_KE, DENSITY, RADIUS = 1e5, 1., .2, .003   # stiff in plane, bending
 CONTACT_KE, CONTACT_KD, MU = 1e4, 1e-2, .3
 SELF_RADIUS, SELF_MARGIN = .002, .004
 HAND = .9              # below this the arm is wrist and hand, which the masks never hide
-SIDE, ARMPIT = .18, 1.  # --keep-side: below the armpit, the torso inside |x| < SIDE (fading in over FADE / 2) stays
+SIDE, ARMPIT = .20, 1.  # --keep-side: below the armpit, the torso inside |x| < SIDE (fading in over FADE / 2) stays
 HEM_NEAR, HEM_RAMP = .04, .08   # hem: beyond HEM_NEAR from the arm, back to its place over HEM_RAMP below the cuff
 MAX_BACK_INSIDE = .5   # cm² of inside seen from behind (back_inside.py) more than before
 

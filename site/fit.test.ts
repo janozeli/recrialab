@@ -144,8 +144,8 @@ const LONG_SLEEVES = [...readFileSync(new URL('../tools/fit/install.py', import.
   .match(/LONG_SLEEVE = \{([^}]*)\}/)![1].matchAll(/'(\d{3})'/g)].map(m => m[1]);
 const MAX_SLEEVE_OFFSET_CM = 3.5;
 const MAX_CUFF_TO_HAND_CM = 2;
-// Held at the recorded baseline while the known issue that owns them is open: 036 sits 3.7 cm off the arm in one slice,
-// and on 034 the oversized sleeve sits 4.0 cm off the arm on one side (tools/fit/cloth.py).
+// Held at the recorded baseline while the known issue that owns them is open: on 034 the oversized sleeve sits 4.0 cm
+// off the arm on one side (tools/fit/cloth.py).
 const SLEEVE_PENDING: Record<string, { offset: number, cuff: number }> = {
   '034': { offset: 4.1, cuff: MAX_CUFF_TO_HAND_CM },
 };
