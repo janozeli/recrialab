@@ -2,10 +2,17 @@
 Same rule as the body masks, with the bottom garment in place of the body. The ray along the normal catches the whole
 triangle even when only one corner of it is under the hem; so the triangle the cameras see uncovered (no top in front
 nor right behind) and that no camera sees poking through the top comes back. Without this the pants vanish in a
-jagged line right below the blouse hem (`layer_check.py` measures it)."""
+jagged line right below the blouse hem (`layer_check.py` measures it).
+Where the bottom's material is single-sided (doubleSided unset in the GLB: 006, 007, 009, 010, 014, 015 and part of
+008 and 011 to 013), only its front faces vote, because the site does not draw the back ones: a ray that meets such a
+bottom from the inside sees through it. Counted, that ray kept triangles hidden that no camera sees from the front,
+and the body under them is hidden too (skirt 010 under top 019, from below: 8.0 cm² of tear, 5.6 with this rule).
+The double-sided bottoms (001 to 005) vote with both faces, as the site draws them. The site's own cameras vote too,
+besides the layer window."""
 import numpy as np
 from trimesh.ray.ray_pyembree import RayMeshIntersector
-from gen_mask import hits, samples, cameras, first
+from itertools import chain
+from gen_mask import hits, samples, cameras, first, site_cameras
 
 
 def to_ranges(idx):
@@ -21,12 +28,12 @@ WINDOW = dict(step=.006, center=1.05, half=.62, elevs=(-.3, 0, .25))
 UNDER = .15   # the same distance as the normal rule: the top up to 15 cm behind is a poke-through, not uncovered
 
 
-def uncovered(ri, m):
+def uncovered(ri, m, single):
     """Per bottom triangle, how many camera rays see it uncovered (no top in front nor up to UNDER behind) and how
     many see it poking through the top (the top up to UNDER behind)."""
     rb = RayMeshIntersector(m); exposed = np.zeros(len(m.faces), int); pokes = exposed.copy()
-    for o, d in cameras(**WINDOW):
-        tg, _ = first(ri, o, d); tb, fb = first(rb, o, d)
+    for o, d in chain(cameras(**WINDOW), site_cameras()):
+        tg, _ = first(ri, o, d); tb, fb = first(rb, o, d, front_only=single)
         with np.errstate(invalid='ignore'):
             seen = np.isfinite(tb)
             np.add.at(exposed, fb[seen & ~(tg < tb + UNDER)], 1)
@@ -34,12 +41,12 @@ def uncovered(ri, m):
     return exposed, pokes
 
 
-def poking(ri, m, hide):
+def poking(ri, m, hide, single):
     """Rays that see each visible triangle in front of the top with the top up to UNDER behind."""
     vis = np.nonzero(~hide)[0]; rv = RayMeshIntersector(m.submesh([vis], append=True))
     out = np.zeros(len(m.faces), int)
-    for o, d in cameras(**WINDOW):
-        tg, _ = first(ri, o, d); tv, fv = first(rv, o, d)
+    for o, d in chain(cameras(**WINDOW), site_cameras()):
+        tg, _ = first(ri, o, d); tv, fv = first(rv, o, d, front_only=single[vis])
         with np.errstate(invalid='ignore'):
             np.add.at(out, vis[fv[np.isfinite(tv) & (tv < tg) & (tg - tv < UNDER)]], 1)
     return out
@@ -57,15 +64,15 @@ def pair(bottom, top_mesh, under=.15, inside=.06):
     hide &= ok
     # the triangle seen uncovered more often than poking through comes back: a sliver poking through the hem
     # weighs less than the pink hole in its place
-    exposed, pokes = uncovered(ri, m)
+    single = bottom.single_sided(); exposed, pokes = uncovered(ri, m, single)
     back = hide & (exposed > 2 * pokes)
     for _ in range(5):   # what comes back may poke through the top behind another hidden triangle
-        f = poking(ri, m, hide & ~back)
+        f = poking(ri, m, hide & ~back, single)
         drop = back & (f > 0) & (exposed <= 2 * (pokes + f))
         if not drop.any(): break
         back &= ~drop
     else:
-        back &= ~(poking(ri, m, hide & ~back) > 0)   # without converging: nothing that still pokes through comes back
+        back &= ~(poking(ri, m, hide & ~back, single) > 0)   # without converging: nothing that still pokes through comes back
     hide &= ~back
     res, off = [], 0
     for (a, M, p) in bottom.parts:
