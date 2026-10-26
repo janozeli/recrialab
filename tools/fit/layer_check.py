@@ -9,6 +9,8 @@ For each bottom × top pair, with the published layer table, counts the rays whe
   arm hanging beside the hip, the hem seen from the side), not poking through. A waist poking deep through (the top more than 3 cm behind) does not count here; on the site
   orbit the junction measure of tools/visual-qa/measure.py catches it. Found from the inside, the camera is inside
   the top (from below, through the hem) and the bottom there is in view, not poking through.
+Where the bottom's material is single-sided the site does not draw its back faces, and neither does the measure
+(Garment.single_sided, as in gen_layers.py): a ray that meets such a bottom from the inside sees through it.
 The cameras differ from the generator's (gen_layers.WINDOW): angles shifted 10°, from below up to above, from the
 lowest hem to the chest; so the measure does not check the generator with its own rays.
 usage: python3 tools/fit/layer_check.py [--max-pokes N] [--max-holes N] [--max-total-pokes N] [--max-total-holes N] [--no-cache] [BOTTOM.TOP ...]
@@ -42,7 +44,7 @@ CAMERAS = ORBIT
 
 def measure(pair, hid=None):
     bid, tid = pair.split('.')
-    bm = Garment(GARMENTS + f'{bid}.glb').mesh(); tm = Garment(GARMENTS + f'{tid}.glb').mesh()
+    bg = Garment(GARMENTS + f'{bid}.glb'); bm = bg.mesh(); single = bg.single_sided(); tm = Garment(GARMENTS + f'{tid}.glb').mesh()
     h = np.zeros(len(bm.faces), bool); h[hidden(bid, tid) if hid is None else hid] = True
     hem = top_hem.line(tm.vertices)
     rt, rb = RayMeshIntersector(tm), RayMeshIntersector(bm)
@@ -50,7 +52,7 @@ def measure(pair, hid=None):
     pokes = holes = 0
     for o, d in cameras(**CAMERAS):
         tg, fg = first(rt, o, d)
-        tb, fb = first(rb, o, d)
+        tb, fb = first(rb, o, d, front_only=single)
         outside = np.zeros(len(o), bool); ok = fg >= 0
         outside[ok] = np.einsum('ij,ij->i', tm.face_normals[fg[ok]], d[ok]) < 0
         with np.errstate(invalid='ignore'):
@@ -60,7 +62,7 @@ def measure(pair, hid=None):
             holes += int((hid_hit & ~back & ~(tg < tb + .05)).sum())
             poke = lambda t: np.isfinite(t) & (t < tg) & (tg - t < POKE) & outside
             if rv is not None:
-                tv, _ = first(rv, o, d)
+                tv, _ = first(rv, o, d, front_only=single[vis])
                 pokes += int((poke(tv) | (back & poke(tb))).sum())
             else:
                 pokes += int((back & poke(tb)).sum())

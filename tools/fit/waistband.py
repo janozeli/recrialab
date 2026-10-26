@@ -9,13 +9,13 @@ would go into the body (fabric of the gluteal cleft rising to the sacrum) moves 
 positions and normals change; UV and texture stay the same. Refuses a p99 edge stretch above MAX_STRETCH.
 usage: python3 tools/fit/waistband.py INPUT.glb OUTPUT.glb
        python3 tools/fit/waistband.py --measure NNN ...   (sinking of the waistband per piece, in cm)"""
-import os, sys, numpy as np, trimesh
+import sys, numpy as np, trimesh
 from scipy.spatial import cKDTree
 from scipy.sparse import coo_matrix, diags
 from scipy.ndimage import gaussian_filter1d
 from garment import Garment
 from metric import POSE_C, body
-from paths import GARMENTS
+from paths import GARMENTS, piece_id
 
 TOL = .02           # a waistband middle up to 2 cm below the line of the sides stays as it is (low-rise waistband)
 BAND = .15          # from the top down: where the top edge is measured
@@ -80,7 +80,7 @@ def raise_waistband(src, dst):
     w = np.clip((X0[:, 1] - bottom) / np.maximum(e - bottom, 1e-6), 0, 1)
     X = X0.copy(); X[:, 1] += s * w
     # the fabric that rose from the gluteal curve to the sacrum would go into the body: it moves out along the normal to the gap it had
-    pid = os.path.basename(src)[5:8]
+    pid = piece_id(src)
     b = body('C' if pid in POSE_C else 'B')
     S, fi = trimesh.sample.sample_surface_even(b, 300000, seed=1); SN = b.face_normals[fi]; T = cKDTree(S)
     def side(Y):

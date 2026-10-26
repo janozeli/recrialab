@@ -18,7 +18,7 @@ from metric import POSE_C, body
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '../visual-qa'))
 from measure import thin, CM  # noqa: E402  (the same measure the CI check uses)
-from paths import GARMENTS
+from paths import GARMENTS, piece_id
 
 PX = CM / 100        # meters per pixel on the mannequin plane (site camera)
 TARGET = 4e-4        # thin part per view after trimming (m²): a third of measure.py's limit
@@ -72,7 +72,7 @@ def thin_parts(m, faces_ok, body_mesh, hem=None):
 def trim(src, dst):
     g = Garment(src); P0 = g.vertices(); m0 = g.mesh(P0)
     X0, inv, F = weld(P0, m0.faces)
-    pid = os.path.basename(src)[5:8]; body_mesh = body('C' if pid in POSE_C else 'B')
+    pid = piece_id(src); body_mesh = body('C' if pid in POSE_C else 'B')
     X = X0.copy(); top = X0[:, 1].max()
     faces_ok = X0[F][:, :, 1].max(1) < top - WAISTBAND
     bottom = X0[:, 1].min(); hem = X0[F][:, :, 1].max(1) < bottom + HEM * (top - bottom)

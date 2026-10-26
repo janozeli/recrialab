@@ -64,3 +64,13 @@ test('the workflows follow the filter and cancel the old run of the same PR', ()
     expect(w).toMatch(/fetch-depth: [02]\b/);  // HEAD^1 (the base) must be in the checkout
   }
 });
+
+test('branch protection can require the phones by one fixed name, whether the matrix ran or was skipped', () => {
+  type Job = { needs?: string[]; if?: string; strategy?: unknown };
+  const jobs = (Bun.YAML.parse(wf('site-e2e.yml')) as { jobs: Record<string, Job> }).jobs;
+  const result = jobs['phones-result'];
+  expect(jobs.phones.strategy).toBeDefined();
+  expect(result.needs).toEqual(['changes', 'phones']);
+  expect(result.if).toBe('always()');
+  expect(result.strategy).toBeUndefined();
+});

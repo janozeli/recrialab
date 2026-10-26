@@ -1,6 +1,6 @@
 import { shortDate, lookHref, lookLabel, lookPieces } from './about-model';
 import { startAnalytics } from './analytics';
-import { ABOUT, type Link } from './about-data';
+import { ABOUT, TEAM_AREAS, type Link } from './about-data';
 
 /** Static page: no three.js, only HTML and the photos of the catalog pieces. */
 function h<K extends keyof HTMLElementTagNameMap>(
@@ -15,14 +15,23 @@ function h<K extends keyof HTMLElementTagNameMap>(
 }
 
 const withLabel = <T extends Element>(el: T, label: string) => (el.setAttribute('aria-label', label), el);
+/** Map pin before the place: read at a glance, with no "Local:" label. */
+function pin() {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('aria-hidden', 'true');
+  svg.innerHTML = '<path d="M12 21s-6-5.5-6-11a6 6 0 0 1 12 0c0 5.5-6 11-6 11z"/><circle cx="12" cy="10" r="2"/>';
+  return svg;
+}
 const profile = (l: Link) => h('a', { href: l.href, rel: 'noopener' }, l.label);
 
 function workshops() {
   const list = [...ABOUT.workshops].sort((a, b) => a.date.localeCompare(b.date));
   return h('ol', { class: 'm-timeline' }, ...list.map(o => h('li', { class: 'm-workshop' },
-    h('p', { class: 'm-date' }, h('time', { dateTime: o.date }, shortDate(o.date))),
-    h('h3', {}, o.title),
-    h('p', { class: 'm-place' }, o.place),
+    h('header', { class: 'm-workshop-head' },
+      h('p', { class: 'm-date' }, h('time', { dateTime: o.date }, shortDate(o.date))),
+      h('h3', {}, o.title),
+      h('p', { class: 'm-place' }, pin(), o.place)),
     h('p', {}, o.text),
     o.photos?.length ? h('div', { class: 'm-photos' }, ...o.photos.map(f =>
       h('img', { src: f.src, alt: f.alt, loading: 'lazy', decoding: 'async' }))) : null,
@@ -51,11 +60,15 @@ function editorial() {
     h('img', { src: f.src, alt: f.alt, loading: 'lazy', decoding: 'async' })));
 }
 
+/** Every entry has the same two rows, name and role, so the grid stays even (about.css). */
+const member = (name: string, role: string) => h('li', {}, h('strong', {}, name), h('span', {}, role));
+
 function team() {
-  return h('div', {},
-    h('p', { class: 'm-advisor' }, 'Orientação: ', h('strong', {}, ABOUT.advisor)),
-    h('ul', { class: 'm-team' }, ...ABOUT.team.map(p =>
-      h('li', {}, h('strong', {}, p.name), h('span', {}, p.role), p.link ? profile(p.link) : null))));
+  return h('div', { class: 'm-team-groups' },
+    h('ul', { class: 'm-team m-advisor' }, member(ABOUT.advisor, 'Orientação')),
+    ...TEAM_AREAS.map(area => h('div', { class: 'm-team-group' },
+      h('h3', {}, area),
+      h('ul', { class: 'm-team' }, ...ABOUT.team.filter(p => p.area === area).map(p => member(p.name, p.role))))));
 }
 
 /** A section without real records stays hidden: no placeholder and no made-up example. */

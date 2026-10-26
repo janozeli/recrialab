@@ -58,13 +58,13 @@ function commonProblems() {
 }
 
 /** Visible text over the mannequin, in any element (an instruction badge, a confirmation bubble after dressing).
- * Only the error notice may show there. */
+ * Only the error notice may show there; the labels of the stage toolbar are controls, not text over the figure. */
 function textOnStage() {
   const out = [];
   const texts = document.createTreeWalker(document.querySelector('#stage'), NodeFilter.SHOW_TEXT);
   while (texts.nextNode()) {
     const el = texts.currentNode.parentElement, t = texts.currentNode.textContent.trim();
-    if (!t || !el.getBoundingClientRect().width || el.closest('.sr-only, [hidden]')) continue;
+    if (!t || !el.getBoundingClientRect().width || el.closest('.sr-only, [hidden], .stage-tools')) continue;
     let vis = true;
     for (let a = el; a; a = a.parentElement) { const cs = getComputedStyle(a); if (+cs.opacity === 0 || cs.visibility === 'hidden' || cs.display === 'none') vis = false; }
     if (vis && !/não foi possível|recarregue/i.test(t)) out.push(t.slice(0, 40));
@@ -90,22 +90,74 @@ function fittingRoomProblems() {
   const onScreen = el => { const r = el.getBoundingClientRect(); return r.width > 0 && r.left >= -1 && r.right <= vw + 1 && r.top >= -1 && r.bottom <= vh + 1; };
   const cards = [...document.querySelectorAll('#clothes-grid [data-piece]')].filter(onScreen).length;
   if (cards < 3) out.push(`only ${cards} whole garments in view next to the mannequin (minimum 3)`);
-  for (const sel of ['#export-look', '#import-look', 'a[href="/sobre"]']) {
+  for (const sel of ['#export-look', '#import-look', 'a[href="/sobre"]', '#zoom-stage', '#expand-stage', '[data-reset]']) {
     const el = document.querySelector(sel);
     if (!el || !onScreen(el)) out.push(`${sel} is not in view`);
   }
-  // Save and Open in view, but not highlighted: no background, no shadow, no border, small type. The About link too.
-  for (const sel of ['#export-look', '#import-look', 'a[href="/sobre"]']) {
+  // In view, but not highlighted: no background, no shadow, small type. Save and Open sit in the stage toolbar with no
+  // border of their own; the About link may have a thin outline (the toolbar's family), never a fill.
+  for (const [sel, border] of [['#export-look', 0], ['#import-look', 0], ['a[href="/sobre"]', 1.5]]) {
     const cs = getComputedStyle(document.querySelector(sel));
     const bg = cs.backgroundColor.match(/[\d.]+/g)?.map(Number) ?? [];
-    if ((bg.length === 4 ? bg[3] : bg.length ? 1 : 0) > 0 || cs.boxShadow !== 'none' || parseFloat(cs.borderTopWidth) > 0 || parseFloat(cs.fontSize) > 18)
+    if ((bg.length === 4 ? bg[3] : bg.length ? 1 : 0) > 0 || cs.boxShadow !== 'none' || parseFloat(cs.borderTopWidth) > border || parseFloat(cs.fontSize) > 18)
       out.push(`${sel} highlighted: background ${cs.backgroundColor}, shadow ${cs.boxShadow}, border ${cs.borderTopWidth}, type ${cs.fontSize}`);
   }
   return out;
 }
 
+/** The stage toolbar never covers the dressed figure (its screen box, written by dressup.ts in data-figure). */
+function toolbarOverFigure() {
+  const stage = document.querySelector('#stage'), tools = document.querySelector('#stage-tools');
+  const figure = stage.dataset.figure?.split(' ').map(Number);
+  if (!figure) return ['the stage does not report where the figure is (data-figure)'];
+  const s = stage.getBoundingClientRect(), t = tools.getBoundingClientRect();
+  const [x0, y0, x1, y1] = [figure[0] + s.left, figure[1] + s.top, figure[2] + s.left, figure[3] + s.top];
+  const overlap = Math.min(x1, t.right) - Math.max(x0, t.left) > 0 && Math.min(y1, t.bottom) - Math.max(y0, t.top) > 0;
+  return overlap ? [`the stage toolbar covers the mannequin (toolbar from x ${Math.round(t.left)}, figure up to x ${Math.round(x1)})`] : [];
+}
+
+/** Enlarged stage: a taller stage (a larger mannequin) with the pieces still in view and swappable, the toolbar clear of
+ *  the figure, and Esc brings the page back. */
+function expandedWardrobe() {
+  const vw = innerWidth, vh = innerHeight;
+  const onScreen = el => { const r = el.getBoundingClientRect(); return r.width > 0 && r.left >= -1 && r.right <= vw + 1 && r.top >= -1 && r.bottom <= vh + 1; };
+  return {
+    cards: [...document.querySelectorAll('#clothes-grid [data-piece]')].filter(onScreen).length,
+    chips: [...document.querySelectorAll('#chips [data-slot]')].filter(onScreen).length,
+    scroll: document.documentElement.scrollHeight > vh + 1,
+  };
+}
+
+export async function auditExpandedStage(page) {
+  const out = [];
+  const stageHeight = () => page.evaluate(() => document.querySelector('#stage').getBoundingClientRect().height);
+  const normal = await stageHeight();
+  await page.locator('#expand-stage').click();
+  await page.waitForTimeout(400);
+  const expanded = await stageHeight();
+  if (expanded < normal * 1.1) out.push(`enlarged stage ${Math.round(expanded)} px tall, normal ${Math.round(normal)} px (minimum +10%)`);
+  const strip = await page.evaluate(expandedWardrobe);
+  if (strip.cards < 3) out.push(`only ${strip.cards} whole garments in view on the enlarged stage (minimum 3)`);
+  if (strip.chips < 2) out.push('the top and bottom tabs are not both in view on the enlarged stage');
+  if (strip.scroll) out.push('the enlarged stage scrolls the page');
+  out.push(...await page.evaluate(commonProblems), ...await page.evaluate(toolbarOverFigure));
+  // Swapping a piece without leaving: the first visible garment not worn becomes worn.
+  const card = page.locator('#clothes-grid [data-piece][aria-pressed="false"]:visible').first();
+  const id = await card.getAttribute('data-piece');
+  await card.click();
+  try {
+    await page.locator(`#clothes-grid [data-piece="${id}"][aria-pressed="true"]`).waitFor({ timeout: 20_000 });
+  } catch { out.push(`tapping piece ${id} on the enlarged stage does not dress it`); }
+  if (!(await page.evaluate(() => document.querySelector('.app').classList.contains('stage-expanded')))) out.push('swapping a piece leaves the enlarged stage');
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(400);
+  if (await page.evaluate(() => document.querySelector('.app').classList.contains('stage-expanded'))) out.push('Esc does not leave the enlarged stage');
+  if (!(await page.locator('#filters').isVisible())) out.push('the wardrobe does not come back after the enlarged stage');
+  return out;
+}
+
 export async function auditFittingRoom(page) {
-  return [...await page.evaluate(commonProblems), ...await page.evaluate(fittingRoomProblems),
+  return [...await page.evaluate(commonProblems), ...await page.evaluate(fittingRoomProblems), ...await page.evaluate(toolbarOverFigure),
     ...(await page.evaluate(textOnStage)).map(t => `text over the mannequin: "${t}"`)];
 }
 
@@ -132,5 +184,13 @@ export async function auditAbout(page) {
   // Real content only: no sample badge nor placeholder ("… entram aqui").
   const empty = await page.locator('main :visible', { hasText: /\bexemplo\b|entram? aqui|em breve/i }).count();
   if (empty) out.push('about page with sample content or a placeholder');
+  // Team: every entry the same height, so the grid stays even whatever the length of the role.
+  const heights = await page.$$eval('.m-team-group li', els => els.map(e => ({ h: Math.round(e.getBoundingClientRect().height), name: e.querySelector('strong')?.textContent })));
+  const tallest = Math.max(...heights.map(x => x.h)), shortest = Math.min(...heights.map(x => x.h));
+  if (!heights.length) out.push('about page without the team');
+  else if (tallest - shortest > 1) out.push(`team entries of different heights (${shortest} to ${tallest} px): ${heights.filter(x => x.h !== shortest).map(x => x.name).join(', ')}`);
+  // The role rows are reserved, so a longer role would spill over the next entry without changing the height.
+  const spilled = await page.$$eval('.m-team-group li span', els => els.filter(e => e.scrollHeight > e.clientHeight + 1).map(e => e.textContent));
+  if (spilled.length) out.push(`team roles longer than their two lines: ${spilled.join(', ')}`);
   return out;
 }

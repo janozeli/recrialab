@@ -38,6 +38,15 @@ class Garment:
     def vertices(self):
         return np.vstack([(np.c_[v, np.ones(len(v))] @ M.T)[:, :3] for v, (_, M, _) in zip(self.local, self.parts)])
 
+    def single_sided(self):
+        """Per triangle, True where the material is single-sided: the site does not draw its back face."""
+        mats = self.js.get('materials', [])
+        out = []
+        for (a, M, p) in self.parts:
+            n = self.js['accessors'][p['indices']]['count'] // 3
+            out.append(np.full(n, not mats[p['material']].get('doubleSided', False) if 'material' in p else True))
+        return np.concatenate(out)
+
     def mesh(self, verts=None):
         verts = self.vertices() if verts is None else verts
         faces, off = [], 0

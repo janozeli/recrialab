@@ -1,6 +1,6 @@
 import { test, expect } from 'bun:test';
 import { CATALOG } from './catalog-data';
-import { ABOUT } from './about-data';
+import { ABOUT, TEAM_AREAS } from './about-data';
 import { addPngText } from './look-code';
 import { shortDate, lookFromPng, lookHref, lookLabel, lookPieces } from './about-model';
 import { readPngText } from './look-code';
@@ -39,10 +39,15 @@ test('short date does not depend on the time zone', () => {
 });
 
 test('record links are https profiles', () => {
-  const links = [...ABOUT.workshops.flatMap(o => o.links ?? []), ...ABOUT.team.flatMap(p => p.link ? [p.link] : [])];
+  const links = ABOUT.workshops.flatMap(o => o.links ?? []);
   expect(links.length).toBeGreaterThan(0);
   for (const { href, label } of links) {
     expect(href).toMatch(/^https:\/\/www\.instagram\.com\/[\w.]+\/$/);
     expect(href).toContain(label.slice(1));
   }
+});
+
+test('every team area has people and every person is in a listed area', () => {
+  for (const area of TEAM_AREAS) expect(ABOUT.team.some(p => p.area === area)).toBe(true);
+  for (const p of ABOUT.team) expect(TEAM_AREAS).toContain(p.area);
 });
