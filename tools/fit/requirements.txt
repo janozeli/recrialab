@@ -4,3 +4,5 @@ trimesh==5.1.1
 embreex==4.4.0
 networkx==3.7   # trimesh: section().discrete (cuff.py, shin_tube.py)
 pillow==12.3.0
+newton==1.7.0      # cloth.py: cloth solver (VBD) with the body as collider
+warp-lang==1.18.0

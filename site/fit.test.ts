@@ -145,9 +145,9 @@ const LONG_SLEEVES = [...readFileSync(new URL('../tools/fit/install.py', import.
 const MAX_SLEEVE_OFFSET_CM = 3.5;
 const MAX_CUFF_TO_HAND_CM = 2;
 // Held at the recorded baseline while the known issue that owns them is open: 036 sits 3.7 cm off the arm in one slice,
-// and on 034 the sleeve is 7.7 cm in front of the arm on one side (repose_sleeves.py would open its armhole).
+// and on 034 the oversized sleeve sits 4.0 cm off the arm on one side (tools/fit/cloth.py).
 const SLEEVE_PENDING: Record<string, { offset: number, cuff: number }> = {
-  '034': { offset: 8, cuff: 2.5 }, '036': { offset: 4, cuff: MAX_CUFF_TO_HAND_CM },
+  '034': { offset: 4.1, cuff: MAX_CUFF_TO_HAND_CM }, '036': { offset: 4, cuff: MAX_CUFF_TO_HAND_CM },
 };
 function sleeveCenters(p: Float32Array, side: number, minX: number, low: number): Map<number, number> {
   const out = new Map<number, number>();
@@ -370,7 +370,7 @@ test('no loose bits of cloth: every piece of the mesh besides the garment itself
 const LINING_CM2: Record<string, number> = {
   '016': 9.8, '017': 2.0, '018': 6.5, '019': 24.2, '020': 2.0, '021': 0.1, '022': 4.5, '023': 26.4, '024': 55.9,
   '025': 4.7, '026': 27.8, '027': 2.7, '028': 16.1, '029': 2.0, '030': 0.0, '031': 3.6, '032': 6.3, '033': 0.0,
-  '034': 68.8, '035': 15.9, '036': 56.3, '037': 57.7, '038': 121.5,
+  '034': 68.7, '035': 15.9, '036': 56.3, '037': 57.7, '038': 121.5,
 };
 
 function liningBelowHemCm2(file: string): number {

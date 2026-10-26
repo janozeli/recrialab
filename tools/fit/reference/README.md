@@ -10,5 +10,5 @@ reprova arquivo alterado, faltando ou sobrando.
 | Pasta | O que é | Quem usa |
 |---|---|---|
 | `originals/tripo/` | peças de baixo (001 a 015) como o Tripo entregou, só com menos triângulos e sem fragmentos soltos | `stretch.py` (verificação de estampa), `pant_leg_cloth.py` |
-| `originals/before-hood/` | peças com capuz ou gola (030, 033 a 037) antes de rodar `hood.py` pela primeira vez | `hood.py` e `hood.py --check` (limite de encolhimento) |
+| `originals/before-hood/` | peças com capuz ou gola (030, 033 a 037) antes de rodar `hood.py` pela primeira vez (a 034 já com a manga assentada por `cloth.py`, que roda antes de `hood.py`) | `hood.py` e `hood.py --check` (limite de encolhimento) |
 | `originals/before-drape/` | peças de cima (016 a 038) e o short 008 antes de `drape.py` e `zipper.py` | `drape.py`, `zipper.py` |

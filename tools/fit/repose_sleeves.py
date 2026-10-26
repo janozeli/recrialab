@@ -54,7 +54,9 @@ def weights(P, s, B):
     T = B[(np.abs(B[:, 0]) < .17) & (B[:, 1] > .5)]
     ys = np.arange(.5, 1.5, .02); width = np.array([np.abs(T[np.abs(T[:, 1] - v) < .01, 0]).max() for v in ys])
     start = np.maximum(.16, np.interp(y, ys, width) + .02)
-    arm = smooth((ax - start) / .05) * side
+    # nor the hem of an oversized jacket, which hangs beside the hip below the cuff (034): it would turn with the
+    # forearm and slide behind the bottoms
+    arm = smooth((ax - start) / .05) * smooth((y - sleeve_end(P, B, s) + .20) / .10) * side
     shoulder = np.maximum(arm, smooth((ax - .07) / .10) * smooth((y - 1.18) / .14) * smooth((P[:, 2] + FRONT) / FRONT) * side)
     forearm = arm * smooth((1.06 - y) / .08)
     return shoulder, arm, forearm
