@@ -8,7 +8,7 @@ import { spawnSync } from 'node:child_process';
 
 const ROOT = new URL('../', import.meta.url).pathname;
 const FILE = 'tools/fit/penetration.json';
-type Base = { measure?: number; pieces: Record<string, { goal?: { target_penetrates: number; bands: string[] }; bands: Record<string, Record<string, number>> }> };
+type Base = { measure?: number; redefined?: string[]; pieces: Record<string, { goal?: { target_penetrates: number; bands: string[] }; bands: Record<string, Record<string, number>> }> };
 const base: Base = JSON.parse(readFileSync(ROOT + FILE, 'utf8'));
 const WITH_GOAL = ['002', '004', '006'];
 
@@ -37,11 +37,12 @@ test('the baseline does not go up against main', () => {
   if (r.status !== 0) return;   // not on main yet
   const main: Base = JSON.parse(r.stdout);
   // a new version of the measure (`measure` in penetration.json) starts a new baseline, which from then on only goes
-  // down
-  if ((main.measure ?? 1) !== base.measure) return;
+  // down; only the bands it redefines (`redefined`) may start above main
+  const free = (main.measure ?? 1) !== base.measure ? new Set(base.redefined ?? []) : new Set<string>();
   const rose: string[] = [];
   for (const [k, p] of Object.entries(main.pieces))
     for (const [f, m] of Object.entries(p.bands))
-      for (const [c, v] of Object.entries(m)) if ((base.pieces[k]?.bands[f]?.[c] ?? Infinity) > v) rose.push(`${k} ${f} ${c}`);
+      if (!free.has(f))
+        for (const [c, v] of Object.entries(m)) if ((base.pieces[k]?.bands[f]?.[c] ?? Infinity) > v) rose.push(`${k} ${f} ${c}`);
   expect(rose).toEqual([]);
 });
