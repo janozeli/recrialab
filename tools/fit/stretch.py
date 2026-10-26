@@ -20,7 +20,6 @@ from known_issues import FILE as KNOWN_ISSUES, known_issues  # noqa: E402
 ORIGINAL = 'tools/fit/reference/originals/tripo'   # pieces as the generator delivered them, slimmed and without crumbs
 # piece: (known issue, {region: (edge, area)}) above MAX, held at the recorded baseline while the issue is open
 AS_IS = {
-    '014': ('waist-014', {'waist': (.106, .35)}),
 }
 EXCLUDED = {'009'}     # a requested shape change (the photo's hem, without the cords), not stretch
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))

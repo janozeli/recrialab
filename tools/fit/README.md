@@ -59,6 +59,7 @@ Na ordem em que costumam rodar:
 
 | Script | O que faz |
 |---|---|
+| `project_print.py` | monta a peça de baixo a partir de uma forma que o Tripo gerou já vestida no manequim neutro (três vistas da calça sobre renders da pose C e um modelo sem textura) e pinta nela a estampa do modelo anterior, listra por listra (mesma altura relativa, mesmo ângulo em volta do eixo da perna); como a estampa é pintada na forma final, nada a estica (014) |
 | `displacement_field.py` | empurra para fora do corpo a parte da peça que entrava nele, com um deslocamento suave |
 | `leg_shape.py` | refaz cada perna da calça no formato da perna do corpo, com a mesma quantidade de tecido |
 | `separate_legs.py` | separa as pernas das calças que o gerador entregou grudadas e fecha a parede de dentro |
