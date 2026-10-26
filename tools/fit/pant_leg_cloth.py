@@ -17,7 +17,9 @@ usage: python3 tools/fit/separate_legs.py ORIGINAL.glb INPUT.glb ORIGINAL_SEP.gl
        leg below the shin (cuff.py): python3 tools/fit/shin_tube.py ORIGINAL_SEP.glb SEPARATED.glb ORIGINAL_SEP.glb SEPARATED.glb NNN];
        python3 tools/fit/leg_shape.py SEPARATED.glb NNN.glb NNN --again (INPUT is the published GLB, already run through leg_shape.py)
        python3 tools/fit/pant_leg_cloth.py ORIGINAL_SEP.glb NNN.glb OUTPUT.glb   (ORIGINAL: tools/fit/reference/originals/tripo/NNN.glb;
-       then install.py --bottom NNN, only the new mask (joining it with the old one opens holes), and install.py --bottom-line NNN)"""
+       then install.py --bottom NNN, only the new mask (joining it with the old one opens holes), and install.py --bottom-line NNN)
+       python3 tools/fit/pant_leg_cloth.py --whole ORIGINAL.glb OUTPUT.glb   (the whole piece as cloth in one step, straight
+       from the ORIGINAL, for trousers whose fabric is wide enough for the neutral body: 002, 004)"""
 import sys, struct, numpy as np, trimesh
 from scipy.spatial import cKDTree
 from garment import Garment
@@ -32,6 +34,7 @@ TOP, LOOSE = .80, .10   # above TOP nothing moves; the fabric comes loose over L
 WAIST = .02          # band measured on its own around TOP
 CROTCH = .80         # below this each side collides only with its own leg
 STEPS, ROUNDS = 250, 12
+WHOLE_TOP, WHOLE_STEPS = 2., 400   # --whole: nothing held, and more steps
 WALL_BEND = 1.       # the inner wall (separate_legs.py) is flat: when it bends it turns inside out
 BEND = .1            # bending stiffness (stiffer bending stretches the print more)
 ARM_X = .17          # the arm hangs beside the thigh: it is not a collider
@@ -192,4 +195,10 @@ def dress(orig, src, dst):
 
 
 if __name__ == '__main__':
-    dress(*sys.argv[1:4])
+    if sys.argv[1] == '--whole':
+        # the whole piece, waist included, from Tripo's GLB (002, 004: the cloth is wide enough for the neutral body,
+        # it only sat inside it); more steps, or the band at the crotch stays pleated
+        TOP, STEPS = WHOLE_TOP, WHOLE_STEPS
+        dress(sys.argv[2], sys.argv[2], sys.argv[3])
+    else:
+        dress(*sys.argv[1:4])
