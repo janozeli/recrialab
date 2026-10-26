@@ -18,6 +18,10 @@
   title: "Bottom jagged under the hem of a few tops, seen from below"
   pieces: ["003", "007", "008"]
 
+- id: stretched-collar
+  title: "High collar stretched up to 90% to close around the neck; body mask below 1.40 m kept from before the change"
+  pieces: ["035"]
+
 - id: fit-structure
   title: "Pieces still shaped by the generator's mannequin instead of the neutral body"
   pieces: ["002", "004", "006", "007", "008", "014", "030", "034", "035"]
