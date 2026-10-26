@@ -104,8 +104,7 @@ os pares cujo hash mudou.
 | `stretch.py` | estampa esticada em relação ao modelo original, região por região |
 | `hood.py --check` | capuz ou gola achatados além do limite em relação ao modelo original |
 | `back_inside.py` | avesso da peça de cima à vista pelas costas (dobra da axila atravessando as costas), além do valor registrado |
-
-`calibration.py` não roda no CI: confere, com o antes e o depois de `reference/calibration/`, que cada medida reprova o defeito que a motivou e aprova o conserto.
+| `calibration.py` | medida que deixou de reprovar o antes ou de aprovar o depois de um defeito guardado em `reference/calibration/` |
 
 `metric.py` e `anchors.py` só medem folga e apoio, para diagnóstico, sem reprovar nada. `arm.py` mexe
 no manequim, não nas peças: deixa antebraço e mão das poses B e C no comprimento de uma pessoa.

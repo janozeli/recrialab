@@ -16,13 +16,25 @@ reprova arquivo alterado, faltando ou sobrando.
 ## Calibração
 
 `calibration/<caso>/before/` e `after/` guardam, nos mesmos caminhos de `site/assets/`, a peça como estava quando o
-defeito foi visto e depois de consertada. `python3 tools/fit/calibration.py` põe cada estado no lugar do publicado,
-roda as verificações do caso e devolve os arquivos; cada verificação tem de reprovar o antes e aprovar o depois.
+defeito foi visto e depois de consertada. `python3 tools/fit/calibration.py` roda as verificações do caso numa cópia
+temporária do repositório, com cada estado no lugar do publicado (`site/assets/` não é tocado); cada verificação tem
+de reprovar o antes e aprovar o depois. Roda no CI, no job `fit`: quando uma trava aperta e o depois deixa de passar,
+o PR que apertou fica vermelho e atualiza o depois.
 
 | Caso | Defeito | Verificações que separam |
 |---|---|---|
-| `bridge-013/` | tira de tecido pendurada no vão entre as pernas da calça 013, descendo até o tênis | `cuff.py` (103,9 → 0 cm²); no pente fino, o corpo furando de 13,1 cm² cai abaixo do limite |
-| `large-jackets/` | jaquetas 036 e 038 grandes demais para o corpo: manga passando dos dedos, barra no gancho | `site/fit.test.ts` (mangas no pulso e forro abaixo da barra) |
+| `bridge-013/` | tira de tecido pendurada no vão entre as pernas da calça 013, descendo até o tênis | `cuff.py 013` (103,9 → 0 cm²) |
+| `large-jackets/` | jaquetas 036 e 038 grandes demais para o corpo: manga passando dos dedos, barra no gancho | `site/fit.test.ts`: `-t 'long sleeves'` pega os dois testes de manga (no braço de perfil e terminando no pulso); `-t 'no lining hanging'`, o forro abaixo da barra |
+
+Estado de cada arquivo:
+
+| Arquivo | Estado |
+|---|---|
+| `bridge-013/before/` | a 013 com a ponte, como foi vista |
+| `bridge-013/after/` | a 013 logo depois do conserto da ponte; não é a publicada, que mudou depois |
+| `large-jackets/before/` | 036 e 038 grandes demais, como foram vistas |
+| `large-jackets/after/` 036 | a 036 publicada com a manga vestida como tecido e o punho sobre a palma |
+| `large-jackets/after/` 038 | GLB igual ao publicado; máscaras da época do conserto |
 
 Ficaram de fora o quadrado branco na braguilha da 006 (o conserto veio do shader e do gerador da máscara, então o antes e
 o depois guardados dão os mesmos números com o corpo de hoje) e as pontas sob o braço (máscaras feitas para o braço

@@ -2,15 +2,14 @@
 pass it once fixed (after).
 
 reference/calibration/<case>/{before,after}/ mirror site/assets/ (garments/, masks/pose-b/, masks/pose-c/). For each
-case the files are put in place of the published ones, each check of the case runs, and the published files come back
-(also on error). A check that does not tell before from after is reported, not fixed here: it becomes a warning, and
+case the checks run in a temporary copy of the repository (tools/ and site/ copied, links to the rest) with
+the case's files in place of the published ones, so site/assets itself is never written. A check that does not tell before from after is reported, not fixed here: it becomes a warning, and
 a new check only enters if it fails the before of the defect that motivated it.
 usage: python3 tools/fit/calibration.py [CASE ...]   (no cases: all; exits with an error if a check does not separate)"""
 import os, shutil, subprocess, sys, tempfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 CORPUS = os.path.join(ROOT, 'tools/fit/reference/calibration')
-ASSETS = os.path.join(ROOT, 'site/assets')
 # case: the defect, and the checks that must separate it (command, run from the repository root)
 CASES = {
     'bridge-013': ('strip of cloth hanging in the gap between the legs of trousers 013, down to the shoe', [
@@ -27,19 +26,30 @@ def files(state):
     return [os.path.relpath(os.path.join(d, f), state) for d, _, fs in os.walk(state) for f in fs]
 
 
+def tree(dst):
+    """A copy of the repository in `dst` that the checks can run in: tools/ and site/assets copied, the rest of site/
+    copied file by file and everything else linked. Python and bun resolve a linked script or test to its real path, and
+    with it the assets, so what finds site/assets is never a link."""
+    for n in os.listdir(ROOT):
+        if n == 'tools': shutil.copytree(os.path.join(ROOT, n), os.path.join(dst, n), symlinks=True)
+        elif n not in ('site', '.git'): os.symlink(os.path.join(ROOT, n), os.path.join(dst, n))
+    site = os.path.join(ROOT, 'site'); os.mkdir(os.path.join(dst, 'site'))
+    for n in os.listdir(site):
+        s, d = os.path.join(site, n), os.path.join(dst, 'site', n)
+        if n == 'assets': shutil.copytree(s, d)
+        elif os.path.isdir(s): os.symlink(s, d)
+        else: shutil.copy2(s, d)
+
+
 def run(case, state):
     """Exit code of each check with the case's files of `state` in place of the published ones."""
-    src = os.path.join(CORPUS, case, state); keep = tempfile.mkdtemp()
-    names = files(src)
+    src = os.path.join(CORPUS, case, state); dst = tempfile.mkdtemp()
     try:
-        for n in names:
-            os.makedirs(os.path.dirname(os.path.join(keep, n)), exist_ok=True)
-            shutil.copy2(os.path.join(ASSETS, n), os.path.join(keep, n))
-            shutil.copy2(os.path.join(src, n), os.path.join(ASSETS, n))
-        return [subprocess.run(c, shell=True, cwd=ROOT, capture_output=True).returncode for c in CASES[case][1]]
+        tree(dst)
+        for n in files(src): shutil.copy2(os.path.join(src, n), os.path.join(dst, 'site/assets', n))
+        return [subprocess.run(c, shell=True, cwd=dst, capture_output=True).returncode for c in CASES[case][1]]
     finally:
-        for n in names: shutil.copy2(os.path.join(keep, n), os.path.join(ASSETS, n))
-        shutil.rmtree(keep)
+        shutil.rmtree(dst)
 
 
 if __name__ == '__main__':
