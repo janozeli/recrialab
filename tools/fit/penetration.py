@@ -19,7 +19,9 @@ from paths import GARMENTS
 BASE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'penetration.json')
 PIECES = [f'{i:03d}' for i in range(1, 16)]
 BANDS = {'waist': (.98, 1.10), 'hip': (.86, .98), 'thigh': (.62, .86), 'knee': (.45, .62),
-         'shin': (.15, .45), 'ankle': (0, .15)}
+         'shin': (.15, .45), 'ankle': (.12, .15)}
+INSTEP = .12      # below it is the sneaker, left out of every band: cloth lying on it is shoe.py's, and counted here it
+                  # lowered the gap of a hem wrapping the shoe
 SLACK = .3    # percentage points of slack for rounding (the measure is deterministic)
 MIN_BAND = 5e-3   # a band with less than this covered (50 cm²) does not count
 ARM_X = .17       # arm below the elbow, the same cut as gen_mask.zones: the hand reaches down to 0.69 m, beside the thigh
@@ -31,6 +33,7 @@ def measure_piece(pid):
     _, s, cov = measure(Garment(GARMENTS + f'{pid}.glb').mesh(), b, hid, legs=True)
     area = np.zeros(len(b.vertices)); np.add.at(area, b.faces.ravel(), np.repeat(b.area_faces / 3, 3))
     V = b.vertices; cov = cov & ~((np.abs(V[:, 0]) > ARM_X) & (V[:, 1] > ARM_Y))   # the arm is not the bottom
+    cov &= V[:, 1] >= INSTEP
     y = V[:, 1]; pct = lambda k, a: round(100 * float(area[k].sum() / a), 1)
     def summary(k):
         a = area[k].sum(); pen = k & (s < -.003)
