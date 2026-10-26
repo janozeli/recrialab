@@ -51,7 +51,7 @@ Na ordem em que costumam rodar:
 | `resize.py` | diminui por igual as jaquetas grandes demais para o corpo |
 | `repose_sleeves.py` | gira ombro, braço e antebraço da peça para a manga acompanhar o braço do manequim; com `--short`, a manga que acaba acima do pulso (022) gira só no ombro e no braço, sem mexer no alto do ombro |
 | `cloth.py` | leva a manga à pose de `repose_sleeves.py` como tecido (simulador Newton, o corpo como colisor): a cava se move com colisão do tecido consigo, para a dobra da axila não atravessar as costas, e o antebraço assenta em volta do pulso e da mão; a barra abaixo do punho fica no lugar (034) |
-| `hood.py` | deita nas costas o capuz e a gola que ficavam em pé atrás da nuca (`--check` confere o limite de encolhimento) |
+| `hood.py` | deita nas costas o capuz e a gola que ficavam em pé atrás da nuca; na 035 também empurra a frente da gola alta para fora do pescoço, e ela fecha até o queixo como na foto (`--check` confere o limite de encolhimento e o de esticar a gola) |
 | `lining.py` | apaga o forro pendurado abaixo da barra da frente |
 | `top_over_bottom.py` | puxa para fora a barra das jaquetas que entrava na cintura das peças de baixo; com `--columns`, a barra canelada (037) anda só na frente e só em z, coluna a coluna, para ficar 8 mm à frente da peça de baixo mais da frente, com a dobra de dentro junto |
 
@@ -82,7 +82,7 @@ lista os triângulos da peça de baixo que somem sob cada peça de cima (mais em
 | `install.py` | gera de novo as máscaras (poses B e C) e as tabelas de camadas de uma peça (`--bottom` para peça de baixo) |
 | `gen_mask.py` | calcula a máscara de uma peça |
 | `gen_layers.py`, `layer_tables.py` | calculam e gravam as tabelas de camadas (`site/assets/layers/`), uma linha por peça de cima |
-| `waist.py`, `collar.py`, `sleeve.py` | medem a altura do cós, da gola e da barra da manga em volta do corpo; o site corta o corpo nessa linha, pixel a pixel |
+| `waist.py`, `collar.py`, `sleeve.py` | medem a altura do cós, da gola e da barra da manga em volta do corpo; o site corta o corpo nessa linha, pixel a pixel. A linha da manga sobe, no lado do tronco, até onde nenhuma câmera do site vê fundo no lugar do braço cortado, menos onde o braço apareceria sobre o tecido da manga; `sleeve.py --check` falha onde a linha gravada sai dessa linha, para cima ou para baixo, e onde a fenda que sobra passa do valor gravado em `SLIT` |
 | `top_hem.py` | mede a barra da peça de cima em volta do corpo, a mesma linha usada em `site/garment-hem.ts` |
 | `strap.py` | esconde o ombro que atravessa a alça das regatas (chamado por `install.py`) |
 | `mask_io.py`, `garment.py`, `glb_patch.py` | leitura e escrita de máscaras e GLBs |
@@ -104,7 +104,7 @@ os pares cujo hash mudou.
 | `cords.py --measure` | cordões na frente da saia 009 |
 | `penetration.py` | roupa mais folgada ou mais enfiada no corpo que o valor registrado em `penetration.json`, que só pode baixar |
 | `stretch.py` | estampa esticada em relação ao modelo original, região por região |
-| `hood.py --check` | capuz ou gola achatados além do limite em relação ao modelo original |
+| `hood.py --check` | capuz ou gola achatados além do limite em relação ao modelo original; gola da 035 esticada além do limite ou mais de 3 cm por dentro do pescoço, ou máscara da 035 abaixo de 1,40 m diferente da guardada |
 | `back_inside.py` | avesso da peça de cima à vista pelas costas (dobra da axila atravessando as costas), além do valor registrado |
 | `calibration.py` | medida que deixou de reprovar o antes ou de aprovar o depois de um defeito guardado em `reference/calibration/` |
 
