@@ -2,7 +2,8 @@ import { test, expect } from 'bun:test';
 import { readFileSync, readdirSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { BODY_POSES, bodyPoseForBottom } from './body-poses';
-import { validateBodyMask, WAIST_STEPS, WAIST_TORSO, WAIST_BAND, NECK_STEPS, NECK_AXIS_Z, NECK_RADIUS, NECK_BAND } from './body-occlusion';
+import { validateBodyMask, WAIST_STEPS, WAIST_TORSO, WAIST_BAND, NECK_STEPS, NECK_AXIS_Z, NECK_RADIUS, NECK_BAND,
+  SLEEVE_STEPS, SLEEVE_ARM_X, SLEEVE_RADIUS, SLEEVE_BAND, SLEEVE_AXIS } from './body-occlusion';
 import { BODY_MASKS, BODY_C_MASKS } from './body-masks';
 
 const asset = (name) => new URL(`./assets/${name}`, import.meta.url);
@@ -82,6 +83,29 @@ test('neck lines match the shader clip and sit at the neck', () => {
     for (const [, mask] of lines) {
       expect(mask.neck_line).toHaveLength(NECK_STEPS);
       for (const y of mask.neck_line) expect(y > 1.4 && y < 1.66).toBe(true);
+    }
+  }
+});
+
+// Arm clip at the sleeve hem (tools/fit/sleeve.py): same numbers in the shader and the generator, and the pieces with
+// a line are the ones sleeve.py lists, with the line between the wrist and the armpit on both arms.
+test('sleeve lines match the shader clip and sit between the wrist and the armpit', () => {
+  const py = readFileSync(new URL('../tools/fit/sleeve.py', import.meta.url), 'utf8');
+  const [, step, armX, radius, band] = py.match(/^STEP, ARM_X, RADIUS, BAND[^=]*= ([\d.]+), ([\d.]+), ([\d.]+), ([\d.]+)/m);
+  expect(360 / Number(step)).toBe(SLEEVE_STEPS);
+  expect(Number(armX)).toBe(SLEEVE_ARM_X);
+  expect(Number(radius)).toBe(SLEEVE_RADIUS);
+  expect(Number(band)).toBe(SLEEVE_BAND);
+  const axis = py.match(/^AXIS_Y, AXIS_X, AXIS_Z, AXIS_DX, AXIS_DZ = (-?[\d.]+), (-?[\d.]+), (-?[\d.]+), (-?[\d.]+), (-?[\d.]+)/m).slice(1).map(Number);
+  expect(axis).toEqual([SLEEVE_AXIS.y, SLEEVE_AXIS.x, SLEEVE_AXIS.z, SLEEVE_AXIS.dx, SLEEVE_AXIS.dz]);
+  const ids = py.match(/^IDS = \[([^\]]*)\]/m)[1].match(/\d{3}/g).sort();
+  expect(ids).toContain('022');
+  for (const registry of [BODY_MASKS, BODY_C_MASKS]) {
+    const lines = Object.entries(registry).filter(([, m]) => m.sleeve_line);
+    expect(lines.map(([id]) => id).sort()).toEqual(ids);
+    for (const [, mask] of lines) {
+      expect(mask.sleeve_line).toHaveLength(2 * SLEEVE_STEPS);
+      for (const y of mask.sleeve_line) expect(y > 0.9 && y < 1.46).toBe(true);
     }
   }
 });

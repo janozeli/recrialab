@@ -11,8 +11,9 @@ Bone weights are smooth; then the cloth settles (ARAP): each neighborhood rotate
 from the joint stays pinned to the pose and the FREE band around the joint absorbs the difference without creasing.
 Only positions change; UV and texture stay. Refuses (writes nothing) if the cloth stretches too much or a triangle flips.
 Input: the GLB published before this step (settling undoes part of the pose, so running it again on its own output
-changes the garment); then install.py with the ids, which rebuilds masks and layer tables. Long sleeves only.
-usage: python3 tools/fit/repose_sleeves.py in.glb out.glb
+changes the garment); then install.py with the ids, which rebuilds masks and layer tables. --short: a sleeve that
+ends above the wrist (022), only steps 1 and 2 above the elbow (there is no cuff to center on the hand).
+usage: python3 tools/fit/repose_sleeves.py in.glb out.glb [--short]
 """
 import sys, numpy as np, trimesh
 import scipy.sparse as sp, scipy.sparse.linalg as spl
@@ -26,6 +27,7 @@ MAX_STRETCH = .20    # p99 of the edges that move
 FREE = .06           # loose radius around the bone joint (with no band, the back creases)
 FRONT = .08          # the torso shoulder moves back fully with z > 0 and not at all with z < -FRONT (the back)
 Y = np.arange(.84, 1.43, .02)   # arm slices, from wrist to shoulder
+TOP = 1.42           # --short: the shoulder above this does not move back
 smooth = lambda t: np.clip(t, 0, 1) ** 2 * (3 - 2 * np.clip(t, 0, 1))
 
 
@@ -45,7 +47,7 @@ def rotate(P, pivot, axis, a):
     return pivot + v * c + np.cross(k, v) * s + np.outer(v @ k, k) * (1 - c)
 
 
-def weights(P, s, B):
+def weights(P, s, B, short=False):
     """Weight of the shoulder (moves back), the upper arm and the forearm on side s. The arm starts 2 cm beyond the
     width of the body's torso at that height (at least |x| = 16 cm), so that the side of a jacket at the waist and hip
     does not rotate with the sleeve."""
@@ -59,6 +61,8 @@ def weights(P, s, B):
     arm = smooth((ax - start) / .05) * smooth((y - sleeve_end(P, B, s) + .20) / .10) * side
     shoulder = np.maximum(arm, smooth((ax - .07) / .10) * smooth((y - 1.18) / .14) * smooth((P[:, 2] + FRONT) / FRONT) * side)
     forearm = arm * smooth((1.06 - y) / .08)
+    if short:   # the top of the shoulder stays: moved back, the body's shoulder pokes through the seam in front of it
+        shoulder = np.maximum(arm, shoulder * smooth((TOP - y) / .06))
     return shoulder, arm, forearm
 
 
@@ -75,20 +79,25 @@ def pose(P, s, a, joints, w):
     return Q
 
 
-def fit_angles(P, B, s, w):
+def fit_angles(P, B, s, w, short=False):
     """Angles of side s: shoulder move and rotations from the front/back center of the sleeve slices onto the arm's;
     then the forearm opening from the center of the cuff (sideways) onto the hand's, in that order: fitted all at once,
-    Nelder-Mead lands on a different minimum from each start."""
+    Nelder-Mead lands on a different minimum from each start. short: shoulder move and upper arm only."""
     ca = centers(B, s, .205); ok = np.isfinite(ca)
-    if (np.isfinite(centers(P, s)) & ok).sum() < 20 or not (w[1] > .5).any():
-        sys.exit(f'side {s:+d}: fewer than 20 sleeve slices beyond |x| = 21 cm; repose_sleeves.py is for long sleeves only')
+    if (np.isfinite(centers(P, s)) & ok).sum() < (8 if short else 20) or not (w[1] > .5).any():
+        sys.exit(f'side {s:+d}: too few sleeve slices beyond |x| = 21 cm' + ('' if short else '; a sleeve above the wrist takes --short'))
     za = lambda y: np.interp(y, Y[ok], ca[ok])
     joints = (np.array([s * .21, 1.40, za(1.40)]), np.array([s * .23, 1.04, za(1.04)]))
     def cost(a):
+        if short: a = [*a, 0]
         c = centers(pose(P, s, [*a, 0], joints, w), s); k = np.isfinite(c) & ok
         return np.mean((c[k] - ca[k]) ** 2)
-    r = min((minimize(cost, x0, method='Nelder-Mead', options=dict(xatol=1e-3, fatol=1e-7)) for x0 in
+    r = min((minimize(cost, x0[:2] if short else x0, method='Nelder-Mead', options=dict(xatol=1e-3, fatol=1e-7)) for x0 in
              ([0, 0, 0], [.04, 0, -.3], [.04, .1, -.4], [.02, -.1, -.2])), key=lambda r: r.fun)
+    if short:
+        print('side %+d: shoulder back %.1f cm, arm %.1f°; sleeve to arm %.1f → %.1f cm (rms)' % (
+            s, 100 * r.x[0], np.degrees(r.x[1]), 100 * np.sqrt(cost([0, 0])), 100 * np.sqrt(r.fun)))
+        return [*r.x, 0, 0], joints
     sleeve = w[1] > .5
     Q = pose(P, s, [*r.x, 0], joints, w)
     yb = sleeve_end(Q, B, s)
@@ -126,15 +135,15 @@ def arap(X0, T, E, pinned, rounds=15, K=1e3, k=1e-6):
     return X
 
 
-def dress(P0, faces, B):
+def dress(P0, faces, B, short=False):
     # vertices at the same position (UV seam) become one: sleeve and cloth move together on both sides of the seam
     _, inv = np.unique(np.round(P0, 5), axis=0, return_inverse=True); inv = inv.ravel()
     X0 = np.zeros((inv.max() + 1, 3)); X0[inv] = P0
     E = trimesh.Trimesh(X0, inv[faces], process=False).edges_unique
     T = X0.copy(); W = np.zeros(len(X0))
     for s in (1, -1):
-        w = weights(X0, s, B)
-        a, joints = fit_angles(T, B, s, w)
+        w = weights(X0, s, B, short)
+        a, joints = fit_angles(T, B, s, w, short)
         T = pose(T, s, a, joints, w)
         for p in w: W = np.maximum(W, 4 * p * (1 - p))   # 0 on the bone and the torso, 1 in the middle of the joint
     pinned = cKDTree(X0[W >= .05]).query(X0)[0] > FREE
@@ -174,14 +183,15 @@ def check(m, P0, P):
 
 
 if __name__ == '__main__':
-    src, dst = sys.argv[1:3]
+    src, dst = sys.argv[1:3]; short = '--short' in sys.argv
     B = body('B').vertices
     g = Garment(src); P0 = g.vertices(); m = g.mesh(P0)
-    P = dress(P0, m.faces, B)
+    P = dress(P0, m.faces, B, short)
     p95, p99, flipped = check(m, P0, P)
     for s in (1, -1):
         print('after, side %+d (cm per height, from 0.84 to 1.42):' % s, ' '.join('%.1f' % v for v in 100 * (centers(P, s) - centers(B, s, .205))[::3]))
-    cuff = max(cuff_to_hand(P, B, s) for s in (1, -1))   # measured after the cloth settles, which undoes part of the opening
+    # measured after the cloth settles, which undoes part of the opening (a short sleeve has no cuff on the hand)
+    cuff = 0 if short else max(cuff_to_hand(P, B, s) for s in (1, -1))
     print('%s: stretch p95 %.1f%% p99 %.1f%%; flipped %d; cuff to hand %.1f cm' % (src.split('/')[-1], 100 * p95, 100 * p99, flipped, 100 * cuff))
     if cuff > MAX_CUFF: sys.exit(f'{src}: cuff {100 * cuff:.1f} cm from the hand after the cloth; nothing written')
     if p99 > MAX_STRETCH or flipped:
