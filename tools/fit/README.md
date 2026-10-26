@@ -63,7 +63,8 @@ Na ordem em que costumam rodar:
 | `leg_shape.py` | refaz cada perna da calça no formato da perna do corpo, com a mesma quantidade de tecido |
 | `separate_legs.py` | separa as pernas das calças que o gerador entregou grudadas e fecha a parede de dentro |
 | `shin_tube.py` | refaz a canela dessas calças como um tubo em volta da perna |
-| `pant_leg_cloth.py` | ajusta a perna da calça ao corpo como tecido, num passo só; com `--whole`, a peça inteira direto do GLB original (004) |
+| `pant_leg_cloth.py` | ajusta a perna da calça ao corpo como tecido, num passo só; com `--whole`, a peça inteira direto do GLB original (002, 004) |
+| `close_holes.py` | fecha os furos pequenos que o gerador deixou na barra, com triângulos sobre os próprios vértices (002) |
 | `waistband.py` | levanta o meio do cós que afundou em V |
 | `hem.py` | encurta uma peça cortando a malha 3D numa altura (saia 009) |
 | `zipper.py` | fecha a braguilha do short 008 |

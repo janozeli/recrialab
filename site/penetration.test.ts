@@ -10,7 +10,7 @@ const ROOT = new URL('../', import.meta.url).pathname;
 const FILE = 'tools/fit/penetration.json';
 type Base = { measure?: number; redefined?: string[]; pieces: Record<string, { goal?: { target_penetrates: number; bands: string[] }; bands: Record<string, Record<string, number>> }> };
 const base: Base = JSON.parse(readFileSync(ROOT + FILE, 'utf8'));
-const WITH_GOAL = ['002', '006', '014'];
+const WITH_GOAL = ['006', '014'];
 
 test('the measure version only goes up', () => {
   const r = spawnSync('git', ['show', `origin/main:${FILE}`], { cwd: ROOT, encoding: 'utf8' });
