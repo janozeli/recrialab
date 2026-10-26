@@ -16,7 +16,7 @@
 
 - id: jagged-junction
   title: "Bottom jagged under the hem of a few tops, seen from below"
-  pieces: ["003", "007", "008"]
+  pieces: ["003", "007", "008", "014"]
 
 - id: sleeve-slit
   title: "Slit to the background between the arm and the torso under short sleeves, where raising the clip would show the arm over the sleeve"
@@ -28,12 +28,8 @@
 
 - id: fit-structure
   title: "Pieces still shaped by the generator's mannequin instead of the neutral body"
-  pieces: ["002", "006", "007", "008", "014", "030", "034", "035"]
+  pieces: ["002", "006", "007", "008", "030", "034", "035"]
 
 - id: waistband-010
   title: "Skirt 010 with its waistband on the hips"
   pieces: ["010"]
-
-- id: waist-014
-  title: "Print of trousers 014 stretched at the waist"
-  pieces: ["014"]

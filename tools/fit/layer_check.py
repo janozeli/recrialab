@@ -13,7 +13,13 @@ Where the bottom's material is single-sided the site does not draw its back face
 (Garment.single_sided, as in gen_layers.py): a ray that meets such a bottom from the inside sees through it.
 The cameras differ from the generator's (gen_layers.WINDOW): angles shifted 10°, from below up to above, from the
 lowest hem to the chest; so the measure does not check the generator with its own rays.
-usage: python3 tools/fit/layer_check.py [--max-pokes N] [--max-holes N] [--max-total-pokes N] [--max-total-holes N] [--no-cache] [BOTTOM.TOP ...]
+Per garment, its pokes and holes summed over all its pairs (a bottom with the 23 tops, a top over the 15 bottoms) may
+not rise above BASELINE: the hip of trousers 014 standing outside the tops' hems went from 2,086 pokes over its 23 pairs
+to 8,859 and no pair crossed the per-pair limit (calibration case hip-014). The sum is checked only for garments whose
+pairs are all in the run, with SLACK on top: the same code and packages count up to 3.3% more pokes on the CI runner
+than on a cloud session (030 over its 15 pairs: 2,154 against 2,083; holes match), so the baseline is the larger of the
+two and SLACK absorbs the rest. --update lowers it where a garment improved and never raises it.
+usage: python3 tools/fit/layer_check.py [--max-pokes N] [--max-holes N] [--max-total-pokes N] [--max-total-holes N] [--no-cache] [--update] [BOTTOM.TOP ...]
        (no pairs: 15 × 23; the total catches holes traded for pokes spread over many pairs)"""
 import sys, os, json, numpy as np
 from multiprocessing import Pool
@@ -26,6 +32,9 @@ from paths import GARMENTS, LAYERS
 POKE = .03   # m, the same as poke_through.py
 # poke caps with POKE, per pair and over the 345 pairs: they hold even when the command line passes a looser limit
 CEILING = {'pokes': 1500, 'total-pokes': 90000}
+BASELINE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'layer_baseline.json')
+SLACK = .05   # fraction over the baseline, ray casting differing between machines (see above)
+BOTTOMS, TOPS = [f'{i:03d}' for i in range(1, 16)], [f'{i:03d}' for i in range(16, 39)]
 
 
 def hidden(bid, tid):
@@ -103,8 +112,8 @@ if __name__ == '__main__':
     while args[:1] and args[0].startswith('--max-'):
         lim[args[0][6:]] = int(args[1]); args = args[2:]
     for k, v in CEILING.items(): lim[k] = min(lim.get(k, v), v)
-    args = [a for a in args if a != '--no-cache']
-    pairs = args or [f'{b:03d}.{t:03d}' for b in range(1, 16) for t in range(16, 39)]
+    args = [a for a in args if a not in ('--no-cache', '--update')]
+    pairs = args or [f'{b}.{t}' for b in BOTTOMS for t in TOPS]
     with Pool(os.cpu_count()) as pool:
         res = pool.map(measure if '--no-cache' in sys.argv else measure_cached, pairs)
     for pair, p, h in res: print(pair, 'pokes', p, 'holes', h)
@@ -113,4 +122,13 @@ if __name__ == '__main__':
           [f'{pair} holes {h}' for pair, _, h in res if h > lim.get('holes', 1e9)]
     tp, tb = sum(r[1] for r in res), sum(r[2] for r in res)
     bad += [f'total pokes {tp}'] * (tp > lim.get('total-pokes', 1e12)) + [f'total holes {tb}'] * (tb > lim.get('total-holes', 1e12))
+    run = {pair: (p, h) for pair, p, h in res}
+    own = {g: [f'{g}.{t}' for t in TOPS] for g in BOTTOMS} | {g: [f'{b}.{g}' for b in BOTTOMS] for g in TOPS}
+    base = json.load(open(BASELINE))
+    for g, ps in own.items():
+        if not all(q in run for q in ps): continue
+        now = {'pokes': sum(run[q][0] for q in ps), 'holes': sum(run[q][1] for q in ps)}
+        if '--update' in sys.argv: base[g] = {k: min(v, base[g][k]) for k, v in now.items()}
+        bad += [f'{g} {k} over its pairs {now[k]} > {base[g][k]} + {SLACK:.0%}' for k in now if now[k] > base[g][k] * (1 + SLACK)]
+    if '--update' in sys.argv: open(BASELINE, 'w').write(json.dumps(base, indent=1) + '\n')
     if bad: sys.exit('above the limit: ' + ', '.join(bad))

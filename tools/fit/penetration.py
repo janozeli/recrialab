@@ -4,7 +4,7 @@ From each body vertex metric.measure casts a ray along the normal: the gap is th
 penetrates is garment inside the body (more than 3 mm). Below the crotch, a ray that crosses the gap and hits the
 trousers' other leg does not count (the version of the measure is stored in penetration.json, with the bands a new version redefines in `redefined`: only those may start above the old baseline). The arm, which hangs beside the thigh, is left out. Per band (waist to ankle) and in total,
 the piece cannot penetrate more than in penetration.json (nor in what the mask leaves visible), nor gain gap above
-4 cm. Trousers 002, 006 and 014 were dressed by the generator on a mannequin with thinner legs, and 15 to 31%
+4 cm. Trousers 002 and 006 were dressed by the generator on a mannequin with thinner legs, and 15 to 31%
 of their thigh, knee and shin sits inside the neutral body (the mask hides it). Their `goal` is what dressing them
 again with the neutral body as collider has to reach; until then the value must stay at or below the baseline.
 usage: python3 tools/fit/penetration.py            (checks against penetration.json)

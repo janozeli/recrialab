@@ -59,6 +59,9 @@ Na ordem em que costumam rodar:
 
 | Script | O que faz |
 |---|---|
+| `project_print.py` | monta a peça de baixo a partir de uma forma que o Tripo gerou já vestida no manequim neutro (três vistas da calça sobre renders da pose C e um modelo sem textura) e pinta nela a estampa do modelo anterior desenrolado por lado: mesma altura relativa, ângulo em volta de um eixo que passa suave da perna ao quadril (sem costura), listras com a largura da fonte e retas na lateral; como a estampa é pintada na forma final, nada a estica (014) |
+| `print_check.py` | estampa das peças montadas por `project_print.py` contra a peça de onde veio: largura das listras, listras em todas as linhas, sem quebra nem serrilhado, nada branco do lado de dentro das pernas |
+| `shoe.py` | barra das calças aberta acima do tênis: tecido deitado sobre o peito do pé, à frente da canela, até 30 cm² (a 005 presa ao valor de hoje) |
 | `displacement_field.py` | empurra para fora do corpo a parte da peça que entrava nele, com um deslocamento suave |
 | `leg_shape.py` | refaz cada perna da calça no formato da perna do corpo, com a mesma quantidade de tecido |
 | `separate_legs.py` | separa as pernas das calças que o gerador entregou grudadas e fecha a parede de dentro |
@@ -95,7 +98,7 @@ os pares cujo hash mudou.
 | Script | Reprova |
 |---|---|
 | `poke_through.py` | corpo atravessando a roupa ou aparecendo oco sob ela |
-| `layer_check.py` | peça de baixo com borda serrilhada sob a barra da de cima ou que a atravessa, nos 345 pares |
+| `layer_check.py` | peça de baixo com borda serrilhada sob a barra da de cima ou que a atravessa, nos 345 pares; por peça, a soma dos seus pares acima do valor registrado em `layer_baseline.json`, que só pode baixar |
 | `holes.py` | rasgo na frente das peças de baixo mostrando o corpo |
 | `crotch.py --measure` | tecido no vão entre as coxas do short 008 |
 | `cuff.py` | tecido solto fora da perna da calça, da canela para baixo |
