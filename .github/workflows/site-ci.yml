@@ -69,6 +69,8 @@ jobs:
         run: python3 tools/fit/crotch.py --measure --max 15 008
       - name: No loose cloth outside the trouser leg, from the shin down
         run: python3 tools/fit/cuff.py
+      - name: No cuff tip hanging below the rim over the arm
+        run: python3 tools/fit/cuff_tip.py --check
       - name: No black texture patch between the legs of the bottoms
         run: python3 tools/fit/texture.py --max 5
       - name: Skirt 009 without the cords hanging in front (the photo has buttons)
