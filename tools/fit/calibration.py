@@ -15,6 +15,11 @@ CASES = {
     'bridge-013': ('strip of cloth hanging in the gap between the legs of trousers 013, down to the shoe', [
         'python3 tools/fit/cuff.py 013',
     ]),
+    'hip-014': ('hip of trousers 014 standing outside the tops\' hems: the layer tables hid it in slivers that showed the '
+                'background, and the waistband poked through the tops', [
+        'python3 tools/fit/layer_check.py --max-pokes 1500 --max-holes 5500 --max-total-pokes 90000 '
+        '--max-total-holes 185000 --no-cache 014.016 014.017 014.018 014.019 014.020 014.021 014.022 014.023 014.024 014.025 014.026 014.027 014.028 014.029 014.030 014.031 014.032 014.033 014.034 014.035 014.036 014.037 014.038',
+    ]),
     'large-jackets': ('jackets 036 and 038 too large for the body: sleeve past the fingers, hem at the crotch', [
         "bun test site/fit.test.ts -t 'long sleeves'",
         "bun test site/fit.test.ts -t 'no lining hanging'",

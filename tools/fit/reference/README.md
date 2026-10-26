@@ -24,6 +24,7 @@ o PR que apertou fica vermelho e atualiza o depois.
 | Caso | Defeito | Verificações que separam |
 |---|---|---|
 | `bridge-013/` | tira de tecido pendurada no vão entre as pernas da calça 013, descendo até o tênis | `cuff.py 013` (103,9 → 0 cm²) |
+| `hip-014/` | quadril da calça 014 do lado de fora da barra das peças de cima: as tabelas de camadas o esconderam em fiapos que mostravam o fundo, e o cós furava as blusas | `layer_check.py` nos 23 pares da 014: por peça, a soma dos pares contra `layer_baseline.json` (8.859 → 2.086 pontas; nenhum par passava de 1.500) |
 | `large-jackets/` | jaquetas 036 e 038 grandes demais para o corpo: manga passando dos dedos, barra no gancho | `site/fit.test.ts`: `-t 'long sleeves'` pega os dois testes de manga (no braço de perfil e terminando no pulso); `-t 'no lining hanging'`, o forro abaixo da barra |
 
 Estado de cada arquivo:
@@ -32,6 +33,8 @@ Estado de cada arquivo:
 |---|---|
 | `bridge-013/before/` | a 013 com a ponte, como foi vista |
 | `bridge-013/after/` | a 013 logo depois do conserto da ponte; não é a publicada, que mudou depois |
+| `hip-014/before/` | a 014 de uma rodada de conserto que não foi publicada, com a tabela de camadas e a máscara dela |
+| `hip-014/after/` | iguais aos publicados |
 | `large-jackets/before/` | 036 e 038 grandes demais, como foram vistas |
 | `large-jackets/after/` 036 | a 036 publicada com a manga vestida como tecido e o punho sobre a palma |
 | `large-jackets/after/` 038 | GLB igual ao publicado; máscaras da época do conserto |
