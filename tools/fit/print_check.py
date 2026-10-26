@@ -9,7 +9,8 @@ the outermost layer) and the side stripes are compared row by row, from STRIPE_T
   rows:  share of the rows with stripes, at least MIN_ROWS: no stretch of leg without them (the seam where the hip met
          the legs broke them; at the hem, the source's fold over the shoe turned them sideways);
   jump:  p99 of the step of the stripes' middle from one row (1 mm) to the next, at most MAX_JUMP (no jag), and the
-         largest step at most MAX_BREAK (the seam where the hip met the legs moved them 2.7 cm in one row);
+         largest step at most MAX_BREAK (the seam where the hip met the legs moved them 2.7 cm in one row); and over
+         DRIFT of height the middle moves at most MAX_DRIFT (a smooth kink, a lower leg turned by 10°, passes the steps);
   inner: white on the inner half of each leg below the crotch (more than 110° from the outer side), at most MAX_INNER
          of that area: the other leg's stripes stay on the other leg.
 usage: python3 tools/fit/print_check.py [IDs]"""
@@ -28,6 +29,8 @@ WIDTH = (.85, 1.15)
 MIN_ROWS = .97
 MAX_JUMP = .003          # metres
 MAX_BREAK = .01
+DRIFT = .02              # metres of height
+MAX_DRIFT = .01
 MAX_INNER = .005
 
 
@@ -47,9 +50,11 @@ def measure(path):
         k = rows & has; i = np.flatnonzero(k)
         step = np.abs(np.diff(mid[i]))[np.diff(i) == 1]
         inner = (t >= INNER_T[0]) & (t <= INNER_T[1])
+        lag = int(round(DRIFT / ((F.y1 - F.y0) / (NT - 1)))); full = np.where(k, mid, np.nan)
+        drift = np.nanmax(np.abs(full[lag:] - full[:-lag])) if np.isfinite(full[lag:] - full[:-lag]).any() else 1.
         kw = k & (t >= SOURCE_HEM)   # the source's fold over the shoe has the stripes sideways, wider
         out[s] = dict(width=np.median(arc[kw]) if kw.any() else 0., rows=has[rows].mean(),
-                      jump=np.percentile(step, 99) if len(step) else 1., brk=step.max() if len(step) else 1.,
+                      jump=np.percentile(step, 99) if len(step) else 1., brk=step.max() if len(step) else 1., drift=drift,
                       inner=white[inner][:, np.abs(a) > np.radians(110)].mean())
     return out
 
@@ -62,10 +67,11 @@ if __name__ == '__main__':
             n, o = new[s], old[s]; w = n['width'] / max(o['width'], 1e-9)
             print(f"{pid} leg {s:+d}: stripes {100 * n['width']:.1f} cm wide ({100 * o['width']:.1f} in the source, x{w:.2f}), "
                   f"in {100 * n['rows']:.0f}% of the rows, step p99 {1000 * n['jump']:.1f} mm (source {1000 * o['jump']:.1f}), "
-                  f"largest {1000 * n['brk']:.1f} mm, white inside {100 * n['inner']:.2f}%")
+                  f"largest {1000 * n['brk']:.1f} mm, over {100 * DRIFT:.0f} cm {1000 * n['drift']:.1f} mm, white inside {100 * n['inner']:.2f}%")
             bad += [f'{pid} leg {s:+d} stripes x{w:.2f} the source width'] * bool(not WIDTH[0] <= w <= WIDTH[1])
             bad += [f"{pid} leg {s:+d} stripes in {100 * n['rows']:.0f}% of the rows < {100 * MIN_ROWS:.0f}%"] * bool(n['rows'] < MIN_ROWS)
             bad += [f"{pid} leg {s:+d} stripes step {1000 * n['jump']:.1f} mm > {1000 * MAX_JUMP:.0f}"] * bool(n['jump'] > MAX_JUMP)
             bad += [f"{pid} leg {s:+d} stripes break {1000 * n['brk']:.1f} mm > {1000 * MAX_BREAK:.0f}"] * bool(n['brk'] > MAX_BREAK)
+            bad += [f"{pid} leg {s:+d} stripes move {1000 * n['drift']:.1f} mm over {100 * DRIFT:.0f} cm > {1000 * MAX_DRIFT:.0f}"] * bool(n['drift'] > MAX_DRIFT)
             bad += [f"{pid} leg {s:+d} white inside {100 * n['inner']:.2f}% > {100 * MAX_INNER:.1f}%"] * bool(n['inner'] > MAX_INNER)
     if bad: sys.exit('projected print off its source: ' + ', '.join(bad))

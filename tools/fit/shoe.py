@@ -16,7 +16,7 @@ INSTEP = .12   # the neutral body's ankle
 SHIN = .16     # the front of the shin, at this height
 AHEAD = .02
 FLAT = .5
-MAX = 30.      # cm² (the other trousers: up to 6.9)
+MAX = 15.      # cm² (the other trousers: up to 6.9)
 # piece: (known issue, cm²) above MAX, held at the recorded value while the issue is open
 AS_IS = {
     '005': ('hem-over-shoe', 71.0),

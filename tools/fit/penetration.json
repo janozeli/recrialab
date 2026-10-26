@@ -471,7 +471,7 @@
     "total": {
      "penetrates": 0.0,
      "penetrates_visible": 0.0,
-     "gap_over_4cm": 0.9
+     "gap_over_4cm": 0.6
     },
     "waist": {
      "penetrates": 0.0,
@@ -486,7 +486,7 @@
     "thigh": {
      "penetrates": 0.0,
      "penetrates_visible": 0.0,
-     "gap_over_4cm": 1.5
+     "gap_over_4cm": 0.5
     },
     "knee": {
      "penetrates": 0.0,

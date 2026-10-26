@@ -15,6 +15,11 @@ CASES = {
     'bridge-013': ('strip of cloth hanging in the gap between the legs of trousers 013, down to the shoe', [
         'python3 tools/fit/cuff.py 013',
     ]),
+    'projected-014': ('trousers 014 rebuilt on the neutral mannequin: the hem wrapped over the sneaker like a boot cover, the '
+                      'side stripes wider, broken where the hip met the legs, and the other leg\'s stripes on the inner side', [
+        'python3 tools/fit/shoe.py 014',
+        'python3 tools/fit/print_check.py 014',
+    ]),
     'large-jackets': ('jackets 036 and 038 too large for the body: sleeve past the fingers, hem at the crotch', [
         "bun test site/fit.test.ts -t 'long sleeves'",
         "bun test site/fit.test.ts -t 'no lining hanging'",

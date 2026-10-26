@@ -20,7 +20,9 @@ and the print is painted on the final shape, so no later move stretches it:
      its length, so the stripes keep their width on the wider legs, and is taken from where the source has the stripes
      in that row (21-24° behind the side seam, wavering): they come out straight on the side, as in the photo. White
      below the crotch away from the stripes is a smudge of the generator and is painted over (clean); below
-     SOURCE_HEM the source folds over the shoe, and the row above the fold carries on to the hem.
+     SOURCE_HEM the source folds over the shoe, and the cloth above the fold is mirrored down to the hem (one
+     row repeated came out as vertical streaks). The front of the waist and hip (FRONT_PATCH) is taken straight from
+     the source's front instead (front): unrolled, the drawstring hanging in front of the cloth came out smeared.
 The output is in the site's format (WebP texture, no normal map, single-sided like the piece it replaces) and is also
 the stretch reference (reference/originals/tripo/NNN.glb): the print is laid on this shape, and stretch.py measures
 what later tools move; print_check.py measures the projection against the print source.
@@ -33,6 +35,7 @@ from scipy.ndimage import gaussian_filter1d
 from scipy.spatial import cKDTree
 from garment import Garment
 from glb_patch import write
+from trimesh.ray.ray_pyembree import RayMeshIntersector
 from metric import body
 
 BODY = .008       # mannequin skin: closer than this to the body above the crotch
@@ -44,12 +47,16 @@ TORSO_X = .165    # the arm starts past this (the gap between torso and arm runs
 TOP = 1.04        # waistband top (the piece it replaces reached 1.031)
 SPLIT = .80       # below this each leg's axis moves onto the body's
 BLEND = (.74, .92)   # print frame: each leg's axis below the first, the hip's above the second
+FRONT_PATCH = ((.06, .10), (.80, .86))   # front of the waist taken as the source shows it: |x| (full, none), height (none, full)
+MIDDLE = .04      # above the crotch each side's print map also takes the cloth this close past x = 0
+FRONT = .2        # radians in front of the stripes' band that take the turn (plain cloth)
 BAND = .05        # metres of arc around the stripes that keep their length (the rest of the girth takes the difference)
 MAP = (1024, 2048)   # unrolled print of the old cloth: rows (height) by columns (angle)
 KNEE = (.72, .48)  # leg axis: untouched above the first, onto the body's below the second
 PART = (.004, .003)   # each leg this far from x = 0 (soft over the second value)
 PART_Y = (.62, .74)   # parted fully below the first height, not above the second
-GATHER = (.012, .72, 1.0)   # waistband gap, from where to where (a short ramp left the hip wider than the waist: a step)
+GATHER = (.005, .62, .90)   # waistband and hip gap, from where to where (a short ramp left the hip wider than the waist:
+# a step; looser, the hip stood outside the tops' hems, and the layer tables hid it in slivers that showed the background)
 SLACK = .004
 ANKLE = .25       # below this the gap is eased against the leg above the sneaker
 GAP = (.026, .009)  # gap eased from the first value towards the sum: penetration.py does not let the gap above 4 cm grow
@@ -269,7 +276,7 @@ class Frame:
     each leg's below BLEND[0], the hip's above BLEND[1], and blends between them: one continuous angle, no seam where
     the hip meets the legs."""
     def __init__(self, V):
-        self.y0, self.y1 = V[:, 1].min(), V[:, 1].max()
+        self.V = V; self.y0, self.y1 = V[:, 1].min(), V[:, 1].max()
         self.ys = np.arange(self.y0 - .01, self.y1 + .02, .01)
         w = smooth((self.ys - BLEND[0]) / (BLEND[1] - BLEND[0]))[:, None]
         hip = axes(V, self.ys, 0)
@@ -295,11 +302,13 @@ def turn(phi, an, ao, c):
     length (the stripes keep their width: the new legs are wider) and its middle goes to c, where the stripes of that
     row of the source are (21-24° behind the side seam, wavering from row to row: each row taken from its own centre,
     the stripes come out straight on the side, as in the photo); the front and back centres (±90°) and the inner side
-    (±180°) stay put. Monotone and continuous, piecewise linear between those points."""
-    one = np.ones_like(phi)
-    P = np.stack([-np.pi * one, -np.pi / 2 * one, -an, 0 * one, an, np.pi / 2 * one, np.pi * one], 1)
-    Q = np.stack([-np.pi * one, -np.pi / 2 * one, c - ao, c, c + ao, np.pi / 2 * one, np.pi * one], 1)
-    i = np.clip((P[:, 1:-1] <= phi[:, None]).sum(1), 0, 5); r = np.arange(len(phi))
+    (±180°) stay put. Turning the stripes to the side takes the plain cloth just in front of them (up to FRONT past the
+    band), so from there to the front centre the angle is the source's: the logo keeps its size and place. Monotone and
+    continuous, piecewise linear between those points."""
+    one = np.ones_like(phi); L = an + FRONT
+    P = np.stack([-np.pi * one, -np.pi / 2 * one, -an, 0 * one, an, L, np.pi / 2 * one, np.pi * one], 1)
+    Q = np.stack([-np.pi * one, -np.pi / 2 * one, c - ao, c, c + ao, L, np.pi / 2 * one, np.pi * one], 1)
+    i = np.clip((P[:, 1:-1] <= phi[:, None]).sum(1), 0, P.shape[1] - 2); r = np.arange(len(phi))
     a, b = P[r, i], P[r, i + 1]; f = np.clip((phi - a) / np.maximum(b - a, 1e-9), 0, 1)
     return Q[r, i] + f * (Q[r, i + 1] - Q[r, i])
 
@@ -319,9 +328,11 @@ def stripes(cmap):
 def print_map(old, uv, img, F, s):
     """The old cloth of side s unrolled: rows are the relative height, columns the angle from -180 to 180°; each cell
     keeps the outermost layer (largest radius), with the colour of the old texture at that point (bilinear). Only the
-    faces on that side of x = 0: the other leg's stripes never reach this one. Cells no face covers take the nearest."""
+    faces on that side of x = 0 (above SPLIT, also those within MIDDLE of it): the other leg's stripes never reach this
+    one. Cells no face covers take the nearest."""
     NT, NA = MAP
-    k = old.triangles_center[:, 0] * s > 0
+    c = old.triangles_center   # above the crotch the middle (drawstring, seat) is in both sides' maps: no seam at x = 0
+    k = (c[:, 0] * s > 0) | ((c[:, 0] * s > -MIDDLE) & (c[:, 1] > SPLIT))
     t, a, r = F.polar(old.vertices, s)
     X = np.c_[t * (NT - 1), (a + np.pi) / (2 * np.pi) * (NA - 1)]
     depth = np.full(NT * NA, -1.); face = np.full(NT * NA, -1); bary = np.zeros((NT * NA, 3))
@@ -373,14 +384,35 @@ def sample(old, uv, img, P, new):
         cmap, cover = print_map(old, uv, img, Fo, s)
         cmap = clean(cmap)
         t, phi, _ = Fn.polar(P[k], s)
-        t = np.maximum(t, SOURCE_HEM)   # below, the row above the fold carries on: the stripes run straight to the hem
+        t = np.where(t < SOURCE_HEM, 2 * SOURCE_HEM - t, t)   # below, the cloth above the fold, mirrored: no streaks
         c = np.interp(np.clip(t, 0, 1) * (NT - 1), np.arange(NT), stripes(cmap))
-        an = np.minimum(BAND / Fn.radius(t, s), np.pi / 2 - .05)
+        an = np.minimum(BAND / Fn.radius(t, s), np.pi / 2 - FRONT - .05)
         ao = np.minimum(BAND / Fo.radius(t, s), np.pi / 2 - np.abs(c) - .05)
         a = turn(phi, an, ao, c)
         out[k] = bilinear(cmap, np.c_[(a + np.pi) / (2 * np.pi), np.clip(t, 0, 1 - 1e-6)])
         print(f'side {s:+d}: old cloth covers {cover * 100:.0f}% of its unrolled print')
-    return np.clip(out, 0, 255).astype(np.uint8)
+    return np.clip(front(old, uv, img, P, Fn, Fo, out), 0, 255).astype(np.uint8)
+
+
+def front(old, uv, img, P, Fn, Fo, out):
+    """The front of the waist and hip as the source shows it from the front: the drawstring hangs in front of the
+    cloth and twists, and unrolled around the axis it came out smeared. Within FRONT_PATCH of the middle (x) and above
+    its height, the colour is the first hit of a ray straight back from the same place of the source's front (x scaled
+    by the two pieces' widths at that height), feathered into the unrolled print."""
+    (x0, x1), (y0, y1) = FRONT_PATCH
+    t = (P[:, 1] - Fn.y0) / (Fn.y1 - Fn.y0); yo = Fo.y0 + t * (Fo.y1 - Fo.y0)
+    cz = np.interp(P[:, 1], Fn.ys, (Fn.c[1][:, 1] + Fn.c[-1][:, 1]) / 2)
+    w = (1 - smooth((np.abs(P[:, 0]) - x0) / (x1 - x0))) * smooth((P[:, 1] - y0) / (y1 - y0)) * (P[:, 2] > cz)
+    k = np.flatnonzero(w > 0)
+    if not len(k): return out
+    half = lambda F, V, y: np.interp(y, F.ys, [np.abs(V[np.abs(V[:, 1] - v) < .01, 0]).max() if (np.abs(V[:, 1] - v) < .01).any() else np.nan for v in F.ys])
+    ratio = half(Fo, old.vertices, yo[k]) / half(Fn, Fn.V, P[k, 1])
+    O = np.c_[P[k, 0] * ratio, yo[k], np.full(len(k), old.vertices[:, 2].max() + .1)]
+    tri, ray, loc = RayMeshIntersector(old).intersects_id(O, np.tile([0, 0, -1.], (len(k), 1)), multiple_hits=False, return_locations=True)
+    bc = trimesh.triangles.points_to_barycentric(old.triangles[tri], loc)
+    col = bilinear(img, np.einsum('ij,ijk->ik', bc, uv[old.faces[tri]]))
+    kk = k[ray]; out[kk] = w[kk, None] * col + (1 - w[kk, None]) * out[kk]
+    return out
 
 
 def bake(m, old, uv, img):
