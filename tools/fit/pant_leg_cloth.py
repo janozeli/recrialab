@@ -19,7 +19,7 @@ usage: python3 tools/fit/separate_legs.py ORIGINAL.glb INPUT.glb ORIGINAL_SEP.gl
        python3 tools/fit/pant_leg_cloth.py ORIGINAL_SEP.glb NNN.glb OUTPUT.glb   (ORIGINAL: tools/fit/reference/originals/tripo/NNN.glb;
        then install.py --bottom NNN, only the new mask (joining it with the old one opens holes), and install.py --bottom-line NNN)
        python3 tools/fit/pant_leg_cloth.py --whole ORIGINAL.glb OUTPUT.glb   (the whole piece as cloth in one step, straight
-       from the ORIGINAL, for trousers whose fabric is wide enough for the neutral body: 002, 004)"""
+       from the ORIGINAL, for trousers whose fabric is wide enough for the neutral body: 002, 004, 007)"""
 import sys, struct, numpy as np, trimesh
 from scipy.spatial import cKDTree
 from garment import Garment

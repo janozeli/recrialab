@@ -240,9 +240,9 @@
   "007": {
    "bands": {
     "total": {
-     "penetrates": 0.8,
-     "penetrates_visible": 0.7,
-     "gap_over_4cm": 7.2
+     "penetrates": 0.0,
+     "penetrates_visible": 0.0,
+     "gap_over_4cm": 7.0
     },
     "waist": {
      "penetrates": 0.0,
@@ -250,14 +250,14 @@
      "gap_over_4cm": 0.0
     },
     "hip": {
-     "penetrates": 1.8,
-     "penetrates_visible": 1.8,
+     "penetrates": 0.0,
+     "penetrates_visible": 0.0,
      "gap_over_4cm": 0.1
     },
     "thigh": {
-     "penetrates": 0.2,
+     "penetrates": 0.1,
      "penetrates_visible": 0.1,
-     "gap_over_4cm": 12.7
+     "gap_over_4cm": 12.5
     }
    }
   },
