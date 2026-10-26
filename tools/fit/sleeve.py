@@ -22,6 +22,7 @@ from paths import GARMENTS, MASKS
 STEP, ARM_X, RADIUS, BAND, BELOW, SLACK, FAR, DY = 5, .17, .06, .10, .08, .004, .12, .004   # degrees and meters
 AXIS_Y, AXIS_X, AXIS_Z, AXIS_DX, AXIS_DZ = 1.15, .215, -.033, -.07, -.127   # arm axis: point and lean per metre up
 LOW, HIGH = .9, 1.45   # the hem is looked for between the wrist and the armpit; no hem found: the line stays at HIGH
+SPIKE = 5              # angles in the median that smooths the background line (bare())
 INNER = (200, 350)     # degrees (0 front, 90 outward, 180 back): the side of the arm that faces the torso
 
 
@@ -107,9 +108,13 @@ def line(garment, b):
     """The hem line (hem()), raised where clipping there would show the background (bare()). On the side facing the
     torso the shirt's own side hangs beside the arm and hem() joins the front and the back across it: the line fell
     below where the sleeve covers, and the clip opened a slit to the background between the arm and the torso (022,
-    seen from the front). Where no height is free of background, the hem line stays."""
+    seen from the front). Where no height is free of background, the hem line stays; a lift at one or two angles
+    only (016, at the back) let the arm poke through the cloth, and the median over SPIKE angles drops it."""
     L, B = hem(garment, b), bare(garment, b)
-    return np.where(np.isfinite(B), np.maximum(L, B), L)
+    M = np.where(np.isfinite(B), np.maximum(L, B), L); n = len(M) // 2
+    # median over SPIKE angles: a ray grazing a fold at one or two angles does not lift the line
+    M = np.concatenate([np.median([np.roll(h, k) for k in range(-(SPIKE // 2), SPIKE // 2 + 1)], 0) for h in (M[:n], M[n:])])
+    return np.maximum(L, M)
 
 
 def on_line(P, L):
@@ -167,15 +172,15 @@ IDS = [
 ]
 
 def check():
-    """Every stored line at or above bare() of the garment and body as they are now (CI): below it, the clip cuts
+    """Every stored line at or above line() of the garment and body as they are now (CI): below it, the clip cuts
     arm that a camera sees against the background."""
     bad = []
     for pid in IDS:
         g = Garment(GARMENTS + f'{pid}.glb').mesh()
         for pose, path in [('B', f'pose-b/{pid}.json'), ('C', f'pose-c/{pid}.json')]:
             if not os.path.exists(MASKS + path): continue
-            L = bare(g, body(pose)); stored = np.array(json.load(open(MASKS + path))['sleeve_line'])
-            low = np.nan_to_num(L - stored, nan=0)
+            L = line(g, body(pose)); stored = np.array(json.load(open(MASKS + path))['sleeve_line'])
+            low = L - stored
             print(pid, pose, 'stored line below where the clip shows no background by up to', round(float(low.max()) * 100, 1), 'cm', flush=True)
             if low.max() > DY: bad.append(f'{pid} {pose}')
     if bad: sys.exit('sleeve line below where the clip shows no background (rerun install.py on them): ' + ', '.join(bad))

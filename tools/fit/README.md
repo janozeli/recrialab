@@ -51,7 +51,7 @@ Na ordem em que costumam rodar:
 | `resize.py` | diminui por igual as jaquetas grandes demais para o corpo |
 | `repose_sleeves.py` | gira ombro, braço e antebraço da peça para a manga acompanhar o braço do manequim; com `--short`, a manga que acaba acima do pulso (022) gira só no ombro e no braço, sem mexer no alto do ombro |
 | `cloth.py` | leva a manga à pose de `repose_sleeves.py` como tecido (simulador Newton, o corpo como colisor): a cava se move com colisão do tecido consigo, para a dobra da axila não atravessar as costas, e o antebraço assenta em volta do pulso e da mão; a barra abaixo do punho fica no lugar (034) |
-| `hood.py` | deita nas costas o capuz e a gola que ficavam em pé atrás da nuca (`--check` confere o limite de encolhimento) |
+| `hood.py` | deita nas costas o capuz e a gola que ficavam em pé atrás da nuca; na 035 também empurra a frente da gola alta para fora do pescoço, e ela fecha até o queixo como na foto (`--check` confere o limite de encolhimento e o de esticar a gola) |
 | `lining.py` | apaga o forro pendurado abaixo da barra da frente |
 | `top_over_bottom.py` | puxa para fora a barra das jaquetas que entrava na cintura das peças de baixo; com `--columns`, a barra canelada (037) anda só na frente e só em z, coluna a coluna, para ficar 8 mm à frente da peça de baixo mais da frente, com a dobra de dentro junto |
 
@@ -102,7 +102,7 @@ os pares cujo hash mudou.
 | `cords.py --measure` | cordões na frente da saia 009 |
 | `penetration.py` | roupa mais folgada ou mais enfiada no corpo que o valor registrado em `penetration.json`, que só pode baixar |
 | `stretch.py` | estampa esticada em relação ao modelo original, região por região |
-| `hood.py --check` | capuz ou gola achatados além do limite em relação ao modelo original |
+| `hood.py --check` | capuz ou gola achatados além do limite em relação ao modelo original; gola da 035 esticada além do limite ou mais de 2 cm por dentro do pescoço |
 | `back_inside.py` | avesso da peça de cima à vista pelas costas (dobra da axila atravessando as costas), além do valor registrado |
 
 `metric.py` e `anchors.py` só medem folga e apoio, para diagnóstico, sem reprovar nada. `arm.py` mexe

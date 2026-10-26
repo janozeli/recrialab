@@ -10,6 +10,10 @@ limit (MAX_SHRINK, p99) and on the area of what moves (MAX_AREA); it also refuse
 flipped triangles.
 The input is always the GLB in ORIGINAL, from before hood.py ever ran, and the limits are measured against it, so that runs
 cannot add up past them.
+The front of a high collar can come out of the generator narrower than the mannequin's neck, inside it (035): on the
+site the collar shows open, with the neck inside. For the pieces in CLOSE the collar (above COLLAR_Y, within
+COLLAR_R of the neck axis) is pushed out of the neck, by a displacement smoothed in space, until it sits MARGIN
+outside it; the plain collar stretches (MAX_COLLAR_STRETCH, p99 of its edges), and only there x changes.
 The check in site/fit.test.ts (hoodBehindCm) measures how far behind the body's back the piece sits, at the middle and
 6 cm to each side; --check (CI) measures each published piece against ORIGINAL again.
 usage: python3 tools/fit/hood.py --measure   (each top, in cm)
@@ -29,6 +33,12 @@ RADIUS_PIECE = {
 K_PIECE = {
     '030': 0,                  # collar of 030: keeping part of the excess leaves the nape past the 5 cm limit
 }
+CLOSE = {
+    '035': .012,               # m outside the neck: the front of the high collar sat inside it (open collar)
+}
+NECK_Z, COLLAR_Y, COLLAR_R, CLOSE_RADIUS, CLOSE_ROUNDS = -.008, 1.42, .20, .03, 6   # m, m, m, m, rounds
+MAX_COLLAR_STRETCH = 1.10        # p99 of the collar edges that stretch: a collapsed plain collar opening around the neck
+MAX_INSIDE = .02                 # m: deepest a closed collar vertex may stay inside the neck (more rounds flip triangles)
 ORIGINAL = 'tools/fit/reference/originals/before-hood'   # pieces before hood.py first ran
 PIECES = [
     '030',
@@ -64,18 +74,29 @@ def original(pid):
         return Garment(f.name).vertices()
 
 
-def shrink_limits(g, P, Q):
-    """Summary text and whether it is refused, from P (ORIGINAL) to Q."""
+def collar(P):
+    """Vertices of the collar that CLOSE pushes out of the neck."""
+    return (P[:, 1] > COLLAR_Y) & (np.hypot(P[:, 0], P[:, 2] - NECK_Z) < COLLAR_R)
+
+
+def shrink_limits(g, P, Q, closed=False):
+    """Summary text and whether it is refused, from P (ORIGINAL) to Q. With closed, the collar's edges answer to
+    MAX_COLLAR_STRETCH alone."""
     m0, m1 = g.mesh(P), g.mesh(Q); E = m0.edges_unique
     e = np.linalg.norm(Q[E[:, 0]] - Q[E[:, 1]], axis=1) / np.maximum(np.linalg.norm(P[E[:, 0]] - P[E[:, 1]], axis=1), 1e-9) - 1
+    inner = collar(P)[E].any(1) if closed else np.zeros(len(E), bool)
+    collar_stretch = np.percentile(np.maximum(e[inner], 0), 99) if inner.any() else 0
+    e = e[~inner]
     moves = np.abs(e) > 1e-6
     stretch = np.percentile(np.maximum(e[moves], 0), 99) if moves.any() else 0
     shrink = np.percentile(np.maximum(-e[moves], 0), 99) if moves.any() else 0
     A0, A1 = m0.area_faces, m1.area_faces; fm = np.abs(A1 / np.maximum(A0, 1e-12) - 1) > 1e-6
+    if closed: fm &= ~collar(P)[m0.faces].any(1)
     area = 1 - A1[fm].sum() / A0[fm].sum() if fm.any() else 0
     flipped = int(((m0.face_normals * m1.face_normals).sum(1) < 0).sum())
     summary = f'stretch p99 {100 * stretch:.1f}%, shrink p99 {100 * shrink:.1f}%, area -{100 * area:.1f}%, {flipped} flipped'
-    bad = stretch > MAX_STRETCH or shrink > MAX_SHRINK or area > MAX_AREA or flipped
+    if closed: summary += f', collar stretch p99 {100 * collar_stretch:.1f}%'
+    bad = stretch > MAX_STRETCH or shrink > MAX_SHRINK or area > MAX_AREA or flipped or collar_stretch > MAX_COLLAR_STRETCH
     return summary, bad
 
 
@@ -94,6 +115,32 @@ def lay_down(P, b, radius=None, k=K):
     return Q
 
 
+def neck_gap(P, b):
+    """Per collar vertex: distance outside the neck along the ray from the neck axis (negative: inside the neck)."""
+    from gen_mask import first
+    C = b.triangles_center; neck = np.nonzero((np.hypot(C[:, 0], C[:, 2] - NECK_Z) < .13) & (C[:, 1] > 1.40))[0]
+    rb = RayMeshIntersector(b.submesh([neck], append=True))
+    q = np.c_[P[:, 0], P[:, 2] - NECK_Z]; r = np.linalg.norm(q, axis=1); u = q / np.maximum(r, 1e-6)[:, None]
+    t, _ = first(rb, np.c_[0 * r, P[:, 1], 0 * r + NECK_Z], np.c_[u[:, 0], 0 * r, u[:, 1]])
+    return r - np.where(np.isfinite(t), t, 0), u
+
+
+def close(P, b, margin):
+    """Pushes the collar out of the neck: each round, the collar vertex closer than margin to the neck (from COLLAR_Y,
+    fully 3 cm above) gets the missing distance outwards, smoothed over CLOSE_RADIUS so the lining and the outer cloth
+    move together."""
+    Q = P.copy(); k = np.nonzero(collar(P))[0]
+    for _ in range(CLOSE_ROUNDS):
+        gap, u = neck_gap(Q[k], b)
+        need = np.maximum(margin - gap, 0) * np.clip((Q[k, 1] - COLLAR_Y - .04) / .03, 0, 1)
+        D = np.zeros_like(Q); D[k, 0] = u[:, 0] * need; D[k, 2] = u[:, 1] * need
+        N = kernel(Q, CLOSE_RADIUS)
+        for _ in range(2): D = N @ D
+        D[~collar(P)] = 0
+        Q = Q + D
+    return Q
+
+
 if __name__ == '__main__':
     b = body('B')
     if sys.argv[1:] == ['--measure']:
@@ -104,8 +151,12 @@ if __name__ == '__main__':
         bad = []
         for pid in PIECES:
             g = Garment(GARMENTS + f'{pid}.glb'); P, Q = original(pid), g.vertices()
-            summary, refused = shrink_limits(g, P, Q)
-            if np.abs(P[:, :2] - Q[:, :2]).max() > 1e-6: summary, refused = summary + ', x or y changed', True
+            summary, refused = shrink_limits(g, P, Q, pid in CLOSE)
+            free = collar(P) if pid in CLOSE else np.zeros(len(P), bool)
+            if np.abs(P[~free, :2] - Q[~free, :2]).max() > 1e-6: summary, refused = summary + ', x or y changed', True
+            top = collar(Q) & (Q[:, 1] > COLLAR_Y + .07)   # where close() pushes in full
+            if pid in CLOSE and (inside := (neck_gap(Q[top], b)[0] < -MAX_INSIDE).sum()):
+                summary, refused = summary + f', {inside} collar vertices more than {100 * MAX_INSIDE:.0f} cm inside the neck', True
             print(pid, summary)
             if refused: bad.append(f'{pid}: {summary}')
         if bad: sys.exit('hood and collar outside the shrink limits against ' + ORIGINAL + ': ' + '; '.join(bad))
@@ -114,7 +165,8 @@ if __name__ == '__main__':
         if pid not in PIECES: sys.exit(f'{pid}: not in PIECES (add it; ORIGINAL must have the piece as input)')
         path = GARMENTS + f'{pid}.glb'; g = Garment(path); A = g.vertices(); P = original(pid)
         Q = lay_down(P, b, RADIUS_PIECE.get(pid), K_PIECE.get(pid, K))
-        summary, refused = shrink_limits(g, P, Q)
+        if pid in CLOSE: Q = close(Q, b, CLOSE[pid])
+        summary, refused = shrink_limits(g, P, Q, pid in CLOSE)
         if refused: sys.exit(f'{pid}: {summary}; nothing written')
         print(f'{pid}: behind the back {behind_cm(P, b):.1f} → {behind_cm(Q, b):.1f} cm, {summary}')
         g.save(path, Q, before=A)   # turns the normals too: the site lights with them
