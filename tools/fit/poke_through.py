@@ -23,7 +23,7 @@ from gen_mask import cameras, first, zones, ORBIT
 from mask_io import hidden_indices
 from waist import cut_from, TIGHT
 import collar, strap
-from sleeve import cut_from as sleeve_cut, below_from as below_sleeve, FAR as SLEEVE_FAR
+from sleeve import cut_from as sleeve_cut, below_from as below_sleeve, hem as sleeve_hem, FAR as SLEEVE_FAR
 from paths import GARMENTS, MASKS
 
 # Baselines per piece (the recorded counts; they may only go down).
@@ -70,7 +70,7 @@ def measure_top(pid):
     mask = json.load(open(MASKS + f'pose-b/{pid}.json'))
     clips = [(c, far) for c, far in ((collar.cut_from(mask), collar.FAR), (sleeve_cut(mask), SLEEVE_FAR)) if c]
     cut = (lambda P: np.any([c(P) for c, _ in clips], 0)) if clips else None
-    below = below_sleeve(mask)
+    below = below_sleeve(mask, sleeve_hem(g, b)) if 'sleeve_line' in mask else None
     hid = np.zeros(len(F), bool); hid[hidden_indices(mask)] = True
     near, sleeve = zones(b, g, rg)
     vis = np.nonzero(~hid)[0]

@@ -35,7 +35,7 @@ Estado de cada arquivo:
 |---|---|
 | `bridge-013/before/` | a 013 com a ponte, como foi vista |
 | `bridge-013/after/` | a 013 logo depois do conserto da ponte; não é a publicada, que mudou depois |
-| `projected-014/before/` | a 014 da primeira rodada, como a barra foi vista |
+| `projected-014/before/` | a 014 com a barra moldada sobre o tênis e as listras largas e quebradas, como foi vista |
 | `projected-014/after/` | GLB igual ao publicado |
 | `large-jackets/before/` | 036 e 038 grandes demais, como foram vistas |
 | `large-jackets/after/` 036 | a 036 publicada com a manga vestida como tecido e o punho sobre a palma |
