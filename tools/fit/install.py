@@ -44,13 +44,14 @@ for id in ([] if bottoms else tops):
         body, bhash = bodies[pose]
         mask = json.load(open(MASKS + path))
         hidden = hidden_triangles(body, g, id in LONG_SLEEVE)
-        mask.pop('neck_line', None); mask.pop('sleeve_line', None)
+        mask.pop('neck_line', None); mask.pop('sleeve_line', None); mask.pop('sleeve_band', None)
         if id in collar.IDS:   # shader clip at the collar line (collar.py): line of the new geometry, band given back
             L = collar.line(g, body); mask['neck_line'] = [round(float(v), 4) for v in L]
             hide = np.zeros(len(body.faces), bool); hide[hidden] = True; hidden = np.nonzero(hide & ~collar.band(body, L))[0]
         if id in sleeve.IDS:   # shader clip at the sleeve hem (sleeve.py): line of the new geometry, band given back
             L = sleeve.hem(g, body); mask['sleeve_line'] = [round(float(v), 4) for v in L]
-            hide = np.zeros(len(body.faces), bool); hide[hidden] = True; hidden = np.nonzero(hide & ~sleeve.band(body, L))[0]
+            if id in sleeve.WIDE: mask['sleeve_band'] = sleeve.WIDE[id]
+            hide = np.zeros(len(body.faces), bool); hide[hidden] = True; hidden = np.nonzero(hide & ~sleeve.band(body, L, sleeve.height(id)))[0]
         hide = np.zeros(len(body.faces), bool); hide[hidden] = True   # shoulder poking through the strap (strap.py)
         hidden = np.nonzero(hide | strap.extra(body, g, hide))[0]
         mask.update(body_sha256=bhash, garment_sha256=sha(glb))

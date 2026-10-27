@@ -44,11 +44,12 @@ BOTTOM_AS_IS = {
     '012': 221,
     '013': 363,
 }
+HIDDEN = .05   # m: a hidden or clipped body point with cloth up to this behind it shows that cloth, not a hole
 # Holes of the tops whose arm is clipped in the sleeve band (sleeve.py), above --max-holes: the arm clipped with no cloth
 # in front of it counts (the view goes through where the arm is); a tear in the sleeve raises it (calibration torn-sleeve-022).
 TOP_HOLES = {
-    '016': 11873,
-    '022': 8381,
+    '016': 7217,
+    '022': 3688,
 }
 # Bottom holes: hiding the body that pokes through must not let the background show.
 BOTTOM_HOLES = {
@@ -94,16 +95,17 @@ def measure_top(pid):
         on_shoulder += int((shoulder[f] & (gap < .03)).sum())
         tt, ft = first(rt, o, dd, front_only=True)
         with np.errstate(invalid='ignore'):
-            hole = np.isfinite(tt) & ~(tg < tt + .05) & hid[np.maximum(ft, 0)] & (ft >= 0)
+            hole = np.isfinite(tt) & ~(tg < tt + HIDDEN) & hid[np.maximum(ft, 0)] & (ft >= 0)
             # neck clipped by the shader (collar.py): a gap if there is no cloth up to FAR behind
             if neck:
                 k = np.isfinite(tt); c = np.zeros(len(tt), bool); c[k] = neck(o[k] + dd[k] * tt[k, None])
                 hole = (hole & ~c) | (c & ~(tg < tt + collar.FAR))
             # arm in the sleeve band (sleeve.py): clipped where cloth is in front or up to POKE behind it; clipped with
             # no cloth in front, the view goes through where the arm is (a tear in the sleeve, the arm beside the torso)
+            # unless the cloth is right behind, as for a hidden triangle (the clip and the mask show the same there)
             if arm:
                 k = np.isfinite(tt); c = np.zeros(len(tt), bool); c[k] = arm(o[k] + dd[k] * tt[k, None], dd[0])
-                hole = (hole & ~c) | (c & ~(tg < tt))
+                hole = (hole & ~c) | (c & ~(tg < tt + HIDDEN))
             holes += int(hole.sum())
     return pid, pokes, holes, on_shoulder
 

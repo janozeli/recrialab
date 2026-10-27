@@ -398,7 +398,7 @@ export function initDressUp(): void {
 
   // --- wear / take off ------------------------------------------------------
   const worn = new Map<Slot, { piece: Piece; object: THREE.Object3D }>();
-  const bodyGeometry: { pose: BodyPose; mesh: THREE.Mesh; original: Uint16Array | Uint32Array; setClip: (waist: readonly number[] | undefined, neck: readonly number[] | undefined, sleeve?: readonly number[]) => void }[] = [];
+  const bodyGeometry: { pose: BodyPose; mesh: THREE.Mesh; original: Uint16Array | Uint32Array; setClip: (waist: readonly number[] | undefined, neck: readonly number[] | undefined, sleeve?: readonly number[], sleeveBand?: number) => void }[] = [];
   // Visual QA (tools/verify-site/visual-qa.mjs) photographs the stage from any point of the orbit; localhost only.
   if (['localhost', '127.0.0.1'].includes(location.hostname) && params.has('qa')) {
     Object.assign(window, { __qa: { THREE, scene, camera, controls, renderer, worn, mannequin, followCamera, bodyGeometry } });
@@ -470,7 +470,7 @@ export function initDressUp(): void {
     const top = worn.get('top')?.piece.id;
     for (const { pose: meshPose, mesh, original, setClip } of bodyGeometry) {
       if (meshPose !== pose) continue;
-      setClip(bottom ? registry[bottom]?.waist_line : undefined, top ? registry[top]?.neck_line : undefined, top ? registry[top]?.sleeve_line : undefined);
+      setClip(bottom ? registry[bottom]?.waist_line : undefined, top ? registry[top]?.neck_line : undefined, top ? registry[top]?.sleeve_line : undefined, top ? registry[top]?.sleeve_band : undefined);
       const masks = activeMasks.map(mask => validateBodyMask(mask, BODY_POSES[pose].hash, mesh.name, original.length / 3));
       const visible = visibleBodyIndices(original, masks);
       // Reuse the allocated index buffer instead of allocating a GPU buffer at every selection.

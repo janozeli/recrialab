@@ -102,10 +102,14 @@ test('sleeve lines match the shader clip and sit between the wrist and the armpi
   expect(axis).toEqual([SLEEVE_AXIS.y, SLEEVE_AXIS.x, SLEEVE_AXIS.z, SLEEVE_AXIS.dx, SLEEVE_AXIS.dz]);
   const ids = py.match(/^IDS = \[([^\]]*)\]/m)[1].match(/\d{3}/g).sort();
   expect(ids).toContain('022');
+  // pieces with a wider band, and their band, as WIDE in sleeve.py lists them
+  const wide = Object.fromEntries([...py.match(/^WIDE = \{([^}]*)\}/m)[1].matchAll(/'(\d{3})': ([\d.]+)/g)].map(m => [m[1], Number(m[2])]));
+  expect(Object.keys(wide).every(id => ids.includes(id))).toBe(true);
   for (const registry of [BODY_MASKS, BODY_C_MASKS]) {
     const lines = Object.entries(registry).filter(([, m]) => m.sleeve_line);
     expect(lines.map(([id]) => id).sort()).toEqual(ids);
-    for (const [, mask] of lines) {
+    for (const [id, mask] of lines) {
+      expect(mask.sleeve_band ?? SLEEVE_BAND, id).toBe(wide[id] ?? SLEEVE_BAND);
       expect(mask.sleeve_line).toHaveLength(2 * SLEEVE_STEPS);
       for (const y of mask.sleeve_line) expect(y > 0.9 && y < 1.46).toBe(true);
     }
@@ -128,9 +132,10 @@ test('the sleeve clip discards the arm only where the clothes depth is close beh
     fragmentShader: '#include <common>\n#include <clipping_planes_fragment>' };
   mesh.material.onBeforeCompile(shader, null);
   const sleeve = shader.fragmentShader.slice(shader.fragmentShader.indexOf('sleeveH'));
-  const band = sleeve.slice(sleeve.indexOf(`y + ${SLEEVE_BAND.toFixed(3)}`));
+  const band = sleeve.slice(sleeve.indexOf('y + uSleeveBand'));
   expect(band.indexOf(`if (uClothReady > 0.5 && cloth < 1.0 && behind < ${SLEEVE_POKE.toFixed(3)}) discard`)).toBeGreaterThan(0);
   expect(band.split('discard').length - 1).toBe(1);
   expect(shader.uniforms).toHaveProperty('uCloth');
+  expect(shader.uniforms.uSleeveBand.value).toBe(SLEEVE_BAND);
   expect(mesh.onBeforeRender).not.toBe(THREE.Object3D.prototype.onBeforeRender);
 });
