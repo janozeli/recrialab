@@ -42,11 +42,14 @@ test('every piece has a body mask for each pose it can appear in', () => {
   }
 });
 
-test('layer tables point at the exact GLB bytes being shipped', () => {
+test('layer tables point at the exact GLB bytes being shipped and at the rule that built them', () => {
+  const generator = sha(new URL('../tools/fit/gen_layers.py', import.meta.url).pathname);
   for (const bottom of bottoms) {
     const table = JSON.parse(readFileSync(join(ASSETS, 'layers', `${bottom}.json`), 'utf8'));
     // stale hash (after merging main, for example): python3 tools/fit/layer_tables.py redoes only the stale pairs
     expect(table.bottomHash).toBe(sha(glb(bottom)));
+    // a table built by an older gen_layers.py: python3 tools/fit/layer_tables.py rebuilds all 15
+    expect(table.generatorHash).toBe(generator);
     expect(Object.keys(table.topHashes).sort()).toEqual([...tops].sort());
     for (const [top, hash] of Object.entries(table.topHashes)) expect(hash).toBe(sha(glb(top)));
   }

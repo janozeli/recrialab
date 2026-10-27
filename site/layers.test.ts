@@ -43,6 +43,6 @@ test('layer tables keep one line per top (tools/fit/layer_tables.py), so git mer
   for (let n = 1; n <= 15; n++) {
     const text = table(n);
     const t = JSON.parse(text);
-    expect(text).toBe(`{"bottomHash":${c(t.bottomHash)},\n"meshes":${c(t.meshes)},\n"topHashes":{\n${lines(t.topHashes)}\n},\n"pairs":{\n${lines(t.pairs)}\n}}\n`);
+    expect(text).toBe(`{"bottomHash":${c(t.bottomHash)},\n"generatorHash":${c(t.generatorHash)},\n"meshes":${c(t.meshes)},\n"topHashes":{\n${lines(t.topHashes)}\n},\n"pairs":{\n${lines(t.pairs)}\n}}\n`);
   }
 });
