@@ -65,10 +65,14 @@ jobs:
         run: python3 tools/fit/layer_check.py --max-pokes 1500 --max-holes 5500 --max-total-pokes 90000 --max-total-holes 185000
       - name: No tear in the front of the bottoms showing the body
         run: python3 tools/fit/holes.py
+      - name: Small holes in the hem of the bottoms
+        run: python3 tools/fit/close_holes.py --check
       - name: Legs of short 008 apart below the crotch, as in the photo
         run: python3 tools/fit/crotch.py --measure --max 15 008
       - name: No loose cloth outside the trouser leg, from the shin down
         run: python3 tools/fit/cuff.py
+      - name: Trouser hem open above the sneaker, not wrapped over it
+        run: python3 tools/fit/shoe.py
       - name: No cuff tip hanging below the rim over the arm
         run: python3 tools/fit/cuff_tip.py --check
       - name: No black texture patch between the legs of the bottoms
@@ -79,6 +83,8 @@ jobs:
         run: python3 tools/fit/penetration.py
       - name: Print of the bottoms not stretched against the original GLB, region by region
         run: python3 tools/fit/stretch.py
+      - name: Print of the projected bottoms against the piece it was taken from (stripes' width, continuity, inner side)
+        run: python3 tools/fit/print_check.py
       - name: Hoods and collars lie on the back, within the shrink limits against the original GLB
         run: python3 tools/fit/hood.py --check
       - name: The inside of the tops does not show from behind more than recorded

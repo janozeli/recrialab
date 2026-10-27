@@ -15,9 +15,27 @@ CASES = {
     'bridge-013': ('strip of cloth hanging in the gap between the legs of trousers 013, down to the shoe', [
         'python3 tools/fit/cuff.py 013',
     ]),
+    'hip-014': ('hip of trousers 014 standing outside the tops\' hems: the layer tables hid it in slivers that showed the '
+                'background, and the waistband poked through the tops', [
+        'python3 tools/fit/layer_check.py --max-pokes 1500 --max-holes 5500 --max-total-pokes 90000 '
+        '--max-total-holes 185000 --no-cache 014.016 014.017 014.018 014.019 014.020 014.021 014.022 014.023 014.024 014.025 014.026 014.027 014.028 014.029 014.030 014.031 014.032 014.033 014.034 014.035 014.036 014.037 014.038',
+    ]),
+    'projected-014': ('trousers 014 rebuilt on the neutral mannequin: the hem wrapped over the sneaker like a boot cover, the '
+                      'side stripes wider, broken where the hip met the legs, and the other leg\'s stripes on the inner side', [
+        'python3 tools/fit/shoe.py 014',
+        'python3 tools/fit/print_check.py 014',
+    ]),
     'large-jackets': ('jackets 036 and 038 too large for the body: sleeve past the fingers, hem at the crotch', [
         "bun test site/fit.test.ts -t 'long sleeves'",
         "bun test site/fit.test.ts -t 'no lining hanging'",
+    ]),
+    'hem-hole-002': ('hole of 9.6 cm in the hem of trousers 002, left by the generator: dressed as cloth, the body shows '
+                     'through it from behind, and main\'s 002 had it and passed every check', [
+        'python3 tools/fit/close_holes.py --check 002',
+    ]),
+    'waistband-004': ('back of the waistband of trousers 004, dressed whole as cloth, slid 1.4 cm down the small of the back '
+                      'and folded over, with the dark inside showing; the waist region of stretch.py passed it', [
+        'python3 tools/fit/stretch.py 004',
     ]),
     'cuff-tip-021': ('tip of the left cuff of 021 hanging 4 cm below the rim, a beige V over the arm', [
         'python3 tools/fit/cuff_tip.py --check',

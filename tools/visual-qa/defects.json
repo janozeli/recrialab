@@ -18,7 +18,8 @@
  },
  "midriff": {
   "001.016": "short-tops-midriff",
-  "005.035": "short-tops-midriff"
+  "005.035": "short-tops-midriff",
+  "014.016": "short-tops-midriff"
  },
  "junction": {
   "007.022": "jagged-junction",
@@ -33,7 +34,7 @@
   "008": "spiky-hems",
   "009": "spiky-hems",
   "011.026": "spiky-hems",
-  "014.029": "spiky-hems"
+  "014.033": "spiky-hems"
  },
  "pokes": {
   "007.022": "body-framed-by-cloth",
@@ -52,11 +53,17 @@
   "007.037": "body-framed-by-cloth",
   "008.038": "body-framed-by-cloth",
   "010.025": "body-framed-by-cloth",
+  "014.016": "jagged-junction",
+  "014.033": "jagged-junction",
+  "014.035": "jagged-junction",
   "015.030": "body-framed-by-cloth"
  },
  "see_through": {
   "003.033": "jagged-junction",
   "006.036": "short-tops-midriff",
-  "007.037": "jagged-junction"
+  "007.037": "jagged-junction",
+  "014.022": "jagged-junction",
+  "014.033": "body-framed-by-cloth",
+  "014.035": "jagged-junction"
  }
 }

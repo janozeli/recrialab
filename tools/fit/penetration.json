@@ -48,8 +48,8 @@
      "gap_over_4cm": 0.2
     },
     "waist": {
-     "penetrates": 0.0,
-     "penetrates_visible": 0.0,
+     "penetrates": 1.1,
+     "penetrates_visible": 1.1,
      "gap_over_4cm": 0.0
     },
     "hip": {
@@ -116,13 +116,13 @@
   "004": {
    "bands": {
     "total": {
-     "penetrates": 0.0,
-     "penetrates_visible": 0.0,
-     "gap_over_4cm": 0.7
+     "penetrates": 0.2,
+     "penetrates_visible": 0.2,
+     "gap_over_4cm": 0.6
     },
     "waist": {
-     "penetrates": 0.0,
-     "penetrates_visible": 0.0,
+     "penetrates": 5.4,
+     "penetrates_visible": 5.4,
      "gap_over_4cm": 0.0
     },
     "hip": {
@@ -133,7 +133,7 @@
     "thigh": {
      "penetrates": 0.0,
      "penetrates_visible": 0.0,
-     "gap_over_4cm": 0.8
+     "gap_over_4cm": 1.0
     },
     "knee": {
      "penetrates": 0.0,
@@ -143,12 +143,12 @@
     "shin": {
      "penetrates": 0.0,
      "penetrates_visible": 0.0,
-     "gap_over_4cm": 0.7
+     "gap_over_4cm": 0.5
     },
     "ankle": {
      "penetrates": 0.0,
      "penetrates_visible": 0.0,
-     "gap_over_4cm": 12.5
+     "gap_over_4cm": 9.4
     }
    }
   },
@@ -456,49 +456,41 @@
    }
   },
   "014": {
-   "goal": {
-    "target_penetrates": 2,
-    "bands": [
-     "thigh",
-     "shin"
-    ],
-    "why": "the Tripo mannequin leg is thinner than the neutral body; dress it again with the body as collider (open issue fit-structure)"
-   },
    "bands": {
     "total": {
-     "penetrates": 21.3,
-     "penetrates_visible": 6.1,
-     "gap_over_4cm": 3.1
+     "penetrates": 0.0,
+     "penetrates_visible": 0.0,
+     "gap_over_4cm": 0.3
     },
     "waist": {
-     "penetrates": 70.3,
-     "penetrates_visible": 70.3,
+     "penetrates": 0.0,
+     "penetrates_visible": 0.0,
      "gap_over_4cm": 0.0
     },
     "hip": {
-     "penetrates": 46.2,
-     "penetrates_visible": 17.0,
+     "penetrates": 0.0,
+     "penetrates_visible": 0.0,
      "gap_over_4cm": 0.1
     },
     "thigh": {
-     "penetrates": 17.2,
+     "penetrates": 0.0,
      "penetrates_visible": 0.0,
-     "gap_over_4cm": 7.9
+     "gap_over_4cm": 0.5
     },
     "knee": {
-     "penetrates": 1.3,
+     "penetrates": 0.0,
      "penetrates_visible": 0.0,
      "gap_over_4cm": 0.0
     },
     "shin": {
-     "penetrates": 16.0,
-     "penetrates_visible": 0.7,
-     "gap_over_4cm": 1.0
+     "penetrates": 0.0,
+     "penetrates_visible": 0.0,
+     "gap_over_4cm": 0.0
     },
     "ankle": {
-     "penetrates": 46.2,
-     "penetrates_visible": 3.0,
-     "gap_over_4cm": 11.0
+     "penetrates": 0.0,
+     "penetrates_visible": 0.0,
+     "gap_over_4cm": 7.5
     }
    }
   },
