@@ -5,7 +5,9 @@ that tear, and any other. No published top has a zero-area face. EDGE holds the 
 neckline and armholes) as cm, edges and loops, and the measure must equal it: cutting a face out of the hem adds one
 edge even where the cm hardly change (a sliver), and a cut away from the boundary adds a loop, so a hem shortened
 elsewhere does not hide a tear. EDGE only goes down: each top is also measured as main has it (git show origin/main),
-and no number of EDGE may pass main's, whatever changed in the measure.
+and no number of EDGE may pass main's, whatever changed in the measure. A top rebuilt from a new generated shape
+(project_top.py: reference/originals/tripo-shape/NNN.glb present here and not on main) is a new mesh, and main's is not
+its before: until it is merged it answers to EDGE only.
 usage: python3 tools/fit/sleeve_tear.py [IDs]   (without IDs: the tops of sleeve.IDS; exits with an error on a tear)"""
 import os, subprocess, sys, tempfile, numpy as np
 from scipy.sparse import coo_matrix
@@ -27,7 +29,7 @@ EDGE = {  # cm, edges, loops
     '025': (234.3, 133, 4),
     '026': (267.8, 129, 4),
     '029': (243.0, 133, 4),
-    '030': (0.0, 0, 0),
+    '030': (409.8, 301, 5),
     '032': (295.9, 166, 6),
 }
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -49,6 +51,10 @@ def tears(path):
 def on_main(pid):
     """The same measure on the top as main has it; None where main has no such file. Without origin/main the CI fails
     (the checkout needs fetch-depth 0); locally it is skipped."""
+    shape = f'tools/fit/reference/originals/tripo-shape/{pid}.glb'
+    if os.path.exists(os.path.join(ROOT, shape)) and subprocess.run(
+            ['git', 'cat-file', '-e', f'origin/main:{shape}'], cwd=ROOT, capture_output=True).returncode:
+        return None   # rebuilt from a new shape in this change
     r = subprocess.run(['git', 'show', f'origin/main:site/assets/garments/{pid}.glb'], cwd=ROOT, capture_output=True)
     if r.returncode:
         if subprocess.run(['git', 'rev-parse', '--verify', '-q', 'origin/main'], cwd=ROOT, capture_output=True).returncode:

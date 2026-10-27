@@ -61,7 +61,7 @@ TOP_HOLES = {
     '025': 1775,
     '026': 1872,
     '029': 1678,
-    '030': 2048,
+    '030': 1075,
     '032': 1311,
 }
 # Bottom holes: hiding the body that pokes through must not let the background show.

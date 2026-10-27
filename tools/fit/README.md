@@ -61,6 +61,7 @@ Na ordem em que costumam rodar:
 | Script | O que faz |
 |---|---|
 | `project_print.py` | monta a peça de baixo a partir de uma forma que o Tripo gerou já vestida no manequim neutro (três vistas da calça sobre renders da pose C e um modelo sem textura) e pinta nela a estampa do modelo anterior desenrolado por lado: mesma altura relativa, ângulo em volta de um eixo que passa suave da perna ao quadril (sem costura), listras com a largura da fonte e retas na lateral; como a estampa é pintada na forma final, nada a estica (014) |
+| `project_top.py` | monta a peça de cima a partir de uma forma que o Tripo gerou já vestida no manequim neutro (três vistas sobre renders da pose B e um modelo sem textura): tira o manequim, alisa o relevo da estampa, encosta a frente no peito, leva a barra para fora das 15 peças de baixo e pinta cada ponto com a vista gerada que o vê de frente; a estampa coincide com a forma e nada a estica (030) |
 | `print_check.py` | estampa das peças montadas por `project_print.py` contra a peça de onde veio: largura das listras, listras em todas as linhas, sem quebra nem serrilhado, nada branco do lado de dentro das pernas |
 | `shoe.py` | barra das calças aberta acima do tênis: tecido deitado sobre o peito do pé, à frente da canela, até 30 cm² (a 005 presa ao valor de hoje) |
 | `displacement_field.py` | empurra para fora do corpo a parte da peça que entrava nele, com um deslocamento suave |
