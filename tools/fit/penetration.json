@@ -41,19 +41,11 @@
    }
   },
   "002": {
-   "goal": {
-    "target_penetrates": 2,
-    "bands": [
-     "thigh",
-     "shin"
-    ],
-    "why": "the Tripo mannequin leg is thinner than the neutral body; dress it again with the body as collider (open issue fit-structure)"
-   },
    "bands": {
     "total": {
-     "penetrates": 2.3,
+     "penetrates": 0.0,
      "penetrates_visible": 0.0,
-     "gap_over_4cm": 0.4
+     "gap_over_4cm": 0.2
     },
     "waist": {
      "penetrates": 1.1,
@@ -66,24 +58,24 @@
      "gap_over_4cm": 0.1
     },
     "thigh": {
-     "penetrates": 2.7,
+     "penetrates": 0.0,
      "penetrates_visible": 0.0,
      "gap_over_4cm": 0.5
     },
     "knee": {
-     "penetrates": 1.7,
+     "penetrates": 0.0,
      "penetrates_visible": 0.0,
      "gap_over_4cm": 0.0
     },
     "shin": {
-     "penetrates": 3.4,
+     "penetrates": 0.0,
      "penetrates_visible": 0.0,
-     "gap_over_4cm": 0.3
+     "gap_over_4cm": 0.0
     },
     "ankle": {
-     "penetrates": 1.7,
+     "penetrates": 0.0,
      "penetrates_visible": 0.0,
-     "gap_over_4cm": 5.0
+     "gap_over_4cm": 0.0
     }
    }
   },
