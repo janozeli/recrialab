@@ -28,6 +28,7 @@ o PR que apertou fica vermelho e atualiza o depois.
 | `bridge-013/` | tira de tecido pendurada no vão entre as pernas da calça 013, descendo até o tênis | `cuff.py 013` (103,9 → 0 cm²) |
 | `hip-014/` | quadril da calça 014 do lado de fora da barra das peças de cima: as tabelas de camadas o esconderam em fiapos que mostravam o fundo, e o cós furava as blusas | `layer_check.py` nos 23 pares da 014: por peça, a soma dos pares contra `layer_baseline.json` (8.859 → 2.248 pontas; nenhum par passava de 1.500) |
 | `projected-014/` | calça 014 refeita no manequim neutro: barra moldada sobre o tênis como polaina, listras laterais mais largas, quebradas onde o quadril encontra as pernas, e as listras da outra perna no lado de dentro | `shoe.py 014` (158 → 1,0 cm²); `print_check.py 014` (largura ×1,13 e ×1,30 → ×0,93; quebra 36 e 27 → 3,4 e 7,3 mm; branco por dentro 3,3 e 3,8% → 0%) |
+| `hem-hole-002/` | furo de 9,6 cm na barra da calça 002, deixado pelo gerador: vestida como tecido, o corpo aparece por ele de trás, e a 002 do main o tinha e passava em tudo | `close_holes.py --check 002` (1 → 0 furos na barra) |
 | `waistband-004/` | cós de trás da calça 004, vestida inteira como tecido, escorregou 1,4 cm pela lombar e dobrou, com o avesso escuro à vista; a região da cintura do `stretch.py` deixava passar | `stretch.py 004`: por setor de 30° do cós, a borda desceu 1,4 cm (limite 0,5) e os 7 cm de cima esticaram 33% (limite 30) |
 | `torn-sleeve-022/` | 63 faces tiradas da manga direita da 022, de 2 a 9 cm acima da barra: o recorte do braço por vista tira o braço de vista atrás do rasgo, e só o braço recortado sem pano na frente o denuncia | `poke_through.py 022`: furos acima do teto de `TOP_HOLES`; `sleeve_tear.py 022`: 51 faces de área zero na manga |
 | `torn-sleeve-020/` | 17 faces da manga direita da 020 com área zero, de 0,4 a 3,2 cm acima da barra: de baixo, o braço atrás do rasgo parece o braço subindo na manga, que a medida visual deixa de fora | `sleeve_tear.py 020`: 12 faces de área zero na manga, acima da barra |
@@ -43,6 +44,8 @@ Estado de cada arquivo:
 | `hip-014/after/` | iguais aos publicados |
 | `projected-014/before/` | a 014 com a barra moldada sobre o tênis e as listras largas e quebradas, como foi vista |
 | `projected-014/after/` | GLB igual ao publicado |
+| `hem-hole-002/before/` | a 002 publicada antes de ser vestida inteira, com o furo |
+| `hem-hole-002/after/` | GLB igual ao publicado |
 | `waistband-004/before/` | a 004 da primeira versão vestida inteira, como foi vista |
 | `waistband-004/after/` | GLB igual ao publicado |
 | `torn-sleeve-022/before/` | a 022 publicada com 63 faces da manga direita tiradas |

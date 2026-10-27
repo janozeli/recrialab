@@ -30,25 +30,35 @@ UNDER = .15   # the same distance as the normal rule: the top up to 15 cm behind
 
 def uncovered(ri, m, single):
     """Per bottom triangle, how many camera rays see it uncovered (no top in front nor up to UNDER behind) and how
-    many see it poking through the top (the top up to UNDER behind)."""
+    many see it poking through the top (the top up to UNDER behind, met from the outside). Met from the inside, the
+    camera looks up into the top through its hem and the bottom there is in view, not poking through (as in
+    layer_check.py): counted as poking, it stayed hidden and from below the inside of the top showed where the trousers
+    are (002 under hoodie 034: 1,408 rays against 317)."""
     rb = RayMeshIntersector(m); exposed = np.zeros(len(m.faces), int); pokes = exposed.copy()
     for o, d in chain(cameras(**WINDOW), site_cameras()):
-        tg, _ = first(ri, o, d); tb, fb = first(rb, o, d, front_only=single)
+        tg, fg = first(ri, o, d); tb, fb = first(rb, o, d, front_only=single); out = outside(ri, fg, d)
         with np.errstate(invalid='ignore'):
             seen = np.isfinite(tb)
             np.add.at(exposed, fb[seen & ~(tg < tb + UNDER)], 1)
-            np.add.at(pokes, fb[seen & (tb < tg) & (tg - tb < UNDER)], 1)
+            np.add.at(pokes, fb[seen & (tb < tg) & (tg - tb < UNDER) & out], 1)
     return exposed, pokes
 
 
+def outside(ri, fg, d):
+    """Rays that meet the top from the outside (its face turned to the camera)."""
+    out = np.zeros(len(d), bool); ok = fg >= 0
+    out[ok] = np.einsum('ij,ij->i', ri.mesh.face_normals[fg[ok]], d[ok]) < 0
+    return out
+
+
 def poking(ri, m, hide, single):
-    """Rays that see each visible triangle in front of the top with the top up to UNDER behind."""
+    """Rays that see each visible triangle in front of the top with the top up to UNDER behind, met from the outside."""
     vis = np.nonzero(~hide)[0]; rv = RayMeshIntersector(m.submesh([vis], append=True))
     out = np.zeros(len(m.faces), int)
     for o, d in chain(cameras(**WINDOW), site_cameras()):
-        tg, _ = first(ri, o, d); tv, fv = first(rv, o, d, front_only=single[vis])
+        tg, fg = first(ri, o, d); tv, fv = first(rv, o, d, front_only=single[vis]); facing = outside(ri, fg, d)
         with np.errstate(invalid='ignore'):
-            np.add.at(out, vis[fv[np.isfinite(tv) & (tv < tg) & (tg - tv < UNDER)]], 1)
+            np.add.at(out, vis[fv[np.isfinite(tv) & (tv < tg) & (tg - tv < UNDER) & facing]], 1)
     return out
 
 
