@@ -85,7 +85,7 @@ lista os triângulos da peça de baixo que somem sob cada peça de cima (mais em
 | `install.py` | gera de novo as máscaras (poses B e C) e as tabelas de camadas de uma peça (`--bottom` para peça de baixo) |
 | `gen_mask.py` | calcula a máscara de uma peça |
 | `gen_layers.py`, `layer_tables.py` | calculam e gravam as tabelas de camadas (`site/assets/layers/`), uma linha por peça de cima |
-| `waist.py`, `collar.py`, `sleeve.py` | medem a altura do cós, da gola e da barra da manga em volta do corpo; o site corta o corpo nessa linha, pixel a pixel. A linha da manga sobe, no lado do tronco, até onde nenhuma câmera do site vê fundo no lugar do braço cortado, menos onde o braço apareceria sobre o tecido da manga; `sleeve.py --check` falha onde a linha gravada sai dessa linha, para cima ou para baixo, e onde a fenda que sobra passa do valor gravado em `SLIT` |
+| `waist.py`, `collar.py`, `sleeve.py` | medem a altura do cós, da gola e da barra da manga em volta do corpo; o site corta o corpo nessa linha, pixel a pixel. Na faixa da manga, o braço só some no pixel em que a roupa está na frente dele ou até 15 cm atrás (o site desenha a profundidade da roupa antes do corpo); sem roupa ali, o braço fica e o vão ao lado do tronco mostra braço, não fundo. `sleeve.py --check` falha onde a linha gravada sai da barra da manga |
 | `top_hem.py` | mede a barra da peça de cima em volta do corpo, a mesma linha usada em `site/garment-hem.ts` |
 | `strap.py` | esconde o ombro que atravessa a alça das regatas (chamado por `install.py`) |
 | `mask_io.py`, `garment.py`, `glb_patch.py` | leitura e escrita de máscaras e GLBs |

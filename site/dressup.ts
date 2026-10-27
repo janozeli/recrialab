@@ -750,7 +750,7 @@ export function initDressUp(): void {
       node.geometry = node.geometry.clone();
       if (!(node.material instanceof THREE.MeshStandardMaterial)) throw new Error('Unexpected body material');
       node.material = node.material.clone();
-      bodyGeometry.push({pose, mesh: node, original: indices.slice(), setClip: bodyClip(node.material)});
+      bodyGeometry.push({pose, mesh: node, original: indices.slice(), setClip: bodyClip(node, node.material)});
     });
     body.visible = pose === 'B';
     bodyRoots.set(pose, body);

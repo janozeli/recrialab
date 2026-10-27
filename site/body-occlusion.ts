@@ -1,3 +1,4 @@
+import * as THREE from 'three';
 import { expandLayerRanges } from './garment-layer-data';
 
 export interface BodyMask {
@@ -18,14 +19,46 @@ export const WAIST_STEPS = 72, WAIST_TORSO = 0.17, WAIST_BAND = 0.10;
 // Same numbers as tools/fit/collar.py: the neck near the axis between the collar line and the band below it is discarded.
 export const NECK_STEPS = 72, NECK_AXIS_Z = -0.008, NECK_RADIUS = 0.075, NECK_BAND = 0.08;
 // Same numbers as tools/fit/sleeve.py: the arm near its leaning axis between the sleeve hem line and the band above it is discarded.
-export const SLEEVE_STEPS = 72, SLEEVE_ARM_X = 0.17, SLEEVE_RADIUS = 0.06, SLEEVE_BAND = 0.10;
+export const SLEEVE_STEPS = 72, SLEEVE_ARM_X = 0.17, SLEEVE_RADIUS = 0.06, SLEEVE_BAND = 0.20;
 export const SLEEVE_AXIS = { y: 1.15, x: 0.215, z: -0.033, dx: -0.07, dz: -0.127 };
+// In that band an arm pixel goes only where the nearest cloth in this view lies in front of it or up to SLEEVE_POKE
+// behind it (the arm would poke through); with no cloth there, the arm stays: the gap beside the torso shows the arm,
+// not the background.
+export const SLEEVE_POKE = 0.15;
+
+/** Depth of the clothes alone, drawn before the body in each render, for the sleeve clip of the body shader. */
+const clothDepth = { target: new THREE.WebGLRenderTarget(1, 1, { depthTexture: new THREE.DepthTexture(1, 1) }),
+  frame: -1, size: new THREE.Vector2(), near: { value: 0.1 }, far: { value: 30 } };
+const clothOnly = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide, colorWrite: false });
+
+function drawClothDepth(renderer: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.Camera, body: THREE.Object3D) {
+  // one pass per frame, whatever the number of body meshes (the pass itself counts as a frame)
+  if (renderer.info.render.frame === clothDepth.frame || !(camera instanceof THREE.PerspectiveCamera)) return;
+  let root = body;
+  while (root.parent && root.parent !== scene) root = root.parent;
+  const target = renderer.getRenderTarget(), override = scene.overrideMaterial;
+  renderer.getDrawingBufferSize(clothDepth.size);
+  clothDepth.target.setSize(clothDepth.size.x, clothDepth.size.y);
+  clothDepth.near.value = camera.near; clothDepth.far.value = camera.far;
+  const shown = root.visible;
+  root.visible = false; scene.overrideMaterial = clothOnly;
+  renderer.setRenderTarget(clothDepth.target);
+  renderer.clear();
+  renderer.render(scene, camera);
+  renderer.setRenderTarget(target); scene.overrideMaterial = override; root.visible = shown;
+  clothDepth.frame = renderer.info.render.frame;
+}
 
 /** Discards, in the body shader, the torso under the waistband, the neck under the collar and the arm in the sleeve: the edge follows the garment line instead of whole triangles. */
-export function bodyClip(material: { onBeforeCompile: (shader: { uniforms: Record<string, { value: unknown }>; vertexShader: string; fragmentShader: string }) => void; customProgramCacheKey?: () => string }) {
+export function bodyClip(mesh: THREE.Mesh, material: THREE.Material) {
   const uniforms = { uWaist: { value: new Float32Array(WAIST_STEPS) }, uWaistOn: { value: 0 },
     uNeck: { value: new Float32Array(NECK_STEPS) }, uNeckOn: { value: 0 },
-    uSleeve: { value: new Float32Array(2 * SLEEVE_STEPS) }, uSleeveOn: { value: 0 } };
+    uSleeve: { value: new Float32Array(2 * SLEEVE_STEPS) }, uSleeveOn: { value: 0 },
+    uCloth: { value: clothDepth.target.depthTexture }, uClothSize: { value: clothDepth.size },
+    uClothNear: clothDepth.near, uClothFar: clothDepth.far };
+  mesh.onBeforeRender = (renderer, scene, camera) => {
+    if (uniforms.uSleeveOn.value) drawClothDepth(renderer, scene, camera, mesh);
+  };
   material.onBeforeCompile = shader => {
     Object.assign(shader.uniforms, uniforms);
     shader.vertexShader = shader.vertexShader
@@ -39,7 +72,11 @@ uniform float uWaistOn;
 uniform float uNeck[${NECK_STEPS}];
 uniform float uNeckOn;
 uniform float uSleeve[${2 * SLEEVE_STEPS}];
-uniform float uSleeveOn;`)
+uniform float uSleeveOn;
+uniform sampler2D uCloth;
+uniform vec2 uClothSize;
+uniform float uClothNear;
+uniform float uClothFar;`)
       .replace('#include <clipping_planes_fragment>', `#include <clipping_planes_fragment>
 if (uWaistOn > 0.5 && abs(vWaistBody.x) < ${WAIST_TORSO.toFixed(3)}) {
   float t = mod(degrees(atan(vWaistBody.x, vWaistBody.z)) + 360.0, 360.0) / ${(360 / WAIST_STEPS).toFixed(1)};
@@ -62,7 +99,13 @@ if (uSleeveOn > 0.5 && abs(vWaistBody.x) > ${SLEEVE_ARM_X.toFixed(3)} && length(
   int o = vWaistBody.x > 0.0 ? 0 : ${SLEEVE_STEPS};
   int i = int(floor(t)) % ${SLEEVE_STEPS};
   float y = mix(uSleeve[o + i], uSleeve[o + (i + 1) % ${SLEEVE_STEPS}], fract(t));
-  if (vWaistBody.y > y && vWaistBody.y < y + ${SLEEVE_BAND.toFixed(3)}) discard;
+  if (vWaistBody.y > y && vWaistBody.y < y + ${SLEEVE_BAND.toFixed(3)}) {
+    float cloth = texture2D(uCloth, gl_FragCoord.xy / uClothSize).x;
+    // view z of a perspective depth: near far / ((far - near) depth - far)
+    float nf = uClothNear * uClothFar, fn = uClothFar - uClothNear;
+    float behind = nf / (fn * gl_FragCoord.z - uClothFar) - nf / (fn * cloth - uClothFar);
+    if (cloth < 1.0 && behind < ${SLEEVE_POKE.toFixed(3)}) discard;
+  }
 }`);
   };
   material.customProgramCacheKey = () => 'body-clip';
