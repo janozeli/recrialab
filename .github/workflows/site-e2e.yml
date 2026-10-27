@@ -17,7 +17,7 @@ concurrency:
 
 jobs:
   changes:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 5
     outputs:
       phones: ${{ steps.filter.outputs.phones }}
@@ -39,7 +39,7 @@ jobs:
   phones:
     needs: changes
     if: needs.changes.outputs.phones == 'true'
-    # Playwright 1.56.1 has no browser builds for Ubuntu 26.04 (ubuntu-latest).
+    # Playwright 1.56.1 has no browser builds for Ubuntu 26.04 (the image of the other jobs).
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     strategy:
@@ -78,7 +78,7 @@ jobs:
     # runs, and a single "phones" when it is skipped. Passes when every phone passed or the PR does not reach them.
     needs: [changes, phones]
     if: always()
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 5
     steps:
       - name: Phones passed or were skipped
@@ -95,7 +95,7 @@ jobs:
     # see-through cloth, loose bits, dark patches the photo does not have, sunken waistband.
     needs: changes
     if: needs.changes.outputs.visual_qa != ''
-    # Playwright 1.56.1 has no browser builds for Ubuntu 26.04 (ubuntu-latest).
+    # Playwright 1.56.1 has no browser builds for Ubuntu 26.04 (the image of the other jobs).
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     env:

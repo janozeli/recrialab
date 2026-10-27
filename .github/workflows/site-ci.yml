@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   validate:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 15
     defaults:
       run:
@@ -44,7 +44,7 @@ jobs:
   fit:
     needs: validate
     if: needs.validate.outputs.fit == 'true'
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
@@ -98,7 +98,7 @@ jobs:
         run: python3 tools/fit/calibration.py
 
   secrets:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     permissions:
       contents: read
       pull-requests: read  # gitleaks lists the commits of the PR
