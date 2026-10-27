@@ -51,6 +51,7 @@ Na ordem em que costumam rodar:
 | `resize.py` | diminui por igual as jaquetas grandes demais para o corpo |
 | `repose_sleeves.py` | gira ombro, braço e antebraço da peça para a manga acompanhar o braço do manequim; com `--short`, a manga que acaba acima do pulso (022) gira só no ombro e no braço, sem mexer no alto do ombro |
 | `cloth.py` | leva a manga à pose de `repose_sleeves.py` como tecido (simulador Newton, o corpo como colisor): a cava se move com colisão do tecido consigo, para a dobra da axila não atravessar as costas, e o antebraço assenta em volta do pulso e da mão; a barra abaixo do punho fica no lugar (034) |
+| `arm_clear.py` | afasta do braço, numa faixa de alturas, o lado de dentro da manga e a lateral do tronco que o gerador deixou atravessando o braço (033, manga esquerda: fechou a fenda para o fundo vista de frente); o mesmo deslocamento vai à cópia em `reference/originals/before-hood/` |
 | `hood.py` | deita nas costas o capuz e a gola que ficavam em pé atrás da nuca; na 035 também empurra a frente da gola alta para fora do pescoço, e ela fecha até o queixo como na foto (`--check` confere o limite de encolhimento e o de esticar a gola) |
 | `lining.py` | apaga o forro pendurado abaixo da barra da frente |
 | `top_over_bottom.py` | puxa para fora a barra das jaquetas que entrava na cintura das peças de baixo; com `--columns`, a barra canelada (037) anda só na frente e só em z, coluna a coluna, para ficar 8 mm à frente da peça de baixo mais da frente, com a dobra de dentro junto |
