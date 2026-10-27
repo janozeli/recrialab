@@ -8,11 +8,13 @@ stretches a lot, like the bridge between the legs, does not show.
 Each published vertex finds its own in the original by UV (slivers.py and islands.py remove triangles; separate_legs.py
 cuts the bridge into two copies with the same UV). The inner walls of separate_legs.py (UV of a single point, plain
 colour) have no print and stay out.
+Trousers 014 have a new mesh (project_print.py): their original is the projection itself, so here they only show what
+later tools stretch; print_check.py measures the projection against the piece the print came from.
 Skirt 009 stays out (EXCLUDED): hem.py shortened it as in the photo and cords.py removed the cords the photo does not have.
 usage: python3 tools/fit/stretch.py [IDs]"""
 import os, sys, tempfile, numpy as np
 from garment import Garment
-from pant_leg_cloth import MAX, MAX_FLIPPED, measures, weld, uvs
+from pant_leg_cloth import MAX, MAX_FLIPPED, WHOLE_PIECES, measures, weld, uvs
 from paths import GARMENTS
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '../visual-qa'))
 from known_issues import FILE as KNOWN_ISSUES, known_issues  # noqa: E402
@@ -20,7 +22,6 @@ from known_issues import FILE as KNOWN_ISSUES, known_issues  # noqa: E402
 ORIGINAL = 'tools/fit/reference/originals/tripo'   # pieces as the generator delivered them, slimmed and without crumbs
 # piece: (known issue, {region: (edge, area)}) above MAX, held at the recorded baseline while the issue is open
 AS_IS = {
-    '014': ('waist-014', {'waist': (.106, .35)}),
 }
 EXCLUDED = {'009'}     # a requested shape change (the photo's hem, without the cords), not stretch
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -68,7 +69,7 @@ def measure(pid):
     has = (j[F] >= 0).all(1)                       # a printed face that existed in the original
     X, inv, FF = weld(P, F)   # welded by the published position: the two copies from separate_legs.py's cut stay apart
     Xo = X.copy(); k = j >= 0; Xo[inv[k]] = Po[j[k]]   # the wall (no original) welded to the cut keeps the cut's original
-    m, flipped = measures(Xo, X, FF, has)
+    m, flipped = measures(Xo, X, FF, has, whole=pid in WHOLE_PIECES)
     return m, flipped
 
 
