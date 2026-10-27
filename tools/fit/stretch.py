@@ -14,7 +14,7 @@ Skirt 009 stays out (EXCLUDED): hem.py shortened it as in the photo and cords.py
 usage: python3 tools/fit/stretch.py [IDs]"""
 import os, sys, tempfile, numpy as np
 from garment import Garment
-from pant_leg_cloth import MAX, MAX_FLIPPED, WHOLE_PIECES, measures, weld, uvs
+from pant_leg_cloth import MAX, MAX_FLIPPED, MAX_BAND_AREA, MAX_DROP, WHOLE_PIECES, measures, waistband_check, weld, uvs
 from paths import GARMENTS
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '../visual-qa'))
 from known_issues import FILE as KNOWN_ISSUES, known_issues  # noqa: E402
@@ -70,7 +70,7 @@ def measure(pid):
     X, inv, FF = weld(P, F)   # welded by the published position: the two copies from separate_legs.py's cut stay apart
     Xo = X.copy(); k = j >= 0; Xo[inv[k]] = Po[j[k]]   # the wall (no original) welded to the cut keeps the cut's original
     m, flipped = measures(Xo, X, FF, has, whole=pid in WHOLE_PIECES)
-    return m, flipped
+    return m, flipped, waistband_check(Xo, X, FF, has)
 
 
 if __name__ == '__main__':
@@ -78,8 +78,11 @@ if __name__ == '__main__':
     bad = [f'{pid}: {issue} is not an open known issue naming it in {KNOWN_ISSUES}'
            for pid, (issue, _) in AS_IS.items() if pid not in issues.get(issue, ())]
     for pid in sys.argv[1:] or [f'{i:03d}' for i in range(1, 16) if f'{i:03d}' not in EXCLUDED]:
-        m, flipped = measure(pid); ceiling = {**MAX, **AS_IS.get(pid, ('', {}))[1]}
-        print(pid + ' ' + ', '.join(f'{k} {100 * e:.1f}% (area {100 * a:.1f}%)' for k, (e, a) in m.items()) + f', flipped {100 * flipped:.2f}%')
+        m, flipped, (band_area, drop) = measure(pid); ceiling = {**MAX, **AS_IS.get(pid, ('', {}))[1]}
+        print(pid + ' ' + ', '.join(f'{k} {100 * e:.1f}% (area {100 * a:.1f}%)' for k, (e, a) in m.items()) + f', flipped {100 * flipped:.2f}%'
+              f', waistband {100 * band_area:.1f}% (area), its edge {100 * drop:.1f} cm lower')
+        bad += [f'{pid} waistband {100 * band_area:.1f}% > {100 * MAX_BAND_AREA:.0f}%'] * bool(band_area > MAX_BAND_AREA)
+        bad += [f'{pid} waistband edge {100 * drop:.1f} cm lower > {100 * MAX_DROP:.1f}'] * bool(drop > MAX_DROP)
         bad += [f'{pid} {k} {100 * m[k][i]:.1f}% > {100 * ceiling[k][i]:.1f}%' for k in MAX for i in (0, 1) if m[k][i] > ceiling[k][i] + 1e-4]
         bad += [f'{pid} flipped {100 * flipped:.2f}% > {100 * MAX_FLIPPED:.1f}%'] * bool(flipped > MAX_FLIPPED)
     if bad: sys.exit('print stretched too much against the original: ' + ', '.join(bad))
