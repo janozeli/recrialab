@@ -17,6 +17,8 @@
  "calibration/cuff-tip-021/before/garments/021.glb": "6ca6e3a6a03cc7636abbacd4b78fe12cd47c35d7f427428d2325fa8a66151cdb",
  "calibration/hem-hole-002/after/garments/002.glb": "18f5347a048f0c5b57b95f96d85e1dad37b9758887ddde686a189ab6a394f948",
  "calibration/hem-hole-002/before/garments/002.glb": "484cdf5d054d56054135d6aee720d0b4c46bd840514988c7a56b899c65a67a24",
+ "calibration/hem-hole-030/after/garments/030.glb": "0447b97353f78e812be850cc44f911535b9516a39c8566e0f85343d1101a1549",
+ "calibration/hem-hole-030/before/garments/030.glb": "ee88e37c7808da45993a140e183db2126d74ef4e14a5af6b4d8f597e4e142119",
  "calibration/hip-014/after/garments/014.glb": "e837a1e2ae1bf828287258a512121d6aea2d4a9ef0a458df85cee28d073f545a",
  "calibration/hip-014/after/layers/014.json": "8699a6e9e546676fc30f5ab497c3b8ccd0075cb18bbc62ecbfc24b126ef9ed4d",
  "calibration/hip-014/after/masks/pose-c/014.json": "387fc13b3fec202272aadb7a79985956df7cf315e3efee8d750fa697124a7561",
