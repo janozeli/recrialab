@@ -135,7 +135,7 @@ jobs:
         if: env.VISUAL_QA != 'check' && env.PIECES != ''
         run: |
           pids=()
-          for i in 0 1 2 3; do node tools/verify-site/visual-qa.mjs --plan pairs --changed "$PIECES" --part $i/4 --beauty & pids+=($!); done
+          for i in 0 1 2 3; do node tools/verify-site/visual-qa.mjs --plan pairs --changed "$PIECES" --out site/verify-out/visual-qa/pairs --part $i/4 --beauty & pids+=($!); done
           for p in "${pids[@]}"; do wait $p; done
       - name: Measure and compare with the defects linked to open known issues
         run: |

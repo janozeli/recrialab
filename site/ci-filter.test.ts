@@ -35,7 +35,8 @@ test('a piece whose model or mask changed is also photographed with every piece 
   expect(filter(['site/assets/photos/023.webp'], none).pieces).toBe('');
   const e2e = wf('site-e2e.yml');
   expect(e2e).toContain('pieces: ${{ steps.filter.outputs.pieces }}');
-  expect(e2e).toContain('--plan pairs --changed "$PIECES"');
+  // its own folder: measures-<part>.json of the ci plan step must not be overwritten (they hold the midriff rows)
+  expect(e2e).toContain('--plan pairs --changed "$PIECES" --out site/verify-out/visual-qa/pairs');
 });
 
 test('selector thumbnails and their renderer: phones only, no visual QA', () => {
