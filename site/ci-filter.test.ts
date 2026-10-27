@@ -7,36 +7,47 @@ const wf = (f: string) => readFileSync(new URL(`../.github/workflows/${f}`, impo
 
 test('docs, tests and text neither photograph nor measure anything', () => {
   expect(filter(['README.md', 'site/ux.test.ts', 'AGENTS.md'], none))
-    .toEqual({ fit: false, phones: false, visualQa: '' });
+    .toEqual({ fit: false, phones: false, visualQa: '', pieces: '' });
 });
 
 test('a change to the fit limits runs the fit job, where calibration.py holds them against the saved defects', () => {
-  expect(filter(['site/fit.test.ts'], none)).toEqual({ fit: true, phones: false, visualQa: '' });
+  expect(filter(['site/fit.test.ts'], none)).toEqual({ fit: true, phones: false, visualQa: '', pieces: '' });
 });
 
 test('site code, the body or a tool changed: everything runs', () => {
   for (const a of ['site/dressup.ts', 'site/index.html', 'site/assets/body/pose-b.glb',
     'site/assets/body/poses.json', 'tools/visual-qa/measure.py', 'tools/verify-site/visual-qa.mjs',
     '.github/workflows/site-e2e.yml', 'site/ci-filter.ts', 'site/package.json'])
-    expect(filter([a], none)).toMatchObject({ phones: true, visualQa: 'all' });
+    expect(filter([a], none)).toMatchObject({ phones: true, visualQa: 'all', pieces: '' });
   expect(filter(['site/assets/body/pose-b.glb'], none).fit).toBe(true);
 });
 
 test('only one piece changed: fit and phones run, visual QA photographs only that piece', () => {
   expect(filter(['site/assets/garments/008.glb', 'site/assets/masks/pose-c/008.json'], none))
-    .toEqual({ fit: true, phones: true, visualQa: '008' });
+    .toEqual({ fit: true, phones: true, visualQa: '008', pieces: '008' });
   expect(filter(['site/assets/photos/023.webp', 'site/assets/masks/pose-b/031.json'], none).visualQa).toBe('023,031');
+});
+
+test('a piece whose model or mask changed is also photographed with every piece of the other group', () => {
+  // the ci plan holds one pair per top: 030 rebuilt passed CI with a new tear on 001.030, seen only in review (27/10)
+  expect(filter(['site/assets/garments/030.glb'], none).pieces).toBe('030');
+  expect(filter(['site/assets/masks/pose-b/031.json', 'site/assets/masks/pose-c/008.json'], none).pieces).toBe('008,031');
+  expect(filter(['site/assets/photos/023.webp'], none).pieces).toBe('');
+  const e2e = wf('site-e2e.yml');
+  expect(e2e).toContain('pieces: ${{ steps.filter.outputs.pieces }}');
+  // its own folder: measures-<part>.json of the ci plan step must not be overwritten (they hold the midriff rows)
+  expect(e2e).toContain('--plan pairs --changed "$PIECES" --out site/verify-out/visual-qa/pairs');
 });
 
 test('selector thumbnails and their renderer: phones only, no visual QA', () => {
   expect(filter(['site/assets/thumbnails/023.webp', 'site/thumbnails.lock.json', 'site/thumbnails.ts', 'site/thumbnail-render.ts'], none))
-    .toEqual({ fit: false, phones: true, visualQa: '' });
+    .toEqual({ fit: false, phones: true, visualQa: '', pieces: '' });
   expect(filter(['site/assets/garments/023.glb', 'site/assets/thumbnails/023.webp', 'site/thumbnails.lock.json'], none).visualQa).toBe('023');
   expect(filter(['site/fabric.ts'], none).visualQa).toBe('all');
 });
 
 test('a fit tool only turns on its own job', () => {
-  expect(filter(['tools/fit/poke_through.py'], none)).toEqual({ fit: true, phones: false, visualQa: '' });
+  expect(filter(['tools/fit/poke_through.py'], none)).toEqual({ fit: true, phones: false, visualQa: '', pieces: '' });
 });
 
 test('a calibration case or script also photographs the looks of the visual cases', () => {
@@ -46,7 +57,7 @@ test('a calibration case or script also photographs the looks of the visual case
   const text = readFileSync(new URL('../tools/fit/calibration.py', import.meta.url), 'utf8');
   expect(text.match(/RENDER\.format\(/g)!.length).toBe([...text.matchAll(/RENDER\.format\('[^']+'\)/g)].length);
   for (const a of ['tools/fit/calibration.py', 'tools/fit/reference/calibration/hip-014/before/garments/014.glb'])
-    expect(filter([a], none)).toEqual({ fit: true, phones: false, visualQa: [...looks].sort().join(',') });
+    expect(filter([a], none)).toEqual({ fit: true, phones: false, visualQa: [...looks].sort().join(','), pieces: '' });
   expect(calibrationLooks("RENDER.format('003.033'),\n RENDER.format('014.022,014.035')")).toEqual(['003.033', '014.022', '014.035']);
 });
 

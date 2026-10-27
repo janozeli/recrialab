@@ -22,6 +22,7 @@ jobs:
     outputs:
       phones: ${{ steps.filter.outputs.phones }}
       visual_qa: ${{ steps.filter.outputs.visual_qa }}
+      pieces: ${{ steps.filter.outputs.pieces }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -97,9 +98,10 @@ jobs:
     if: needs.changes.outputs.visual_qa != ''
     # Playwright 1.56.1 has no browser builds for Ubuntu 26.04 (the image of the other jobs).
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 150  # every pair of the changed pieces: a top has 15, a bottom 23 (about 12 s each)
     env:
       VISUAL_QA: ${{ needs.changes.outputs.visual_qa }}
+      PIECES: ${{ needs.changes.outputs.pieces }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -128,6 +130,12 @@ jobs:
           filter=(); [ "$VISUAL_QA" = all ] || filter=(--changed "$VISUAL_QA")
           pids=()
           for i in 0 1 2 3; do node tools/verify-site/visual-qa.mjs --plan ci "${filter[@]}" --part $i/4 --beauty & pids+=($!); done
+          for p in "${pids[@]}"; do wait $p; done
+      - name: Photograph every pair of each piece whose model or mask changed (${{ needs.changes.outputs.pieces }})
+        if: env.VISUAL_QA != 'check' && env.PIECES != ''
+        run: |
+          pids=()
+          for i in 0 1 2 3; do node tools/verify-site/visual-qa.mjs --plan pairs --changed "$PIECES" --out site/verify-out/visual-qa/pairs --part $i/4 --beauty & pids+=($!); done
           for p in "${pids[@]}"; do wait $p; done
       - name: Measure and compare with the defects linked to open known issues
         run: |
