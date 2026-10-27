@@ -40,6 +40,7 @@ WHOLE_TOP, WHOLE_STEPS = 2., 400   # --whole: only the waistband held (TOP stand
 WHOLE_PIECES = {
     '002',
     '004',
+    '007',
 }
 WAISTBAND, EDGE_STEP = .05, 10   # dressed whole, the waistband: the band below the top edge, per slice of degrees
 WALL_BEND = 1.       # the inner wall (separate_legs.py) is flat: when it bends it turns inside out
