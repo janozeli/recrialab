@@ -74,6 +74,7 @@ node tools/verify-site/drive.mjs --profile budget-android   # the site on an emu
 | Phones | a look opens from its link, swapping a garment works, the About page opens, colour stays close to the photo, no console errors, within time and data budgets on a low-end Android, a Pixel and an iPhone | `tools/verify-site/drive.mjs` |
 | Text and accessibility | short garment names, no obvious instructions on screen, AA contrast | `site/ux.test.ts`, `site/a11y.test.ts` |
 | Secrets | no committed keys | gitleaks in `.github/workflows/site-ci.yml` |
+| CI | every action on a Node 24 release and every job on a pinned Ubuntu image, so runs carry no deprecation warnings | `site/workflows.test.ts` |
 
 ## Pull requests
 
