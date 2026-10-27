@@ -40,7 +40,6 @@ LIMITS = {
 # garment depth (.depth.gz from visual-qa.mjs): step in cm, the same DEPTH as there
 DEPTH_CM = 100 * float(re.search(r'DEPTH = ([\d.]+)', open(f'{ROOT}/tools/verify-site/visual-qa.mjs', encoding='utf8').read()).group(1))
 TIGHT = 3.0           # cm: cloth up to this behind the hole's outline is the same sheet passing behind the body (poking through)
-LIP = 5               # px (1 cm): arm in a hole this close to the arm out of the sleeve is the arm going into the sleeve
 MEASURES = []         # rows of measures*.json (what the browser measured: torso in view at the waist)
 
 
@@ -124,13 +123,11 @@ def read_depth(path):
     return np.frombuffer(gzip.open(path).read(), np.uint8).reshape(H, W).astype(float) * DEPTH_CM
 
 
-def enclosed(c, garment, target, depth=None, inside=None, top=None, whole=None):
+def enclosed(c, garment, target, depth=None, inside=None):
     """Area of `target` in regions without garment enclosed only by garment (a component that does not touch the image
     border). With depth, splits the body into (poking, tear): poking is the body with the garment right behind it, at
     the depth of the hole's outline (the sheet passes behind the body, which goes through it); tear, the body seen
-    through the opening, with the garment far behind (the other side of the leg) or no garment. With `top` and `whole`,
-    a hole outlined only by the top, on the arm (whole == 2) and within LIP of the arm out of the garment is the arm
-    going up into the sleeve, seen past the hem's lip from below: neither."""
+    through the opening, with the garment far behind (the other side of the leg) or no garment."""
     lab, n = nd.label(~garment, np.ones((3, 3), bool))
     if not n:
         return 0 if depth is None else (0, 0)
@@ -144,16 +141,12 @@ def enclosed(c, garment, target, depth=None, inside=None, top=None, whole=None):
     if depth is None:
         return int((ok[lab] & (c == target) & (True if inside is None else inside)).sum())
     poking = tear = 0
-    out = ~ok[lab] & (c == target)
     for i in np.nonzero(ok)[0]:
         reg = lab == i
         m = reg & (c == target)
         if not m.any():
             continue
-        near = nd.binary_dilation(reg, disk(2)) & garment
-        if top is not None and top[near].all() and (whole[m] == 2).mean() > .5 and (nd.binary_dilation(reg, disk(LIP)) & out).any():
-            continue
-        ring = depth[near]
+        ring = depth[nd.binary_dilation(reg, disk(2)) & garment]
         edge = np.median(ring[ring > 0]) if (ring > 0).any() else 0
         behind = depth[m]
         f = int(((behind > 0) & (behind - edge < TIGHT)).sum())
@@ -167,7 +160,7 @@ def measure_view(c, alb, depth, whole):
     top, bottom = np.isin(c, (TOP, TOP_BACK)), np.isin(c, (BOTTOM, BOTTOM_BACK))
     garment = top | bottom
     r['threads'] = float(without_overlap(thin(top), c, depth).sum() * CM2), float(without_overlap(thin(bottom), c, depth).sum() * CM2)
-    poking, tear = enclosed(c, garment, BODY, depth, top=top, whole=whole)
+    poking, tear = enclosed(c, garment, BODY, depth)
     r['pokes'], r['tear'] = poking * CM2, tear * CM2
     # see-through: the background where the whole body would be (hidden body and open garment); outside it, it is the
     # gap of the armpit or between the legs, which a real garment also lets show
