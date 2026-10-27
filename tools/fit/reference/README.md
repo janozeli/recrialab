@@ -38,6 +38,8 @@ o PR que apertou fica vermelho e atualiza o depois. Os casos medidos nas fotos d
 | `notch-016/` | uma face de 0,7 cm² tirada da barra da frente da 016: a borda aberta ganha uma aresta e menos de 0,05 cm, que só os cm arredondavam para o mesmo valor | `sleeve_tear.py 016`: 101 → 102 arestas de borda |
 | `cords-009/` | cordões pendurados na frente da saia 009, que o 3D desenhou onde a foto tem botões | `cords.py --measure --max 10` (203,4 cm² → abaixo de 10) |
 | `inside-body-007/` | saia 007 como o Tripo a fez no manequim dele: 5,4% do corpo neutro coberto fica dentro dela, 13,8% no quadril | `penetration.py` contra `penetration.json` (5,4 → 0,1%); `poke_through.py 007` (43 → 3 pontas, limite 30) |
+| `inside-body-006/` | jeans 006 como o Tripo os fez no manequim dele: 13,9% do corpo neutro coberto fica dentro deles, 82,9% na cintura | `penetration.py` contra `penetration.json` (13,9 → 0%); `poke_through.py 006` (248 → 9 pontas, limite 30) |
+| `midriff-006/` | tronco à vista entre os jeans 006 e as peças curtas 016 e 020: o cós do 006 do Tripo ficava dentro do corpo, e a máscara cortava o tronco numa linha que o pano não alcançava | nas fotos do site (`--visual`), `measure.py --ci` nos looks 006.016 e 006.020: o antes reprova em barriga 77,7 cm² na 006.016 (vista low-0) e 98,0 na 006.020 (low-180), e em rasgo 8,2 na 006.020; o depois fica dentro dos limites |
 | `large-jackets/` | jaquetas 036 e 038 grandes demais para o corpo: manga passando dos dedos, barra no gancho | `site/fit.test.ts`: `-t 'long sleeves'` pega os dois testes de manga (no braço de perfil e terminando no pulso); `-t 'no lining hanging'`, o forro abaixo da barra; `layer_check.py` nos 30 pares das duas: o corpo fura 036 em 13.556 pontas somadas e 038 em 13.441 (com a 006 regerada no manequim neutro) (linhas de base 3.685 e 6.438); `back_inside.py`: o avesso visto de trás 206 cm² na 036 e 22 na 038 (registrados 116 e 18); nas fotos do site (`--visual`), `measure.py --ci` nos looks 006.036 e 008.038: com as tabelas de camadas do 006 e do 008 geradas para as jaquetas de antes, o antes reprova em pedaço solto 1,5 cm² na 006.036 e junção 8,4 na 008.038; o depois fica dentro dos limites |
 
 Estado de cada arquivo:
@@ -68,6 +70,8 @@ Estado de cada arquivo:
 | `notch-016/after/` | GLB igual ao publicado |
 | `cords-009/before/`, `inside-body-007/before/` | iguais a `originals/tripo/` |
 | `cords-009/after/`, `inside-body-007/after/` | GLB igual ao publicado |
+| `inside-body-006/before/`, `midriff-006/before/` | os jeans 006 de antes da forma gerada no manequim neutro, com a máscara e a tabela de camadas deles |
+| `inside-body-006/after/`, `midriff-006/after/` | GLB igual ao publicado |
 | `large-jackets/before/` | 036 e 038 grandes demais, como foram vistas, com as máscaras delas; tabelas de camadas do 006 e do 008 com os pares da 036 e da 038 geradas para essas jaquetas (as do main apontam para as publicadas) |
 | `large-jackets/after/` 036 | a 036 publicada com a manga vestida como tecido e o punho sobre a palma |
 | `large-jackets/after/` 038 | GLB igual ao publicado; máscaras da época do conserto |
