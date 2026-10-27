@@ -31,9 +31,9 @@ export const SLEEVE_POKE = 0.15;
 /** Depth of the clothes alone, drawn before the body in each render, for the sleeve clip of the body shader. */
 const clothDepth = { target: new THREE.WebGLRenderTarget(1, 1, { depthTexture: new THREE.DepthTexture(1, 1) }),
   frame: -1, size: new THREE.Vector2(), near: { value: 0.1 }, far: { value: 30 }, ready: { value: 0 } };
-/** Visual QA only (tools/verify-site/visual-qa.mjs): at 1 the body writes, instead of its colour, how far each pixel lies
- * above the sleeve line of the worn top (green, 0 to 0.5 m; red 1 near the arm axis), so the measure sees the arm left
- * in view over the sleeve with the site's own line and band. */
+/** Visual QA only (tools/verify-site/visual-qa.mjs): at 1 the body writes, instead of its colour, red 1 where the pixel
+ * is on the arm (near its axis, out of the torso) above the sleeve line of the worn top, with green its height above
+ * that line (0 to 0.5 m), so the measure sees the arm left in view over the sleeve with the site's own line and band. */
 export const qaSleeve = { value: 0 };
 const clothOnly = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide, colorWrite: false });
 
