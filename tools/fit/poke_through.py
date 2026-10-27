@@ -45,11 +45,24 @@ BOTTOM_AS_IS = {
     '013': 363,
 }
 HIDDEN = .05   # m: a hidden or clipped body point with cloth up to this behind it shows that cloth, not a hole
-# Holes of the tops whose arm is clipped in the sleeve band (sleeve.py), above --max-holes: the arm clipped with no cloth
-# in front of it counts (the view goes through where the arm is); a tear in the sleeve raises it (calibration torn-sleeve-022).
+# Holes of each top whose arm is clipped in the sleeve band (sleeve.py), a baseline that only goes down: the arm clipped
+# with no cloth in front of it nor up to HIDDEN behind it counts (the view goes through where the arm is, to far cloth or
+# the background); a tear in the sleeve raises it (calibration torn-sleeve-022). A tear whose far wall is closer than
+# HIDDEN shows that wall, as a hidden triangle would: sleeve_tear.py holds it on the mesh.
 TOP_HOLES = {
     '016': 7217,
+    '017': 1533,
+    '018': 1036,
+    '019': 1870,
+    '020': 1493,
+    '021': 809,
     '022': 3688,
+    '024': 1465,
+    '025': 1775,
+    '026': 1872,
+    '029': 1678,
+    '030': 2048,
+    '032': 1311,
 }
 # Bottom holes: hiding the body that pokes through must not let the background show.
 BOTTOM_HOLES = {

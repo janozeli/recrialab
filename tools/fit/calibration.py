@@ -32,6 +32,11 @@ CASES = {
     'torn-sleeve-022': ('63 faces cut out of the right sleeve of 022, 2 to 9 cm above the hem: the per-view arm clip keeps the '
                         'arm out of sight behind the tear, and only the arm clipped with no cloth in front tells it', [
         'python3 tools/fit/poke_through.py 022',
+        'python3 tools/fit/sleeve_tear.py 022',
+    ]),
+    'torn-sleeve-020': ('17 faces of the right sleeve of 020 cut to zero area, 0.4 to 3.2 cm above the hem: seen from below the '
+                        'arm behind the tear looks like the arm going up into the sleeve, which the visual measure leaves out', [
+        'python3 tools/fit/sleeve_tear.py 020',
     ]),
     'waistband-004': ('back of the waistband of trousers 004, dressed whole as cloth, slid 1.4 cm down the small of the back '
                       'and folded over, with the dark inside showing; the waist region of stretch.py passed it', [

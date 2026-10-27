@@ -139,3 +139,25 @@ test('the sleeve clip discards the arm only where the clothes depth is close beh
   expect(shader.uniforms.uSleeveBand.value).toBe(SLEEVE_BAND);
   expect(mesh.onBeforeRender).not.toBe(THREE.Object3D.prototype.onBeforeRender);
 });
+
+// A piece whose sleeve lies far from the arm (016) gets a wider band in its mask; the site has to hand it to the shader,
+// or the arm shows over the sleeve from below: with the band forced back to 10 cm, 001.016 and 007.016 showed thousands
+// of arm pixels over the sleeve. The worn top's band reaches the uniform, and the next top without one resets it.
+test('the site clips the arm with the band of the worn top', () => {
+  expect(readFileSync(new URL('./dressup.ts', import.meta.url), 'utf8')).toContain('registry[top]?.sleeve_line : undefined, top ? registry[top]?.sleeve_band : undefined)');
+  const mesh = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshStandardMaterial());
+  const setClip = bodyClip(mesh, mesh.material);
+  const shader = { uniforms: {}, vertexShader: '#include <common>\n#include <begin_vertex>',
+    fragmentShader: '#include <common>\n#include <clipping_planes_fragment>' };
+  mesh.material.onBeforeCompile(shader, null);
+  let wide = 0;
+  for (const registry of [BODY_MASKS, BODY_C_MASKS]) {
+    for (const [id, mask] of Object.entries(registry)) {
+      if (!mask.sleeve_line) continue;
+      setClip(undefined, mask.neck_line, mask.sleeve_line, mask.sleeve_band);
+      expect(shader.uniforms.uSleeveBand.value, id).toBe(mask.sleeve_band ?? SLEEVE_BAND);
+      if (mask.sleeve_band) wide++;
+    }
+  }
+  expect(wide).toBeGreaterThan(0);
+});
