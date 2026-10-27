@@ -43,6 +43,10 @@ CASES = {
                         'arm behind the tear looks like the arm going up into the sleeve, which the visual measure leaves out', [
         'python3 tools/fit/sleeve_tear.py 020',
     ]),
+    'notch-016': ('one face of 0.7 cm² cut out of the hem of 016, at the front: the open boundary grows by one edge and by '
+                  'less than 0.05 cm, which the cm alone rounded away', [
+        'python3 tools/fit/sleeve_tear.py 016',
+    ]),
     'waistband-004': ('back of the waistband of trousers 004, dressed whole as cloth, slid 1.4 cm down the small of the back '
                       'and folded over, with the dark inside showing; the waist region of stretch.py passed it', [
         'python3 tools/fit/stretch.py 004',
