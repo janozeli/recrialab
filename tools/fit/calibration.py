@@ -5,7 +5,8 @@ reference/calibration/<case>/{before,after}/ mirror site/assets/ (garments/, mas
 case the checks run in a temporary copy of the repository (tools/ and site/ copied, links to the rest) with
 the case's files in place of the published ones, so site/assets itself is never written. A check that does not tell before from after is reported, not fixed here: it becomes a warning, and
 a new check only enters if it fails the before of the defect that motivated it.
-usage: python3 tools/fit/calibration.py [CASE ...]   (no cases: all; exits with an error if a check does not separate)"""
+usage: python3 tools/fit/calibration.py [--visual] [CASE ...]   (no cases: all; --visual: the cases measured in the site's
+       pictures; exits with an error if a check does not separate)"""
 import os, shutil, subprocess, sys, tempfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -60,6 +61,19 @@ CASES = {
 }
 
 
+# cases measured in the site's own pictures (tools/visual-qa/measure.py): they build the site and photograph it with
+# chromium, so they run with --visual in the visual-qa job (site-e2e.yml), not in the fit job
+RENDER = ('cd site && GITHUB_SHA=calibration bun run build > /dev/null && cd .. && node tools/verify-site/visual-qa.mjs '
+          '--looks {} --out site/verify-out/calibration > /dev/null && python3 tools/visual-qa/measure.py '
+          'site/verify-out/calibration --ci')
+VISUAL_CASES = {
+    'hip-014': ('hip of trousers 014 outside the tops\' hems, seen in the site: slivers of the hip loose beside the hem of '
+                '022 and the body poking through the cloth of 014.035', [
+        RENDER.format('014.022,014.035'),
+    ]),
+}
+
+
 def files(state):
     return [os.path.relpath(os.path.join(d, f), state) for d, _, fs in os.walk(state) for f in fs]
 
@@ -75,27 +89,29 @@ def tree(dst):
     for n in os.listdir(site):
         s, d = os.path.join(site, n), os.path.join(dst, 'site', n)
         if n == 'assets': shutil.copytree(s, d)
+        elif n in ('dist', 'verify-out'): continue   # built and photographed in the copy, never into the real ones
         elif os.path.isdir(s): os.symlink(s, d)
         else: shutil.copy2(s, d)
 
 
-def run(case, state):
+def run(case, state, cases=CASES):
     """Exit code of each check with the case's files of `state` in place of the published ones."""
     src = os.path.join(CORPUS, case, state); dst = tempfile.mkdtemp()
     try:
         tree(dst)
         for n in files(src): shutil.copy2(os.path.join(src, n), os.path.join(dst, 'site/assets', n))
-        return [subprocess.run(c, shell=True, cwd=dst, capture_output=True).returncode for c in CASES[case][1]]
+        return [subprocess.run(c, shell=True, cwd=dst, capture_output=True).returncode for c in cases[case][1]]
     finally:
         shutil.rmtree(dst)
 
 
 if __name__ == '__main__':
-    bad = []
+    bad = []; args = [a for a in sys.argv[1:] if a != '--visual']
+    cases = VISUAL_CASES if '--visual' in sys.argv else CASES
     print('| check | case | before | after |\n|---|---|---|---|')
-    for case in sys.argv[1:] or CASES:
-        before, after = run(case, 'before'), run(case, 'after')
-        for c, b, a in zip(CASES[case][1], before, after):
+    for case in args or cases:
+        before, after = run(case, 'before', cases), run(case, 'after', cases)
+        for c, b, a in zip(cases[case][1], before, after):
             print(f'| `{c}` | {case} | {"fails" if b else "passes"} | {"fails" if a else "passes"} |')
             if not b or a: bad.append(f'{case}: {c}')
     if bad: sys.exit('does not separate before from after: ' + '; '.join(bad))
