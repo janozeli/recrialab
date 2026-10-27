@@ -1,6 +1,6 @@
 import { test, expect } from 'bun:test';
 import { readFileSync } from 'node:fs';
-import { filter, changedLayers, changedDefects } from './ci-filter';
+import { filter, changedLayers, changedDefects, calibrationLooks } from './ci-filter';
 
 const none = () => null;
 const wf = (f: string) => readFileSync(new URL(`../.github/workflows/${f}`, import.meta.url), 'utf8');
@@ -37,6 +37,14 @@ test('selector thumbnails and their renderer: phones only, no visual QA', () => 
 
 test('a fit tool only turns on its own job', () => {
   expect(filter(['tools/fit/poke_through.py'], none)).toEqual({ fit: true, phones: false, visualQa: '' });
+});
+
+test('a calibration case or script also photographs the looks of the visual cases', () => {
+  const looks = calibrationLooks(readFileSync(new URL('../tools/fit/calibration.py', import.meta.url), 'utf8'));
+  expect(looks).toContain('014.022');
+  for (const a of ['tools/fit/calibration.py', 'tools/fit/reference/calibration/hip-014/before/garments/014.glb'])
+    expect(filter([a], none)).toEqual({ fit: true, phones: false, visualQa: [...looks].sort().join(',') });
+  expect(calibrationLooks("RENDER.format('003.033'),\n RENDER.format('014.022,014.035')")).toEqual(['003.033', '014.022', '014.035']);
 });
 
 test('layer table: only the pairs that changed, or the bottom piece if its mesh changed', () => {
