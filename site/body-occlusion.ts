@@ -31,6 +31,10 @@ export const SLEEVE_POKE = 0.15;
 /** Depth of the clothes alone, drawn before the body in each render, for the sleeve clip of the body shader. */
 const clothDepth = { target: new THREE.WebGLRenderTarget(1, 1, { depthTexture: new THREE.DepthTexture(1, 1) }),
   frame: -1, size: new THREE.Vector2(), near: { value: 0.1 }, far: { value: 30 }, ready: { value: 0 } };
+/** Visual QA only (tools/verify-site/visual-qa.mjs): at 1 the body writes, instead of its colour, how far each pixel lies
+ * above the sleeve line of the worn top (green, 0 to 0.5 m; red 1 near the arm axis), so the measure sees the arm left
+ * in view over the sleeve with the site's own line and band. */
+export const qaSleeve = { value: 0 };
 const clothOnly = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide, colorWrite: false });
 
 function drawClothDepth(renderer: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.Camera, body: THREE.Object3D) {
@@ -61,7 +65,7 @@ export function bodyClip(mesh: THREE.Mesh, material: THREE.Material) {
     uNeck: { value: new Float32Array(NECK_STEPS) }, uNeckOn: { value: 0 },
     uSleeve: { value: new Float32Array(2 * SLEEVE_STEPS) }, uSleeveOn: { value: 0 }, uSleeveBand: { value: SLEEVE_BAND },
     uCloth: { value: clothDepth.target.depthTexture }, uClothSize: { value: clothDepth.size },
-    uClothNear: clothDepth.near, uClothFar: clothDepth.far, uClothReady: clothDepth.ready };
+    uClothNear: clothDepth.near, uClothFar: clothDepth.far, uClothReady: clothDepth.ready, uQaSleeve: qaSleeve };
   mesh.onBeforeRender = (renderer, scene, camera) => {
     if (uniforms.uSleeveOn.value) drawClothDepth(renderer, scene, camera, mesh);
   };
@@ -84,8 +88,10 @@ uniform sampler2D uCloth;
 uniform vec2 uClothSize;
 uniform float uClothNear;
 uniform float uClothFar;
-uniform float uClothReady;`)
+uniform float uClothReady;
+uniform float uQaSleeve;`)
       .replace('#include <clipping_planes_fragment>', `#include <clipping_planes_fragment>
+float sleeveAbove = -1.0;
 if (uWaistOn > 0.5 && abs(vWaistBody.x) < ${WAIST_TORSO.toFixed(3)}) {
   float t = mod(degrees(atan(vWaistBody.x, vWaistBody.z)) + 360.0, 360.0) / ${(360 / WAIST_STEPS).toFixed(1)};
   int i = int(floor(t)) % ${WAIST_STEPS};
@@ -107,6 +113,7 @@ if (uSleeveOn > 0.5 && abs(vWaistBody.x) > ${SLEEVE_ARM_X.toFixed(3)} && length(
   int o = vWaistBody.x > 0.0 ? 0 : ${SLEEVE_STEPS};
   int i = int(floor(t)) % ${SLEEVE_STEPS};
   float y = mix(uSleeve[o + i], uSleeve[o + (i + 1) % ${SLEEVE_STEPS}], fract(t));
+  sleeveAbove = vWaistBody.y - y;
   if (vWaistBody.y > y && vWaistBody.y < y + uSleeveBand) {
     float cloth = texture2D(uCloth, gl_FragCoord.xy / uClothSize).x;
     // view z of a perspective depth: near far / ((far - near) depth - far)
@@ -114,7 +121,9 @@ if (uSleeveOn > 0.5 && abs(vWaistBody.x) > ${SLEEVE_ARM_X.toFixed(3)} && length(
     float behind = nf / (fn * gl_FragCoord.z - uClothFar) - nf / (fn * cloth - uClothFar);
     if (uClothReady > 0.5 && cloth < 1.0 && behind < ${SLEEVE_POKE.toFixed(3)}) discard;
   }
-}`);
+}`)
+      .replace('#include <dithering_fragment>', `#include <dithering_fragment>
+if (uQaSleeve > 0.5) gl_FragColor = vec4(step(0.0, sleeveAbove), clamp(sleeveAbove / 0.5, 0.0, 1.0), 1.0, 1.0);`);
   };
   material.customProgramCacheKey = () => 'body-clip';
   return (waist: readonly number[] | undefined, neck: readonly number[] | undefined, sleeve?: readonly number[], sleeveBand = SLEEVE_BAND) => {

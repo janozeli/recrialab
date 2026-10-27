@@ -32,6 +32,7 @@ LIMITS = {
     'tear': 4.0,          # body seen through a hole or tear: enclosed by garment, with no cloth right behind (cm²)
     'see_through': 4.0,   # background enclosed by garment where the whole body would be (cm²): garment open over a hidden body
     'arm_gap': 4.0,       # background where the arm is, between the elbow and the armpit: arm clipped with nothing behind (cm²)
+    'arm_over': 2.0,      # arm in view over its sleeve, above the sleeve line, with cloth behind it (cm²), not from below
     'loose': 1.0,         # piece of garment floating in the air (cm²)
     'dark_patch': 6.0,    # texture darker than the darkest of the thrift-shop photo (% of the garment seen from the front)
     'waistband': 4.0,     # waistband sunken in the middle (front or back) relative to the sides (cm)
@@ -39,6 +40,7 @@ LIMITS = {
 }
 # garment depth (.depth.gz from visual-qa.mjs): step in cm, the same DEPTH as there
 DEPTH_CM = 100 * float(re.search(r'DEPTH = ([\d.]+)', open(f'{ROOT}/tools/verify-site/visual-qa.mjs', encoding='utf8').read()).group(1))
+OVER = 3             # cm above the sleeve line: lower, it is the arm seen past the hem through the opening (020, profile)
 TIGHT = 3.0           # cm: cloth up to this behind the hole's outline is the same sheet passing behind the body (poking through)
 MEASURES = []         # rows of measures*.json (what the browser measured: torso in view at the waist)
 
@@ -114,7 +116,8 @@ def photo_threshold(pid):
 
 def read_body(path):
     """Where the whole body, without the mask and without garments, would cover the view: 1 body, 2 arm between the
-    elbow and the armpit (visual-qa.mjs, ARM_X and ARM_Y0 to ARM_Y1), 0 nothing."""
+    elbow and the armpit (visual-qa.mjs, ARM_X and ARM_Y0 to ARM_Y1), 0 nothing; 3 where the body in view (with the
+    mask and the site's clip) is the arm above the sleeve line of the worn top, plus how many cm above it (up to 50)."""
     return np.frombuffer(gzip.open(path).read(), np.uint8).reshape(H, W)
 
 
@@ -169,6 +172,10 @@ def measure_view(c, alb, depth, whole):
     # (022 from the front); open at the bottom, so see_through, which needs garment around it, does not count it. A strip
     # under 5 px wide along the outline is the arm a little wider than its sleeve (033, 027), not a slit: opened away
     r['arm_gap'] = float(nd.binary_opening((c == BACKGROUND) & (whole == 2), disk(2)).sum() * CM2)
+    # arm over the sleeve: the arm in view above the sleeve line with cloth behind it, where the sleeve should cover it
+    # (016 with its band of 20 cm cut to the common 10 cm, from behind). From below the arm going up into the sleeve,
+    # past the hem, is what a real short sleeve shows: those views are left out in measure_look
+    r['arm_over'] = float(nd.binary_opening((c == BODY) & (whole >= 3 + OVER) & (depth > 0), disk(1)).sum() * CM2)
     # loose piece: a garment component that only touches the background
     loose = 0
     for m in (top, bottom):
@@ -236,6 +243,8 @@ def measure_look(folder):
         for k in ('pokes', 'tear', 'see_through', 'arm_gap', 'loose', 'junction'):
             if k in r:
                 peak(k, r[k], view)
+        if not view.startswith('low'):
+            peak('arm_over', r['arm_over'], view)
         if has_top and has_bottom:
             peak('midriff', midriff.get(view, 0.0), view)
         # dark patch: from the front only, the side the thrift-shop photo shows

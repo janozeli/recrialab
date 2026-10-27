@@ -73,7 +73,7 @@ const base = `http://127.0.0.1:${server.address().port}`;
 
 /** Runs in the page: photographs the views and measures each one on the class mask. */
 async function photograph({ views, W, H, beauty }) {
-  const { THREE, scene, camera, controls, renderer, worn, mannequin, followCamera, bodyGeometry } = window.__qa;
+  const { THREE, scene, camera, controls, renderer, worn, mannequin, followCamera, bodyGeometry, qaSleeve } = window.__qa;
   // Classes: 0 background, 1 body, 2 top (right side), 3 top (inside out), 4 bottom (right side), 5 bottom (inside out).
   const COLOURS = [[0, 0, 0], [255, 0, 0], [0, 255, 0], [0, 255, 255], [0, 0, 255], [255, 0, 255]];
   const garmentMat = (front, back, side) => new THREE.ShaderMaterial({
@@ -96,7 +96,8 @@ async function photograph({ views, W, H, beauty }) {
   const target = new THREE.Vector3(0, 1, 0);
   const radius = Math.hypot(.15, 4.4);
   const gl = renderer.getContext();
-  const buf = new Uint8Array(W * H * 4), posBuf = new Uint8Array(W * H * 4), depthBuf = new Uint8Array(W * H * 4), wholeBuf = new Uint8Array(W * H * 4);
+  const buf = new Uint8Array(W * H * 4), posBuf = new Uint8Array(W * H * 4), depthBuf = new Uint8Array(W * H * 4), wholeBuf = new Uint8Array(W * H * 4),
+    sleeveBuf = new Uint8Array(W * H * 4);
   // Garment depth (distance to the camera, from DEPTH0 in steps of DEPTH m; 0 = no garment): tells a hole in a single
   // sheet from the gap between two surfaces (one leg in front of the other).
   const DEPTH0 = 3.4, DEPTH = 0.008;
@@ -168,6 +169,12 @@ async function photograph({ views, W, H, beauty }) {
     paint(bottoms, COLOURS[4], COLOURS[5]);
     renderer.render(scene, cam);
     gl.readPixels(0, 0, W, H, gl.RGBA, gl.UNSIGNED_BYTE, buf);
+    // Sleeve pass: the same render, with the body writing how far each pixel lies above the sleeve line of the worn top
+    // (the site's own line, band and clip): the arm left in view over the sleeve.
+    qaSleeve.value = 1;
+    renderer.render(scene, cam);
+    gl.readPixels(0, 0, W, H, gl.RGBA, gl.UNSIGNED_BYTE, sleeveBuf);
+    qaSleeve.value = 0;
     // Second pass: where each body pixel is in the world (|x| and height), to tell the torso from the arm.
     const bodyMats = body.map(m => m.material);
     body.forEach(m => { m.material = posMat; });
@@ -215,6 +222,8 @@ async function photograph({ views, W, H, beauty }) {
       // 1: body; 2: arm between the elbow and the armpit (|x| > ARM_X, from ARM_Y0 to ARM_Y1), where the sleeve clip acts
       const wx = wholeBuf[o] / 255 / 2, wy = wholeBuf[o + 1] / 255 * 2;
       whole[y * W + x] = wholeBuf[o + 2] < 128 ? 0 : wx > ARM_X && wy > ARM_Y0 && wy < ARM_Y1 ? 2 : 1;
+      // 3 and up: the arm in view above the sleeve line of the worn top (body pixel of the class pass), 3 + cm above it
+      if (best === 1 && sleeveBuf[o] > 128 && sleeveBuf[o + 2] > 128) whole[y * W + x] = 3 + Math.round(sleeveBuf[o + 1] / 255 * 50);
       // torso in view in the waist band (0.85 to 1.25 m), away from the arms (|x| < 0.16 m)
       const q = ((H - 1 - y) * W + x) * 4;
       if (best === 1 && posBuf[q] / 255 / 2 < 0.16 && posBuf[q + 1] / 255 * 2 > 0.85 && posBuf[q + 1] / 255 * 2 < 1.25) torso[y * W + x] = 1;
