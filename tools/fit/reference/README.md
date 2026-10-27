@@ -21,12 +21,12 @@ reprova arquivo alterado, faltando ou sobrando.
 defeito foi visto e depois de consertada. `python3 tools/fit/calibration.py` roda as verificações do caso numa cópia
 temporária do repositório, com cada estado no lugar do publicado (`site/assets/` não é tocado); cada verificação tem
 de reprovar o antes e aprovar o depois. Roda no CI, no job `fit`: quando uma trava aperta e o depois deixa de passar,
-o PR que apertou fica vermelho e atualiza o depois.
+o PR que apertou fica vermelho e atualiza o depois. Os casos medidos nas fotos do site (`calibration.py --visual`, com `measure.py`) montam o site e o fotografam na cópia, e rodam no job `visual-qa`.
 
 | Caso | Defeito | Verificações que separam |
 |---|---|---|
 | `bridge-013/` | tira de tecido pendurada no vão entre as pernas da calça 013, descendo até o tênis | `cuff.py 013` (103,9 → 0 cm²) |
-| `hip-014/` | quadril da calça 014 do lado de fora da barra das peças de cima: as tabelas de camadas o esconderam em fiapos que mostravam o fundo, e o cós furava as blusas | `layer_check.py` nos 23 pares da 014: por peça, a soma dos pares contra `layer_baseline.json` (8.859 → 2.248 pontas; nenhum par passava de 1.500) |
+| `hip-014/` | quadril da calça 014 do lado de fora da barra das peças de cima: as tabelas de camadas o esconderam em fiapos que mostravam o fundo, e o cós furava as blusas | `layer_check.py` nos 23 pares da 014: por peça, a soma dos pares contra `layer_baseline.json` (8.859 → 2.248 pontas; nenhum par passava de 1.500); nas fotos do site (`--visual`), `measure.py --ci` nos looks 014.022 e 014.035: o antes reprova em pedaço solto 2,4 cm² na 014.022 (vista eye-90) e corpo furando 13,6 cm² na 014.035 (vista high-0); o depois fica dentro dos limites |
 | `projected-014/` | calça 014 refeita no manequim neutro: barra moldada sobre o tênis como polaina, listras laterais mais largas, quebradas onde o quadril encontra as pernas, e as listras da outra perna no lado de dentro | `shoe.py 014` (158 → 1,0 cm²); `print_check.py 014` (largura ×1,13 e ×1,30 → ×0,93; quebra 36 e 27 → 3,4 e 7,3 mm; branco por dentro 3,3 e 3,8% → 0%) |
 | `hem-hole-002/` | furo de 9,6 cm na barra da calça 002, deixado pelo gerador: vestida como tecido, o corpo aparece por ele de trás, e a 002 do main o tinha e passava em tudo | `close_holes.py --check 002` (1 → 0 furos na barra) |
 | `waistband-004/` | cós de trás da calça 004, vestida inteira como tecido, escorregou 1,4 cm pela lombar e dobrou, com o avesso escuro à vista; a região da cintura do `stretch.py` deixava passar | `stretch.py 004`: por setor de 30° do cós, a borda desceu 1,4 cm (limite 0,5) e os 7 cm de cima esticaram 33% (limite 30) |

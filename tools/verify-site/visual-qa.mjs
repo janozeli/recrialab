@@ -10,6 +10,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { extname, join } from 'node:path';
 import { gzipSync } from 'node:zlib';
 import { createRequire } from 'node:module';
+import { fileURLToPath } from 'node:url';
 
 const require = createRequire(import.meta.url);
 const { chromium } = (() => {
@@ -18,7 +19,8 @@ const { chromium } = (() => {
   }
 })();
 const arg = (name, fallback) => { const i = process.argv.indexOf(`--${name}`); return i > 0 ? process.argv[i + 1] : fallback; };
-const root = execSync('git rev-parse --show-toplevel', { encoding: 'utf8' }).trim();
+// the repository this script sits in (also the temporary copy calibration.py makes, which has no .git)
+const root = fileURLToPath(new URL('../..', import.meta.url)).replace(/\/$/, '');
 const out = arg('out', join(root, 'site', 'verify-out', 'visual-qa'));
 const beauty = process.argv.includes('--beauty');
 mkdirSync(out, { recursive: true });
