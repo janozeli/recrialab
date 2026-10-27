@@ -1,7 +1,7 @@
 import { expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import * as THREE from 'three';
-import { HEM_STEPS, HEM_TORSO, hemAt, hemFill, hemLine } from './garment-hem';
+import { HEM_BAND, HEM_LIFT, HEM_LIFT_MAX, HEM_STEPS, HEM_TORSO, hemAt, hemFill, hemLine, hemRadius } from './garment-hem';
 
 // Hem clipping (garment-hem.ts): layer_check.py measures the junction with the same line as tools/fit/top_hem.py.
 test('hem line uses the same numbers as layer_check.py', () => {
@@ -9,7 +9,9 @@ test('hem line uses the same numbers as layer_check.py', () => {
   const [, step, torso] = py.match(/^STEP, TORSO[^=]*= ([\d.]+), ([\d.]+)/m)!;
   expect(360 / Number(step)).toBe(HEM_STEPS);
   expect(Number(torso)).toBe(HEM_TORSO);
-  expect(readFileSync(new URL('../tools/fit/layer_check.py', import.meta.url), 'utf8')).toContain('top_hem.height');
+  const [, band, lift, max] = py.match(/^BAND, LIFT, LIFT_MAX[^=]*= ([\d.]+), ([\d.]+), ([\d.]+)/m)!;
+  expect([Number(band), Number(lift), Number(max)]).toEqual([HEM_BAND, HEM_LIFT, HEM_LIFT_MAX]);
+  expect(readFileSync(new URL('../tools/fit/layer_check.py', import.meta.url), 'utf8')).toContain('top_hem.height(hem, p, rad)');
 });
 
 test('hem line follows the lowest torso fabric and fills open slices', () => {
@@ -37,4 +39,17 @@ test('hidden triangle comes back clipped at the hem', () => {
   expect(hemFill(g, [0, 1, 2, 3, 4, 5], [1], hem, new THREE.Matrix4())).toBeNull();
   // a top without torso (sleeves only): the layer stays as the table says, nothing comes back
   expect(hemFill(g, [0, 1, 2, 3, 4, 5], [0, 1], hemLine([new Float32Array([.3, .1, 0])]), new THREE.Matrix4())).toBeNull();
+});
+
+test('the cut rises where the hem stands off the bottom, so the gap seen from below shows the bottom', () => {
+  // hem at 0.9 m all round, 0.2 m from the axis in front
+  const hem = new Float32Array(HEM_STEPS).fill(.9);
+  const radius = hemRadius([new Float32Array([0, .9, .2, 0, 1.2, .15])], hem);
+  expect(radius[0]).toBeCloseTo(.2);   // the fabric 30 cm above the hem is not the hem
+  // a hem folded inwards: its inner layer, 4 cm in, is what the bottom must stay inside of
+  expect(hemRadius([new Float32Array([0, .9, .2, 0, .91, .16])], hem)[0]).toBeCloseTo(.16);
+  expect(hemAt(hem, 0, .17, radius)).toBeCloseTo(.9 + HEM_LIFT * .03);   // 3 cm inside the hem
+  expect(hemAt(hem, 0, .1, radius)).toBeCloseTo(.9 + HEM_LIFT_MAX);      // capped
+  expect(hemAt(hem, 0, .21, radius)).toBeCloseTo(.9);                    // outside the hem (poking): no lift
+  expect(hemAt(hem, 0, .17)).toBeCloseTo(.9);                            // without the radius: the line
 });

@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { loadGarmentLayers, garmentLayers, expandLayerRanges } from './garment-layer-data';
-import { hemLine, hemFill } from './garment-hem';
+import { hemLine, hemFill, hemRadius } from './garment-hem';
 import { CATALOG } from './catalog-data';
 import { evictionCandidates } from './asset-cache';
 import { createCameraMotion } from './camera-motion';
@@ -428,6 +428,7 @@ export function initDressUp(): void {
       });
     }
     const hem = top ? hemLine(topPositions) : null;
+    const hemR = hem ? hemRadius(topPositions, hem) : undefined;
     bottom.object.updateMatrixWorld(true);
     const nodes: THREE.Mesh[] = [];
     bottom.object.traverse(node => { if (node instanceof THREE.Mesh && !node.userData.hemFill) nodes.push(node); });
@@ -449,7 +450,7 @@ export function initDressUp(): void {
       (node.geometry.index!.array as Uint16Array | Uint32Array).set(visible);
       node.geometry.index!.needsUpdate = true;
       node.geometry.setDrawRange(0, visible.length);
-      const fill = hem && hidden.length ? hemFill(node.geometry, original, hidden, hem, node.matrixWorld) : null;
+      const fill = hem && hidden.length ? hemFill(node.geometry, original, hidden, hem, node.matrixWorld, hemR) : null;
       if (fill) {
         const mesh = new THREE.Mesh(fill, node.material);
         mesh.userData.hemFill = true;
