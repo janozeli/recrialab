@@ -29,3 +29,7 @@
 - id: waistband-010
   title: "Skirt 010 with its waistband on the hips"
   pieces: ["010"]
+
+- id: arm-slit
+  title: "Slit to the background between the sleeve and the side of jacket 033 where the hidden arm is, seen from the front"
+  pieces: ["033"]

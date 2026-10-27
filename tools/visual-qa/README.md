@@ -25,6 +25,7 @@ O limite vale para toda peça, na pior das 14 vistas (`LIMITS` em `measure.py`):
 | `pokes` | 2 cm² | corpo atravessando a roupa, com o tecido logo atrás dele |
 | `tear` | 4 cm² | corpo visto por um furo ou rasgo |
 | `see_through` | 4 cm² | fundo à vista onde o corpo estaria |
+| `arm_gap` | 4 cm² | fundo à vista onde o braço estaria, do cotovelo à axila, sem exigir roupa em volta (a fenda sob a manga curta, aberta embaixo); faixa com menos de 5 px de largura no contorno não conta |
 | `loose` | 1 cm² | pedaço de roupa solto no ar |
 | `dark_patch` | 6% | textura mais escura que o mais escuro da foto da peça |
 | `waistband` | 4 cm | cós afundado no meio em relação às laterais |

@@ -97,7 +97,6 @@ async function photograph({ views, W, H, beauty }) {
   const radius = Math.hypot(.15, 4.4);
   const gl = renderer.getContext();
   const buf = new Uint8Array(W * H * 4), posBuf = new Uint8Array(W * H * 4), depthBuf = new Uint8Array(W * H * 4), wholeBuf = new Uint8Array(W * H * 4);
-  const white = new THREE.MeshBasicMaterial({ color: 0xffffff });
   // Garment depth (distance to the camera, from DEPTH0 in steps of DEPTH m; 0 = no garment): tells a hole in a single
   // sheet from the gap between two surfaces (one leg in front of the other).
   const DEPTH0 = 3.4, DEPTH = 0.008;
@@ -108,8 +107,9 @@ async function photograph({ views, W, H, beauty }) {
   });
   const posMat = new THREE.ShaderMaterial({
     vertexShader: 'varying vec3 vW; void main(){vec4 w=modelMatrix*vec4(position,1.);vW=w.xyz;gl_Position=projectionMatrix*viewMatrix*w;}',
-    fragmentShader: 'varying vec3 vW; void main(){gl_FragColor=vec4(min(abs(vW.x)*2.,1.),min(vW.y/2.,1.),0.,1.);}',
+    fragmentShader: 'varying vec3 vW; void main(){gl_FragColor=vec4(min(abs(vW.x)*2.,1.),min(vW.y/2.,1.),1.,1.);}',
   });
+  const ARM_X = 0.17, ARM_Y0 = 0.9, ARM_Y1 = 1.4;
   const result = [];
   // World height of an image row, on the mannequin plane (holds for the view at chest height).
   const metersPerPx = 2 * radius * Math.tan(THREE.MathUtils.degToRad(cam.fov / 2)) / H;
@@ -182,11 +182,12 @@ async function photograph({ views, W, H, beauty }) {
     gl.readPixels(0, 0, W, H, gl.RGBA, gl.UNSIGNED_BYTE, depthBuf);
     [...tops, ...bottoms].forEach((m, i) => { m.material = garmentMats[i]; });
     body.forEach(m => { m.visible = true; });
-    // Fourth pass: the whole body, without the mask, without garments: background in view where the body should be is
-    // a real hole (hidden body and open garment); outside it, it is the gap between arm and torso or between the legs.
+    // Fourth pass: the whole body, without the mask, without garments, with its world position: background in view where
+    // the body should be is a real hole (hidden body and open garment); outside it, it is the gap between arm and torso or
+    // between the legs. On the arm, it is the arm clipped with nothing behind it (the slit under the sleeve).
     const geo = (bodyGeometry ?? []).filter(b => b.mesh.visible && body.includes(b.mesh));
     const keptIdx = geo.map(b => [b.mesh.geometry.index.array.slice(), { ...b.mesh.geometry.drawRange }, b.mesh.material]);
-    geo.forEach(b => { b.mesh.geometry.index.array.set(b.original); b.mesh.geometry.index.needsUpdate = true; b.mesh.geometry.setDrawRange(0, b.original.length); b.mesh.material = white; });
+    geo.forEach(b => { b.mesh.geometry.index.array.set(b.original); b.mesh.geometry.index.needsUpdate = true; b.mesh.geometry.setDrawRange(0, b.original.length); b.mesh.material = posMat; });
     [...tops, ...bottoms].forEach(m => { m.visible = false; });
     renderer.render(scene, cam);
     gl.readPixels(0, 0, W, H, gl.RGBA, gl.UNSIGNED_BYTE, wholeBuf);
@@ -211,7 +212,9 @@ async function photograph({ views, W, H, beauty }) {
       }
       cls[y * W + x] = best;
       depth[y * W + x] = depthBuf[o];
-      whole[y * W + x] = wholeBuf[o] > 127 ? 1 : 0;
+      // 1: body; 2: arm between the elbow and the armpit (|x| > ARM_X, from ARM_Y0 to ARM_Y1), where the sleeve clip acts
+      const wx = wholeBuf[o] / 255 / 2, wy = wholeBuf[o + 1] / 255 * 2;
+      whole[y * W + x] = wholeBuf[o + 2] < 128 ? 0 : wx > ARM_X && wy > ARM_Y0 && wy < ARM_Y1 ? 2 : 1;
       // torso in view in the waist band (0.85 to 1.25 m), away from the arms (|x| < 0.16 m)
       const q = ((H - 1 - y) * W + x) * 4;
       if (best === 1 && posBuf[q] / 255 / 2 < 0.16 && posBuf[q + 1] / 255 * 2 > 0.85 && posBuf[q + 1] / 255 * 2 < 1.25) torso[y * W + x] = 1;
