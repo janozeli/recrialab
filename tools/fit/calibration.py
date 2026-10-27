@@ -64,6 +64,7 @@ CASES = {
     ]),
     'cuff-tip-021': ('tip of the left cuff of 021 hanging 4 cm below the rim, a beige V over the arm', [
         'python3 tools/fit/cuff_tip.py --check',
+        'python3 tools/fit/sleeve.py --check',
     ]),
 }
 
