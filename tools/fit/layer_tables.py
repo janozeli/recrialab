@@ -7,24 +7,26 @@ different PRs always conflicts, and is not resolved by hand:
 
 A conflicting table goes back whole to the side that already has the current bottom (hash and pair go together).
 After that, every pair whose hash does not match the current GLB is rebuilt: if the top changed, only its line is
-rebuilt (about 15 s); if the bottom changed, the whole table. site/layers.test.ts fails a table written in another
-format, and site/integrity.test.ts fails a stale hash. With --check, only lists what is stale (exit 1 if anything)."""
+rebuilt (about 15 s); if the bottom changed, the whole table. Each table also stores the hash of gen_layers.py, so a
+change to the rule rebuilds all 15 tables (and nothing is left built by the old rule). site/layers.test.ts fails a
+table written in another format, and site/integrity.test.ts fails a stale hash. With --check, only lists what is stale (exit 1 if anything)."""
 import json, os, sys, hashlib, subprocess
 
 c = lambda v: json.dumps(v, separators=(',', ':'))
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../..')
 from paths import GARMENTS, LAYERS
 sha = lambda p: hashlib.sha256(open(p, 'rb').read()).hexdigest()
+GENERATOR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'gen_layers.py')
 
 
 def text(t):
     lines = lambda d: ',\n'.join(f'{c(k)}:{c(d[k])}' for k in sorted(d))
-    return (f'{{"bottomHash":{c(t["bottomHash"])},\n"meshes":{c(t["meshes"])},\n'
+    return (f'{{"bottomHash":{c(t["bottomHash"])},\n"generatorHash":{c(t["generatorHash"])},\n"meshes":{c(t["meshes"])},\n'
             f'"topHashes":{{\n{lines(t["topHashes"])}\n}},\n"pairs":{{\n{lines(t["pairs"])}\n}}}}\n')
 
 
 def save(path, t):
-    assert set(t) == {'bottomHash', 'meshes', 'topHashes', 'pairs'}, sorted(t)
+    assert set(t) == {'bottomHash', 'generatorHash', 'meshes', 'topHashes', 'pairs'}, sorted(t)
     s = text(t); assert json.loads(s) == t
     open(path, 'w').write(s)
 
@@ -43,10 +45,11 @@ def main(args):
         save(LAYERS + f, next((t for t in sides if t['bottomHash'] == current), sides[1]))
     tops = [f'{i:03d}' for i in range(16, 39)]
     hashes = {id: sha(GARMENTS + f'{id}.glb') for id in tops}
-    redo = {}
+    redo = {}; generator = sha(GENERATOR)
     for n in range(1, 16):
         bid = f'{n:03d}'; t = json.load(open(LAYERS + f'{bid}.json'))
-        if t['bottomHash'] != sha(GARMENTS + f'{bid}.glb'): redo[bid] = None   # None: the whole table
+        if t['bottomHash'] != sha(GARMENTS + f'{bid}.glb') or t.get('generatorHash') != generator:
+            redo[bid] = None   # None: the whole table
         else:
             stale = [id for id in tops if t['topHashes'].get(id) != hashes[id]]
             if stale: redo[bid] = stale
@@ -60,7 +63,7 @@ def main(args):
         path = LAYERS + f'{bid}.json'; t = json.load(open(path))
         bottom = Garment(GARMENTS + f'{bid}.glb')
         if ids is None:
-            t.update(bottomHash=sha(GARMENTS + f'{bid}.glb'), meshes=[
+            t.update(bottomHash=sha(GARMENTS + f'{bid}.glb'), generatorHash=generator, meshes=[
                 {'vertices': s, 'triangles': bottom.js['accessors'][p['indices']]['count'] // 3}
                 for s, (a, M, p) in zip(bottom.sizes, bottom.parts)])
             ids = tops

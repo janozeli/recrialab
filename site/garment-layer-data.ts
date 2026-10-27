@@ -18,6 +18,7 @@ import p015 from './assets/layers/015.json' with { type: 'file' };
 
 export interface LayerTable {
   bottomHash: string;
+  generatorHash: string;
   topHashes: Record<string, string>;
   meshes: { vertices: number; triangles: number }[];
   pairs: Record<string, number[][][]>;

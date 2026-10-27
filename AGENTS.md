@@ -62,7 +62,7 @@ node tools/verify-site/drive.mjs --profile budget-android   # the site on an emu
 
 | Area | Rule | Check |
 |---|---|---|
-| Collection | 38 garments, each with a model, mask and pose; layer tables match the GLB hashes; size, triangles and textures within the phone budget; nothing left over in `assets/` | `site/integrity.test.ts` |
+| Collection | 38 garments, each with a model, mask and pose; layer tables match the GLB hashes and the hash of the rule that built them (`tools/fit/gen_layers.py`); size, triangles and textures within the phone budget; nothing left over in `assets/` | `site/integrity.test.ts` |
 | Build | nothing left over in `dist/`, commit written to `/build.json` | `site/verify-dist.ts`, `site/check-live.ts` |
 | Thumbnails | each selector thumbnail is the 3D garment rendered with the stage light; the test fails a thumbnail that is out of date with its GLB or tone | `site/thumbnails.test.ts` |
 | Tops | rest on the shoulders, chest and nape; sleeves on the arm down to the wrist; hoods and collars lie on the back; the high collar of 035 sits outside the neck, closed as in the photo; no loose bits; the inside does not show from behind more than recorded; the arm clip under short sleeves follows the line computed from the site cameras, and the slit it leaves to the background beside the torso stays at or below the recorded value, which only goes down | `site/fit.test.ts`, `tools/fit/hood.py`, `tools/fit/back_inside.py`, `tools/fit/sleeve.py` |
