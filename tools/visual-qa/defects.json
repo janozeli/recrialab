@@ -19,10 +19,17 @@
  "midriff": {
   "001.016": "short-tops-midriff",
   "005.035": "short-tops-midriff",
+  "007.016": "short-tops-midriff",
+  "007.020": "short-tops-midriff",
+  "007.035": "short-tops-midriff",
   "014.016": "short-tops-midriff"
  },
  "junction": {
+  "007.018": "jagged-junction",
+  "007.019": "jagged-junction",
   "007.022": "jagged-junction",
+  "007.031": "jagged-junction",
+  "007.034": "jagged-junction",
   "008.023": "jagged-junction"
  },
  "threads": {
@@ -38,7 +45,13 @@
   "014.033": "spiky-hems"
  },
  "pokes": {
+  "007.020": "body-framed-by-cloth",
   "007.022": "body-framed-by-cloth",
+  "007.026": "body-framed-by-cloth",
+  "007.028": "body-framed-by-cloth",
+  "007.033": "body-framed-by-cloth",
+  "007.035": "body-framed-by-cloth",
+  "007.036": "body-framed-by-cloth",
   "007.037": "body-framed-by-cloth",
   "010": "body-framed-by-cloth",
   "010.025": "body-framed-by-cloth",
@@ -79,6 +92,9 @@
  "see_through": {
   "003.033": "jagged-junction",
   "006.036": "short-tops-midriff",
+  "007.016": "jagged-junction",
+  "007.033": "jagged-junction",
+  "007.035": "jagged-junction",
   "007.037": "jagged-junction",
   "014.022": "jagged-junction",
   "014.033": "body-framed-by-cloth",
