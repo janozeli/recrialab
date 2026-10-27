@@ -26,9 +26,12 @@ and the print is painted on the final shape, so no later move stretches it:
 The output is in the site's format (WebP texture, no normal map, single-sided like the piece it replaces) and is also
 the stretch reference (reference/originals/tripo/NNN.glb): the print is laid on this shape, and stretch.py measures
 what later tools move; print_check.py measures the projection against the print source.
+A plain piece (not in STRIPED: 006, washed denim) keeps the angle, and above RIM each angle's top of the cloth meets
+the source's (006's back waistband sat lower than the new one, and the empty rows above it came out as streaks);  its black
+where the generator did not see (the inner side of the legs) takes the outer side's cloth of the same row (unseen).
 usage: python3 tools/fit/project_print.py SHAPE.glb PRINT_SOURCE.glb OUT.glb
-       (014: SHAPE = reference/originals/tripo-shape/014.glb, PRINT_SOURCE = reference/originals/print-source/014.glb)"""
-import io, sys, numpy as np, trimesh, xatlas, fast_simplification
+       (NNN = 014, 006: SHAPE = reference/originals/tripo-shape/NNN.glb, PRINT_SOURCE = reference/originals/print-source/NNN.glb)"""
+import io, os, sys, numpy as np, trimesh, xatlas, fast_simplification
 from PIL import Image
 from scipy import ndimage
 from scipy.ndimage import gaussian_filter1d
@@ -57,6 +60,8 @@ PART = (.004, .003)   # each leg this far from x = 0 (soft over the second value
 PART_Y = (.62, .74)   # parted fully below the first height, not above the second
 GATHER = (.005, .62, .90)   # waistband and hip gap, from where to where (a short ramp left the hip wider than the waist:
 # a step; looser, the hip stood outside the tops' hems, and the layer tables hid it in slivers that showed the background)
+GATHERS = {'006': (.005, .30, .90)}   # 006 from the knee: its thigh 3 cm off the leg stood in front of the long tops'
+# hems (tools/fit/layer_check.py: 2,514 pokes over its 23 pairs from .62, 1,396 from .30)
 SLACK = .004
 ANKLE = .25       # below this the gap is eased against the leg above the sneaker
 GAP = (.026, .009)  # gap eased from the first value towards the sum: penetration.py does not let the gap above 4 cm grow
@@ -66,6 +71,10 @@ STRIPES = np.radians([-70, 30])   # where the source's side stripes are, from th
 WHITE = 150       # the stripes: every channel above this
 SOURCE_HEM = .16  # the source's lowest rows (relative height) fold over the shoe: stripes sideways, the shoe's colours
 SMUDGE_T = .7     # below this relative height (the crotch) white off the stripes is a smudge
+RIM = .7          # plain pieces: above this relative height (the crotch) each angle's top of the cloth meets the source's
+DARK, PATCH = 30, 300   # unseen black (tools/fit/texture.py): every channel below DARK, in patches over PATCH cells
+STRIPED = {'014'}   # pieces with side stripes: the others (plain cloth, 006's washed denim) keep the angle as it is,
+# and their light streaks are the print, not a smudge
 
 
 def load(path, faces=60000):
@@ -197,8 +206,8 @@ def part_legs(m):
     return trimesh.Trimesh(V, m.faces, process=False)
 
 
-def gather(m, T):
-    gap, lo, hi = GATHER
+def gather(m, T, how=GATHER):
+    gap, lo, hi = how
     V = m.vertices.copy()
     q, d, _ = trimesh.proximity.closest_point(T, V)
     w = np.clip((V[:, 1] - lo) / (hi - lo), 0, 1); w = w * w * (3 - 2 * w)
@@ -374,7 +383,7 @@ def clean(cmap):
     return cmap[iy, ix]
 
 
-def sample(old, uv, img, P, new):
+def sample(old, uv, img, P, new, striped=True):
     """Colour of each point P of the new piece at the same place of the old one's unrolled print (see the module
     docstring): same side, same relative height, the angle through turn()."""
     Fn, Fo = Frame(new.vertices), Frame(old.vertices)
@@ -382,16 +391,49 @@ def sample(old, uv, img, P, new):
     for s in (1, -1):
         k = P[:, 0] * s > 0 if s == 1 else P[:, 0] <= 0
         cmap, cover = print_map(old, uv, img, Fo, s)
-        cmap = clean(cmap)
         t, phi, _ = Fn.polar(P[k], s)
         t = np.where(t < SOURCE_HEM, 2 * SOURCE_HEM - t, t)   # below, the cloth above the fold, mirrored: no streaks
-        c = np.interp(np.clip(t, 0, 1) * (NT - 1), np.arange(NT), stripes(cmap))
-        an = np.minimum(BAND / Fn.radius(t, s), np.pi / 2 - FRONT - .05)
-        ao = np.minimum(BAND / Fo.radius(t, s), np.pi / 2 - np.abs(c) - .05)
-        a = turn(phi, an, ao, c)
+        if striped:
+            cmap = clean(cmap)
+            c = np.interp(np.clip(t, 0, 1) * (NT - 1), np.arange(NT), stripes(cmap))
+            an = np.minimum(BAND / Fn.radius(t, s), np.pi / 2 - FRONT - .05)
+            ao = np.minimum(BAND / Fo.radius(t, s), np.pi / 2 - np.abs(c) - .05)
+            a = turn(phi, an, ao, c)
+        else:   # the waistband's height around the hip: the source's back sat lower, and its top rows there were empty
+            cmap = unseen(cmap)
+            a = phi; o, n = (np.maximum(rim(F, V, s, phi), RIM + .05) for F, V in ((Fo, old.vertices), (Fn, new.vertices)))
+            t = np.where(t > RIM, RIM + (t - RIM) * (o - RIM) / (n - RIM), t)
         out[k] = bilinear(cmap, np.c_[(a + np.pi) / (2 * np.pi), np.clip(t, 0, 1 - 1e-6)])
         print(f'side {s:+d}: old cloth covers {cover * 100:.0f}% of its unrolled print')
     return np.clip(front(old, uv, img, P, Fn, Fo, out), 0, 255).astype(np.uint8)
+
+
+def unseen(cmap):
+    """Plain pieces: the black the generator painted where it did not see (the inner side of 006's legs, a fifth of the
+    unrolled print) takes the cloth of the same row mirrored about the front and back centres (inner side from the
+    outer side, ±180° from 0°): denim with its folds, not a flat fill. Where the mirror is black too, the nearest."""
+    NT, NA = cmap.shape[:2]
+    dark = cmap.max(2) < DARK
+    lab, _ = ndimage.label(dark); size = np.bincount(lab.ravel()); size[0] = 0
+    bad = ndimage.binary_dilation(size[lab] > PATCH, iterations=2)
+    a = np.linspace(-np.pi, np.pi, NA); m = np.sign(a) * np.pi - a
+    j = np.rint((m + np.pi) / (2 * np.pi) * (NA - 1)).astype(int)
+    out = cmap.copy(); out[bad] = cmap[:, j][bad]
+    left = bad & bad[:, j]
+    _, (iy, ix) = ndimage.distance_transform_edt(left, return_indices=True)
+    out = out[iy, ix]
+    w = ndimage.gaussian_filter(bad.astype(float), 2)[..., None]   # feathered into the seen cloth
+    return w * out + (1 - w) * cmap
+
+
+def rim(F, V, s, phi, bins=72):
+    """Relative height of the top of the cloth at each angle phi around side s (smoothed round the circle)."""
+    k = V[:, 0] * s > 0; t, a, _ = F.polar(V[k], s)
+    i = ((a + np.pi) / (2 * np.pi) * bins).astype(int) % bins
+    top = np.zeros(bins); np.maximum.at(top, i, t)
+    top = ndimage.gaussian_filter1d(np.where(top > .5, top, np.median(top)), 2, mode='wrap')
+    j = ((phi + np.pi) / (2 * np.pi) * bins) - .5
+    return np.interp(j, np.arange(-1, bins + 1), np.r_[top[-1], top, top[0]])
 
 
 def front(old, uv, img, P, Fn, Fo, out):
@@ -415,7 +457,7 @@ def front(old, uv, img, P, Fn, Fo, out):
     return out
 
 
-def bake(m, old, uv, img):
+def bake(m, old, uv, img, striped=True):
     vmap, idx, uvn = xatlas.parametrize(m.vertices, m.faces)
     V = m.vertices[vmap]; P, K = [], []
     for f, t in enumerate(uvn[idx]):
@@ -430,7 +472,7 @@ def bake(m, old, uv, img):
         if ok.any(): P.append(bc[ok] @ V[idx[f]]); K.append(gy[ok] * TEX + gx[ok])
     P, K = np.vstack(P), np.concatenate(K)
     out = np.zeros((TEX * TEX, 3), np.uint8); done = np.zeros(TEX * TEX, bool)
-    out[K] = sample(old, uv, img, P, m); done[K] = True
+    out[K] = sample(old, uv, img, P, m, striped); done[K] = True
     _, (iy, ix) = ndimage.distance_transform_edt(~done.reshape(TEX, TEX), return_indices=True)   # bleed past the islands
     return V, idx, uvn, out.reshape(TEX, TEX, 3)[iy, ix]
 
@@ -460,12 +502,13 @@ def save(path, V, F, UV, image):
 
 def main(shape, source, out):
     B = body('C'); T = without_arms(B)
+    piece = os.path.basename(out)[:3]   # NNN.glb, or NNN-anything.glb
     m = without_mannequin(align(load(shape), B), B)
     m = level_hem(fill_holes(m))
-    m = push_out(ease_gap(gather(part_legs(center_legs(m, B)), T), T), T)
+    m = push_out(ease_gap(gather(part_legs(center_legs(m, B)), T, GATHERS.get(piece, GATHER)), T), T)
     m = drop_crumbs(push_out(simplify(m, FACES), T, rounds=3))
     old, uv, img = print_source(source)
-    V, F, UV, image = bake(m, old, uv, img)
+    V, F, UV, image = bake(m, old, uv, img, piece in STRIPED)
     save(out, V, F, UV, image)
     print(f'{out}: {len(F)} triangles, top {V[:, 1].max():.3f} m, hem {V[:, 1].min():.3f} m')
 

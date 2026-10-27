@@ -66,6 +66,11 @@ CASES = {
         'python3 tools/fit/penetration.py',
         'python3 tools/fit/poke_through.py --max-pokes 50 --max-holes 7000 --max-bottom-pokes 30 007',
     ]),
+    'inside-body-006': ('jeans 006 as Tripo made them on its mannequin: 13.9% of the covered neutral body inside them, '
+                        '82.9% at the waist, and the body poking through them', [
+        'python3 tools/fit/penetration.py',
+        'python3 tools/fit/poke_through.py --max-pokes 50 --max-holes 7000 --max-bottom-pokes 30 006',
+    ]),
     'cuff-tip-021': ('tip of the left cuff of 021 hanging 4 cm below the rim, a beige V over the arm', [
         'python3 tools/fit/cuff_tip.py --check',
     ]),
@@ -85,6 +90,10 @@ VISUAL_CASES = {
     'large-jackets': ('jackets 036 and 038 too large for the body, seen in the site: the body poking through 036 and its hem '
                       'loose over trousers 006, the junction of 038 over shorts 008 jagged', [
         RENDER.format('006.036,008.038'),
+    ]),
+    'midriff-006': ('torso between jeans 006 and the short tops 016 and 020, seen in the site: the waistband of the jeans Tripo '
+                    'made sat inside the body, and the mask cut the torso at a line the cloth did not reach', [
+        RENDER.format('006.016,006.020'),
     ]),
     'hip-014': ('hip of trousers 014 outside the tops\' hems, seen in the site: slivers of the hip loose beside the hem of '
                 '022 and the body poking through the cloth of 014.035', [
