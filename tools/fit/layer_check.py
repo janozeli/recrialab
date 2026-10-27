@@ -2,8 +2,8 @@
 
 For each bottom × top pair, with the published layer table, counts the rays where:
 - hole: the first cloth the ray finds is a bottom triangle hidden by the table, above the top's hem (below it the
-  site draws the triangle back, clipped: top_hem.py), with no top in front nor right behind (< 5 cm): there the
-  pants vanish in a jagged line below the hem;
+  site draws the triangle back, clipped: top_hem.py, raised where every layer of the top stands off the bottom), with
+  no top in front nor right behind (< 5 cm): there the pants vanish in a jagged line below the hem;
 - poke: the bottom garment, visible, shows in front of the top with the top right behind (< POKE), found from the
   outside: the waist poking through the blouse. With the top farther behind the pants are only in front of it (the
   arm hanging beside the hip, the hem seen from the side), not poking through. A waist poking deep through (the top more than 3 cm behind) does not count here; on the site
@@ -55,7 +55,7 @@ def measure(pair, hid=None):
     bid, tid = pair.split('.')
     bg = Garment(GARMENTS + f'{bid}.glb'); bm = bg.mesh(); single = bg.single_sided(); tm = Garment(GARMENTS + f'{tid}.glb').mesh()
     h = np.zeros(len(bm.faces), bool); h[hidden(bid, tid) if hid is None else hid] = True
-    hem = top_hem.line(tm.vertices)
+    hem = top_hem.line(tm.vertices); rad = top_hem.radius(tm.vertices, hem)
     rt, rb = RayMeshIntersector(tm), RayMeshIntersector(bm)
     vis = np.nonzero(~h)[0]; rv = RayMeshIntersector(bm.submesh([vis], append=True)) if len(vis) else None
     pokes = holes = 0
@@ -67,7 +67,7 @@ def measure(pair, hid=None):
         with np.errstate(invalid='ignore'):
             hid_hit = np.isfinite(tb) & h[np.maximum(fb, 0)]
             # hidden below the top's hem: the site draws it (garment-hem.ts)
-            p = o[hid_hit] + d[hid_hit] * tb[hid_hit, None]; back = np.zeros(len(o), bool); back[hid_hit] = p[:, 1] < top_hem.height(hem, p)
+            p = o[hid_hit] + d[hid_hit] * tb[hid_hit, None]; back = np.zeros(len(o), bool); back[hid_hit] = p[:, 1] < top_hem.height(hem, p, rad)
             holes += int((hid_hit & ~back & ~(tg < tb + .05)).sum())
             poke = lambda t: np.isfinite(t) & (t < tg) & (tg - t < POKE) & outside
             if rv is not None:

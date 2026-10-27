@@ -4,8 +4,12 @@ import * as THREE from 'three';
 // crossing the hem of the top would vanish whole, and the trousers would end in a jagged edge just below the hem
 // (visual QA, junction). Here the part of a hidden triangle below the hem comes back, cut along the hem line: the edge
 // follows the hem instead of the triangle edge.
+// A top that hangs off the bottom leaves a gap under its hem: from below (the orbit goes 22° under the chest) the eye
+// looks up into it, past the cut, and saw the body above the trousers' cut edge (top 030 over trousers 001). So the cut
+// rises by HEM_LIFT times what the top stands off the point (its innermost fabric up to HEM_BAND above the hem), up to
+// HEM_LIFT_MAX: there the bottom is inside every layer of the top and only that gap shows it.
 // Same numbers as tools/fit/top_hem.py (layer_check.py measures with them).
-export const HEM_STEPS = 72, HEM_TORSO = 0.18;
+export const HEM_STEPS = 72, HEM_TORSO = 0.18, HEM_BAND = 0.05, HEM_LIFT = 0.6, HEM_LIFT_MAX = 0.03;
 
 /** Hem of the top by angle around the body (0° = front, atan2(x, z)): the lowest height of the torso fabric
  * (|x| < HEM_TORSO, leaving out the sleeve at the side) in each slice; an empty slice (open front) interpolates. */
@@ -29,17 +33,35 @@ export function hemLine(positions: ArrayLike<number>[]): Float32Array {
   return out;
 }
 
-/** Hem height at the point (x, z), interpolated between slices. */
-export function hemAt(hem: Float32Array, x: number, z: number): number {
-  const t = ((Math.atan2(x, z) * 180 / Math.PI + 360) % 360) / (360 / HEM_STEPS);
-  const i = Math.floor(t) % HEM_STEPS, f = t - Math.floor(t);
-  return hem[i] * (1 - f) + hem[(i + 1) % HEM_STEPS] * f;
+/** Radius of the hem by angle: the innermost torso fabric (distance from the y axis) up to HEM_BAND above the hem line,
+ * so the cut rises only where every layer of the top (a hem folded inwards too) stands off the point; 0 in an empty
+ * slice (no lift there). */
+export function hemRadius(positions: ArrayLike<number>[], hem: Float32Array): Float32Array {
+  const r = new Float32Array(HEM_STEPS).fill(Infinity);
+  for (const p of positions) for (let i = 0; i < p.length; i += 3) {
+    const x = p[i], y = p[i + 1], z = p[i + 2];
+    if (Math.abs(x) >= HEM_TORSO) continue;
+    const k = Math.floor(((Math.atan2(x, z) * 180 / Math.PI + 360) % 360) / (360 / HEM_STEPS)) % HEM_STEPS;
+    if (y >= hem[k] && y < hem[k] + HEM_BAND) r[k] = Math.min(r[k], Math.hypot(x, z));
+  }
+  return r.map(v => Number.isFinite(v) ? v : 0);
 }
 
-/** The part of the hidden triangles below the hem, with every attribute interpolated at the cut. `toWorld` takes
+/** Hem height at the point (x, z), interpolated between slices; with the hem's radius, raised by what the hem stands
+ * off the point (HEM_LIFT, up to HEM_LIFT_MAX). */
+export function hemAt(hem: Float32Array, x: number, z: number, radius?: Float32Array): number {
+  const t = ((Math.atan2(x, z) * 180 / Math.PI + 360) % 360) / (360 / HEM_STEPS);
+  const i = Math.floor(t) % HEM_STEPS, j = (i + 1) % HEM_STEPS, f = t - Math.floor(t);
+  const y = hem[i] * (1 - f) + hem[j] * f;
+  if (!radius) return y;
+  const off = radius[i] * (1 - f) + radius[j] * f - Math.hypot(x, z);
+  return y + Math.min(HEM_LIFT_MAX, HEM_LIFT * Math.max(0, off));
+}
+
+/** The part of the hidden triangles below the hem (raised by the radius, when given), with every attribute interpolated at the cut. `toWorld` takes
  * the local position to world space (the space of the hem). Returns non-indexed attributes in local space. */
 export function hemFill(geometry: THREE.BufferGeometry, original: ArrayLike<number>, hidden: readonly number[],
-  hem: Float32Array, toWorld: THREE.Matrix4): THREE.BufferGeometry | null {
+  hem: Float32Array, toWorld: THREE.Matrix4, radius?: Float32Array): THREE.BufferGeometry | null {
   if (!hem.some(Number.isFinite)) return null;   // no hem (a top without torso): the table decides
   const names = Object.keys(geometry.attributes);
   const attrs = names.map(n => geometry.getAttribute(n) as THREE.BufferAttribute | THREE.InterleavedBufferAttribute);
@@ -52,7 +74,7 @@ export function hemFill(geometry: THREE.BufferGeometry, original: ArrayLike<numb
     let p = cortes.get(i);
     if (!p) {
       v.fromBufferAttribute(pos, i).applyMatrix4(toWorld);
-      p = { s: hemAt(hem, v.x, v.z) - v.y, a: attrs.map(at => Array.from({ length: at.itemSize }, (_, c) => at.getComponent(i, c))) };
+      p = { s: hemAt(hem, v.x, v.z, radius) - v.y, a: attrs.map(at => Array.from({ length: at.itemSize }, (_, c) => at.getComponent(i, c))) };
       cortes.set(i, p);
     }
     return p;

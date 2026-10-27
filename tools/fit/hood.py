@@ -31,11 +31,9 @@ from known_issues import known_issues
 
 D0, K, RADIUS = .035, .3, .03      # m, fraction of the excess that stays, m
 RADIUS_PIECE = {
-    '030': .025,               # collar of 030: the default radius leaves it behind the hoodBehindCm check
     '035': .05,                # high collar of 035: the default radius flips triangles of the nape seam
 }
 K_PIECE = {
-    '030': 0,                  # collar of 030: keeping part of the excess leaves the nape past the 5 cm limit
 }
 CLOSE = {
     '035': .012,               # m outside the neck: the front of the high collar sat inside it (open collar)
@@ -51,7 +49,6 @@ MAX_COLLAR_STRETCH = .90         # p99 of the collar edges that stretch: a colla
 MAX_INSIDE = .03                 # m: deepest a closed collar vertex may stay inside the neck; on 035 two points at the top centre stay 2.9 cm in, under the collar, and one more round passes MAX_COLLAR_STRETCH
 ORIGINAL = 'tools/fit/reference/originals/before-hood'   # pieces before hood.py first ran
 PIECES = [
-    '030',
     '033',
     '034',
     '035',

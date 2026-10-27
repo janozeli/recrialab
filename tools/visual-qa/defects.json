@@ -54,13 +54,16 @@
   "007.037": "body-framed-by-cloth",
   "010": "body-framed-by-cloth",
   "010.025": "body-framed-by-cloth",
+  "010.030": "body-framed-by-cloth",
   "012.016": "short-tops-midriff"
  },
  "tear": {
   "001.016": "short-tops-midriff",
   "003.018": "body-framed-by-cloth",
+  "003.030": "body-framed-by-cloth",
   "003.033": "body-framed-by-cloth",
   "005.020": "body-framed-by-cloth",
+  "005.035": "short-tops-midriff",
   "006.016": "short-tops-midriff",
   "006.033": "body-framed-by-cloth",
   "006.035": "short-tops-midriff",
@@ -80,11 +83,11 @@
   "007.038": "body-framed-by-cloth",
   "008.038": "body-framed-by-cloth",
   "010.025": "body-framed-by-cloth",
+  "010.030": "waistband-010",
   "012.016": "short-tops-midriff",
   "014.016": "jagged-junction",
   "014.033": "jagged-junction",
-  "014.035": "jagged-junction",
-  "015.030": "body-framed-by-cloth"
+  "014.035": "jagged-junction"
  },
  "see_through": {
   "003.033": "jagged-junction",
