@@ -42,6 +42,9 @@ test('a fit tool only turns on its own job', () => {
 test('a calibration case or script also photographs the looks of the visual cases', () => {
   const looks = calibrationLooks(readFileSync(new URL('../tools/fit/calibration.py', import.meta.url), 'utf8'));
   expect(looks).toContain('014.022');
+  // every visual case names its looks as a literal, or the filter would read none and skip visual QA silently
+  const text = readFileSync(new URL('../tools/fit/calibration.py', import.meta.url), 'utf8');
+  expect(text.match(/RENDER\.format\(/g)!.length).toBe([...text.matchAll(/RENDER\.format\('[^']+'\)/g)].length);
   for (const a of ['tools/fit/calibration.py', 'tools/fit/reference/calibration/hip-014/before/garments/014.glb'])
     expect(filter([a], none)).toEqual({ fit: true, phones: false, visualQa: [...looks].sort().join(',') });
   expect(calibrationLooks("RENDER.format('003.033'),\n RENDER.format('014.022,014.035')")).toEqual(['003.033', '014.022', '014.035']);
