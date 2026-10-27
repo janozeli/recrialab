@@ -33,7 +33,7 @@ o PR que apertou fica vermelho e atualiza o depois.
 | `torn-sleeve-022/` | 63 faces tiradas da manga direita da 022, de 2 a 9 cm acima da barra: o recorte do braço por vista tira o braço de vista atrás do rasgo, e só o braço recortado sem pano na frente o denuncia | `poke_through.py 022`: furos acima do teto de `TOP_HOLES`; `sleeve_tear.py 022`: 51 faces de área zero na manga |
 | `torn-sleeve-020/` | 17 faces da manga direita da 020 com área zero, de 0,4 a 3,2 cm acima da barra: de baixo, o braço atrás do rasgo parece o braço subindo na manga, que a medida visual deixa de fora | `sleeve_tear.py 020`: 12 faces de área zero na manga, acima da barra |
 | `cords-009/` | cordões pendurados na frente da saia 009, que o 3D desenhou onde a foto tem botões | `cords.py --measure --max 10` (203,4 cm² → abaixo de 10) |
-| `inside-body-007/` | saia 007 como o Tripo a fez no manequim dele: 5,4% do corpo neutro coberto fica dentro dela, 13,8% no quadril | `penetration.py` contra `penetration.json` (5,4 → 0,1%) |
+| `inside-body-007/` | saia 007 como o Tripo a fez no manequim dele: 5,4% do corpo neutro coberto fica dentro dela, 13,8% no quadril | `penetration.py` contra `penetration.json` (5,4 → 0,1%); `poke_through.py 007` (43 → 3 pontas, limite 30) |
 | `large-jackets/` | jaquetas 036 e 038 grandes demais para o corpo: manga passando dos dedos, barra no gancho | `site/fit.test.ts`: `-t 'long sleeves'` pega os dois testes de manga (no braço de perfil e terminando no pulso); `-t 'no lining hanging'`, o forro abaixo da barra |
 
 Estado de cada arquivo:

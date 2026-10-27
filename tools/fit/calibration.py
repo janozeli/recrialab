@@ -49,8 +49,10 @@ CASES = {
     'cords-009': ('cords hanging down the front of skirt 009, which the 3D model drew where the photo has buttons', [
         'python3 tools/fit/cords.py --measure --max 10',
     ]),
-    'inside-body-007': ('skirt 007 as Tripo made it on its mannequin: 5.4% of the covered neutral body inside it, 14% at the hip', [
+    'inside-body-007': ('skirt 007 as Tripo made it on its mannequin: 5.4% of the covered neutral body inside it, 14% at the hip, '
+                        'and the body poking through it', [
         'python3 tools/fit/penetration.py',
+        'python3 tools/fit/poke_through.py --max-pokes 50 --max-holes 7000 --max-bottom-pokes 30 007',
     ]),
     'cuff-tip-021': ('tip of the left cuff of 021 hanging 4 cm below the rim, a beige V over the arm', [
         'python3 tools/fit/cuff_tip.py --check',
