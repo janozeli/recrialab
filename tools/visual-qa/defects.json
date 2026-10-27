@@ -32,6 +32,7 @@
   "006": "spiky-hems",
   "006.021": "spiky-hems",
   "008": "spiky-hems",
+  "008.028": "spiky-hems",
   "009": "spiky-hems",
   "011.026": "spiky-hems",
   "014.033": "spiky-hems"
@@ -40,7 +41,8 @@
   "007.022": "body-framed-by-cloth",
   "007.037": "body-framed-by-cloth",
   "010": "body-framed-by-cloth",
-  "010.025": "body-framed-by-cloth"
+  "010.025": "body-framed-by-cloth",
+  "012.016": "short-tops-midriff"
  },
  "tear": {
   "001.016": "short-tops-midriff",
@@ -55,6 +57,7 @@
   "008.020": "arm-in-sleeve-opening",
   "008.038": "body-framed-by-cloth",
   "010.025": "body-framed-by-cloth",
+  "012.016": "short-tops-midriff",
   "012.030": "arm-in-sleeve-opening",
   "014.016": "jagged-junction",
   "014.033": "jagged-junction",
