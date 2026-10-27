@@ -10,7 +10,7 @@ import { createCameraMotion } from './camera-motion';
 import { exportLookImage } from './look-export';
 import { addPngText, encodeLook, LOOK_VERSION, parseLook, readPngText } from './look-code';
 import { BODY_POSES, bodyPoseForBottom, type BodyPose } from './body-poses';
-import { visibleBodyIndices, validateBodyMask, bodyClip, type BodyMask } from './body-occlusion';
+import { visibleBodyIndices, validateBodyMask, bodyClip, qaSleeve, type BodyMask } from './body-occlusion';
 import { BODY_MASKS, BODY_C_MASKS } from './body-masks';
 import { stageLabel } from './stage-label';
 import { addGarmentLights, matteFabric } from './fabric';
@@ -401,7 +401,7 @@ export function initDressUp(): void {
   const bodyGeometry: { pose: BodyPose; mesh: THREE.Mesh; original: Uint16Array | Uint32Array; setClip: (waist: readonly number[] | undefined, neck: readonly number[] | undefined, sleeve?: readonly number[], sleeveBand?: number) => void }[] = [];
   // Visual QA (tools/verify-site/visual-qa.mjs) photographs the stage from any point of the orbit; localhost only.
   if (['localhost', '127.0.0.1'].includes(location.hostname) && params.has('qa')) {
-    Object.assign(window, { __qa: { THREE, scene, camera, controls, renderer, worn, mannequin, followCamera, bodyGeometry } });
+    Object.assign(window, { __qa: { THREE, scene, camera, controls, renderer, worn, mannequin, followCamera, bodyGeometry, qaSleeve } });
   }
   const bodyRoots = new Map<BodyPose, THREE.Object3D>();
   function updateGarmentLayering(): void {
