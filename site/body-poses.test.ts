@@ -2,8 +2,9 @@ import { test, expect } from 'bun:test';
 import { readFileSync, readdirSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { BODY_POSES, bodyPoseForBottom } from './body-poses';
-import { validateBodyMask, WAIST_STEPS, WAIST_TORSO, WAIST_BAND, NECK_STEPS, NECK_AXIS_Z, NECK_RADIUS, NECK_BAND,
-  SLEEVE_STEPS, SLEEVE_ARM_X, SLEEVE_RADIUS, SLEEVE_BAND, SLEEVE_AXIS } from './body-occlusion';
+import * as THREE from 'three';
+import { validateBodyMask, bodyClip, WAIST_STEPS, WAIST_TORSO, WAIST_BAND, NECK_STEPS, NECK_AXIS_Z, NECK_RADIUS, NECK_BAND,
+  SLEEVE_STEPS, SLEEVE_ARM_X, SLEEVE_RADIUS, SLEEVE_BAND, SLEEVE_AXIS, SLEEVE_POKE } from './body-occlusion';
 import { BODY_MASKS, BODY_C_MASKS } from './body-masks';
 
 const asset = (name) => new URL(`./assets/${name}`, import.meta.url);
@@ -96,6 +97,7 @@ test('sleeve lines match the shader clip and sit between the wrist and the armpi
   expect(Number(armX)).toBe(SLEEVE_ARM_X);
   expect(Number(radius)).toBe(SLEEVE_RADIUS);
   expect(Number(band)).toBe(SLEEVE_BAND);
+  expect(Number(py.match(/^POKE = ([\d.]+)/m)[1])).toBe(SLEEVE_POKE);
   const axis = py.match(/^AXIS_Y, AXIS_X, AXIS_Z, AXIS_DX, AXIS_DZ = (-?[\d.]+), (-?[\d.]+), (-?[\d.]+), (-?[\d.]+), (-?[\d.]+)/m).slice(1).map(Number);
   expect(axis).toEqual([SLEEVE_AXIS.y, SLEEVE_AXIS.x, SLEEVE_AXIS.z, SLEEVE_AXIS.dx, SLEEVE_AXIS.dz]);
   const ids = py.match(/^IDS = \[([^\]]*)\]/m)[1].match(/\d{3}/g).sort();
@@ -115,4 +117,20 @@ test('the mask generator never reads the accepted-defects list (a removed accept
   for (const f of readdirSync(dir).filter(f => f.endsWith('.py'))) {
     expect(readFileSync(new URL(f, dir), 'utf8').includes('defects.json'), f).toBe(false);
   }
+});
+
+// The arm in the sleeve band goes only with cloth in front of it or up to SLEEVE_POKE behind it (the clothes' depth,
+// drawn before the body): a clip with no cloth behind opened a slit to the background beside the torso (022, front).
+test('the sleeve clip discards the arm only where the clothes depth is close behind it', () => {
+  const mesh = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshStandardMaterial());
+  bodyClip(mesh, mesh.material);
+  const shader = { uniforms: {}, vertexShader: '#include <common>\n#include <begin_vertex>',
+    fragmentShader: '#include <common>\n#include <clipping_planes_fragment>' };
+  mesh.material.onBeforeCompile(shader, null);
+  const sleeve = shader.fragmentShader.slice(shader.fragmentShader.indexOf('sleeveH'));
+  const band = sleeve.slice(sleeve.indexOf(`y + ${SLEEVE_BAND.toFixed(3)}`));
+  expect(band.indexOf(`if (uClothReady > 0.5 && cloth < 1.0 && behind < ${SLEEVE_POKE.toFixed(3)}) discard`)).toBeGreaterThan(0);
+  expect(band.split('discard').length - 1).toBe(1);
+  expect(shader.uniforms).toHaveProperty('uCloth');
+  expect(mesh.onBeforeRender).not.toBe(THREE.Object3D.prototype.onBeforeRender);
 });

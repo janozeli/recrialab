@@ -49,7 +49,7 @@ for id in ([] if bottoms else tops):
             L = collar.line(g, body); mask['neck_line'] = [round(float(v), 4) for v in L]
             hide = np.zeros(len(body.faces), bool); hide[hidden] = True; hidden = np.nonzero(hide & ~collar.band(body, L))[0]
         if id in sleeve.IDS:   # shader clip at the sleeve hem (sleeve.py): line of the new geometry, band given back
-            L = sleeve.line(g, body); mask['sleeve_line'] = [round(float(v), 4) for v in L]
+            L = sleeve.hem(g, body); mask['sleeve_line'] = [round(float(v), 4) for v in L]
             hide = np.zeros(len(body.faces), bool); hide[hidden] = True; hidden = np.nonzero(hide & ~sleeve.band(body, L))[0]
         hide = np.zeros(len(body.faces), bool); hide[hidden] = True   # shoulder poking through the strap (strap.py)
         hidden = np.nonzero(hide | strap.extra(body, g, hide))[0]
