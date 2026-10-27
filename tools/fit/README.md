@@ -85,7 +85,7 @@ lista os triângulos da peça de baixo que somem sob cada peça de cima (mais em
 | `install.py` | gera de novo as máscaras (poses B e C) e as tabelas de camadas de uma peça (`--bottom` para peça de baixo) |
 | `gen_mask.py` | calcula a máscara de uma peça |
 | `gen_layers.py`, `layer_tables.py` | calculam e gravam as tabelas de camadas (`site/assets/layers/`), uma linha por peça de cima |
-| `waist.py`, `collar.py`, `sleeve.py` | medem a altura do cós, da gola e da barra da manga em volta do corpo; o site corta o corpo nessa linha, pixel a pixel. Na faixa da manga, o braço só some no pixel em que a roupa está na frente dele ou até 15 cm atrás (o site desenha a profundidade da roupa antes do corpo); sem roupa ali, o braço fica e o vão ao lado do tronco mostra braço, não fundo. `sleeve.py --check` falha onde a linha gravada sai da barra da manga |
+| `waist.py`, `collar.py`, `sleeve.py` | medem a altura do cós, da gola e da barra da manga em volta do corpo; o site corta o corpo nessa linha, pixel a pixel. Na faixa da manga, o braço só some no pixel em que a roupa está na frente dele ou até 15 cm atrás (o site desenha a profundidade da roupa antes do corpo); sem roupa ali, o braço fica e o vão ao lado do tronco mostra braço, não fundo. A faixa tem 10 cm acima da barra; as peças em `WIDE` (016, 20 cm: a manga é mais estreita que o braço nas costas até a axila) levam a altura na máscara (`sleeve_band`). `sleeve.py --check` falha onde a linha gravada sai da barra da manga |
 | `top_hem.py` | mede a barra da peça de cima em volta do corpo, a mesma linha usada em `site/garment-hem.ts` |
 | `strap.py` | esconde o ombro que atravessa a alça das regatas (chamado por `install.py`) |
 | `mask_io.py`, `garment.py`, `glb_patch.py` | leitura e escrita de máscaras e GLBs |
@@ -97,7 +97,8 @@ os pares cujo hash mudou.
 
 | Script | Reprova |
 |---|---|
-| `poke_through.py` | corpo atravessando a roupa ou aparecendo oco sob ela; na faixa da manga, braço recortado sem pano na frente conta como buraco (016 e 022 com base própria em `TOP_HOLES`, que só baixa; caso de calibração `torn-sleeve-022`) |
+| `poke_through.py` | corpo atravessando a roupa ou aparecendo oco sob ela; na faixa da manga, braço recortado sem pano na frente nem até 5 cm atrás conta como buraco, como o triângulo escondido (cada peça de manga curta com base própria em `TOP_HOLES`, que só baixa; caso de calibração `torn-sleeve-022`) |
+| `sleeve_tear.py` | rasgo na manga curta, na malha: face de área zero ou borda aberta entre a barra e a axila (base por peça em `EDGE`, em cm, que só baixa: o rasgo que chega à barra ou à cava soma igual); segura o rasgo com a parede do fundo a menos de 5 cm, que `poke_through.py` deixa passar como triângulo escondido (casos `torn-sleeve-022` e `torn-sleeve-020`) |
 | `layer_check.py` | peça de baixo com borda serrilhada sob a barra da de cima ou que a atravessa, nos 345 pares; por peça, a soma dos seus pares acima do valor registrado em `layer_baseline.json`, que só pode baixar |
 | `holes.py` | rasgo na frente das peças de baixo mostrando o corpo |
 | `crotch.py --measure` | tecido no vão entre as coxas do short 008 |

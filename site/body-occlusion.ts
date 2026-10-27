@@ -12,6 +12,8 @@ export interface BodyMask {
   neck_line?: number[];
   /** Hem of the sleeves of the top piece by angle around each arm, right then left (tools/fit/sleeve.py). */
   sleeve_line?: number[];
+  /** Height of the clipped band above that hem, where it is not SLEEVE_BAND (tools/fit/sleeve.py, WIDE). */
+  sleeve_band?: number;
 }
 
 // Same numbers as tools/fit/waist.py: the torso between the waistband line and BAND below it is discarded per pixel.
@@ -57,7 +59,7 @@ function drawClothDepth(renderer: THREE.WebGLRenderer, scene: THREE.Scene, camer
 export function bodyClip(mesh: THREE.Mesh, material: THREE.Material) {
   const uniforms = { uWaist: { value: new Float32Array(WAIST_STEPS) }, uWaistOn: { value: 0 },
     uNeck: { value: new Float32Array(NECK_STEPS) }, uNeckOn: { value: 0 },
-    uSleeve: { value: new Float32Array(2 * SLEEVE_STEPS) }, uSleeveOn: { value: 0 },
+    uSleeve: { value: new Float32Array(2 * SLEEVE_STEPS) }, uSleeveOn: { value: 0 }, uSleeveBand: { value: SLEEVE_BAND },
     uCloth: { value: clothDepth.target.depthTexture }, uClothSize: { value: clothDepth.size },
     uClothNear: clothDepth.near, uClothFar: clothDepth.far, uClothReady: clothDepth.ready };
   mesh.onBeforeRender = (renderer, scene, camera) => {
@@ -77,6 +79,7 @@ uniform float uNeck[${NECK_STEPS}];
 uniform float uNeckOn;
 uniform float uSleeve[${2 * SLEEVE_STEPS}];
 uniform float uSleeveOn;
+uniform float uSleeveBand;
 uniform sampler2D uCloth;
 uniform vec2 uClothSize;
 uniform float uClothNear;
@@ -104,7 +107,7 @@ if (uSleeveOn > 0.5 && abs(vWaistBody.x) > ${SLEEVE_ARM_X.toFixed(3)} && length(
   int o = vWaistBody.x > 0.0 ? 0 : ${SLEEVE_STEPS};
   int i = int(floor(t)) % ${SLEEVE_STEPS};
   float y = mix(uSleeve[o + i], uSleeve[o + (i + 1) % ${SLEEVE_STEPS}], fract(t));
-  if (vWaistBody.y > y && vWaistBody.y < y + ${SLEEVE_BAND.toFixed(3)}) {
+  if (vWaistBody.y > y && vWaistBody.y < y + uSleeveBand) {
     float cloth = texture2D(uCloth, gl_FragCoord.xy / uClothSize).x;
     // view z of a perspective depth: near far / ((far - near) depth - far)
     float nf = uClothNear * uClothFar, fn = uClothFar - uClothNear;
@@ -114,7 +117,7 @@ if (uSleeveOn > 0.5 && abs(vWaistBody.x) > ${SLEEVE_ARM_X.toFixed(3)} && length(
 }`);
   };
   material.customProgramCacheKey = () => 'body-clip';
-  return (waist: readonly number[] | undefined, neck: readonly number[] | undefined, sleeve?: readonly number[]) => {
+  return (waist: readonly number[] | undefined, neck: readonly number[] | undefined, sleeve?: readonly number[], sleeveBand = SLEEVE_BAND) => {
     if (waist && waist.length !== WAIST_STEPS) throw new Error('Waist line does not match the body clip');
     if (neck && neck.length !== NECK_STEPS) throw new Error('Neck line does not match the body clip');
     if (sleeve && sleeve.length !== 2 * SLEEVE_STEPS) throw new Error('Sleeve line does not match the body clip');
@@ -124,6 +127,7 @@ if (uSleeveOn > 0.5 && abs(vWaistBody.x) > ${SLEEVE_ARM_X.toFixed(3)} && length(
     if (neck) uniforms.uNeck.value.set(neck);
     uniforms.uSleeveOn.value = sleeve ? 1 : 0;
     if (sleeve) uniforms.uSleeve.value.set(sleeve);
+    uniforms.uSleeveBand.value = sleeveBand;
   };
 }
 

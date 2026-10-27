@@ -87,18 +87,23 @@ def near(P):
     return (np.abs(P[:, 0]) > ARM_X) & (np.linalg.norm(plane(P), axis=1) < RADIUS)
 
 
-def clipped(P, L):
-    """What the shader discards: arm near the axis between the hem line and BAND above it."""
+def clipped(P, L, h=BAND):
+    """What the shader discards: arm near the axis between the hem line and the band (h) above it."""
     y = on_line(P, L)
-    return near(P) & (P[:, 1] > y) & (P[:, 1] < y + BAND)
+    return near(P) & (P[:, 1] > y) & (P[:, 1] < y + h)
 
 
-def band(b, L):
-    """Triangles the shader handles: every vertex near the axis, below the top of the band and above BELOW under
-    the line."""
+def band(b, L, h=BAND):
+    """Triangles the shader handles: every vertex near the axis, below the top of the band (h above the line) and
+    above BELOW under the line."""
     V = b.vertices; y = on_line(V, L)
-    ok = near(V) & (V[:, 1] < y + BAND - .005) & (V[:, 1] > y - BELOW)
+    ok = near(V) & (V[:, 1] < y + h - .005) & (V[:, 1] > y - BELOW)
     return ok[b.faces].all(1)
+
+
+def height(pid):
+    """Band of the piece: WIDE where the arm is wider than the sleeve up to the armpit, else BAND."""
+    return WIDE.get(pid, BAND)
 
 
 def cut_from(mask, rg):
@@ -107,10 +112,10 @@ def cut_from(mask, rg):
     before the body; with no cloth there, the arm stays and shows, never the background."""
     L = mask.get('sleeve_line')
     if L is None: return None
-    L = np.array(L)
+    L = np.array(L); h = mask.get('sleeve_band', BAND)
 
     def cut(P, d):
-        c = clipped(P, L); k = np.nonzero(c)[0]
+        c = clipped(P, L, h); k = np.nonzero(c)[0]
         if len(k):
             t, _ = first(rg, P[k] - 2 * d, np.repeat(d[None], len(k), 0)); c[k[~(t < 2 + POKE)]] = False
         return c
@@ -140,6 +145,13 @@ IDS = [
     '030',
     '032',
 ]
+# band (m) of the pieces whose sleeve is narrower than the arm at the back up to the armpit (016, from behind: hiding
+# that arm by triangles showed the background where it is); the mask carries it as sleeve_band
+WIDE = {
+    '016': .20,
+}
+
+
 def check():
     """Every stored line equal to hem() of the garment and body as they are now (CI): below it, the band clips arm
     where the sleeve does not cover it; above it, the arm shows over the sleeve's cloth."""
@@ -165,7 +177,9 @@ elif __name__ == '__main__':
             if not os.path.exists(MASKS + path): continue
             b = body(pose); mask = json.load(open(MASKS + path)); L = hem(g, b)
             hide = np.zeros(len(b.faces), bool); hide[hidden_indices(mask)] = True
-            before = hide.sum(); hide &= ~band(b, L)
+            before = hide.sum(); hide &= ~band(b, L, height(pid))
             mask['sleeve_line'] = [round(float(v), 4) for v in L]
+            mask.pop('sleeve_band', None)
+            if pid in WIDE: mask['sleeve_band'] = WIDE[pid]
             save(MASKS + path, mask, np.nonzero(hide)[0])
             print(pid, pose, 'line', round(L.min(), 3), '–', round(L.max(), 3), 'triangles returned', int(before - hide.sum()))
