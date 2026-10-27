@@ -44,6 +44,7 @@
  },
  "tear": {
   "001.016": "short-tops-midriff",
+  "001.020": "arm-in-sleeve-opening",
   "003.018": "body-framed-by-cloth",
   "003.033": "body-framed-by-cloth",
   "005.020": "body-framed-by-cloth",
@@ -51,8 +52,10 @@
   "006.036": "short-tops-midriff",
   "007.022": "body-framed-by-cloth",
   "007.037": "body-framed-by-cloth",
+  "008.020": "arm-in-sleeve-opening",
   "008.038": "body-framed-by-cloth",
   "010.025": "body-framed-by-cloth",
+  "012.030": "arm-in-sleeve-opening",
   "014.016": "jagged-junction",
   "014.033": "jagged-junction",
   "014.035": "jagged-junction",
@@ -65,5 +68,8 @@
   "014.022": "jagged-junction",
   "014.033": "body-framed-by-cloth",
   "014.035": "jagged-junction"
+ },
+ "arm_gap": {
+  "003.033": "arm-slit"
  }
 }

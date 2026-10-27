@@ -14,13 +14,13 @@
   title: "Body showing through hems, cuffs and tears"
   pieces: ["003", "005", "006", "007", "008", "010", "015", "028", "033", "035", "036", "038"]
 
+- id: arm-in-sleeve-opening
+  title: "Arm going up into a short sleeve, seen from below past the hem, measured as a tear"
+  pieces: ["020", "030"]
+
 - id: jagged-junction
   title: "Bottom jagged under the hem of a few tops, seen from below"
   pieces: ["003", "007", "008", "014"]
-
-- id: sleeve-slit
-  title: "Slit to the background between the arm and the torso under short sleeves, where raising the clip would show the arm over the sleeve"
-  pieces: ["017", "018", "019", "020", "021", "022", "024", "026", "029", "030"]
 
 - id: stretched-collar
   title: "High collar stretched up to 90% to close around the neck; body mask below 1.40 m kept from before the change"
@@ -37,3 +37,7 @@
 - id: waistband-010
   title: "Skirt 010 with its waistband on the hips"
   pieces: ["010"]
+
+- id: arm-slit
+  title: "Slit to the background between the sleeve and the side of jacket 033 where the hidden arm is, seen from the front"
+  pieces: ["033"]
