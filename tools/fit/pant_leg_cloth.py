@@ -17,7 +17,10 @@ usage: python3 tools/fit/separate_legs.py ORIGINAL.glb INPUT.glb ORIGINAL_SEP.gl
        leg below the shin (cuff.py): python3 tools/fit/shin_tube.py ORIGINAL_SEP.glb SEPARATED.glb ORIGINAL_SEP.glb SEPARATED.glb NNN];
        python3 tools/fit/leg_shape.py SEPARATED.glb NNN.glb NNN --again (INPUT is the published GLB, already run through leg_shape.py)
        python3 tools/fit/pant_leg_cloth.py ORIGINAL_SEP.glb NNN.glb OUTPUT.glb   (ORIGINAL: tools/fit/reference/originals/tripo/NNN.glb;
-       then install.py --bottom NNN, only the new mask (joining it with the old one opens holes), and install.py --bottom-line NNN)"""
+       then install.py --bottom NNN, only the new mask (joining it with the old one opens holes), and install.py --bottom-line NNN)
+       python3 tools/fit/pant_leg_cloth.py --whole ORIGINAL.glb INPUT.glb OUTPUT.glb   (the whole piece below the waistband as
+       cloth in one step, with the edge lengths of the ORIGINAL and INPUT's waistband, for trousers whose fabric is wide
+       enough for the neutral body: WHOLE_PIECES)"""
 import sys, struct, numpy as np, trimesh
 from scipy.spatial import cKDTree
 from garment import Garment
@@ -32,6 +35,12 @@ TOP, LOOSE = .80, .10   # above TOP nothing moves; the fabric comes loose over L
 WAIST = .02          # band measured on its own around TOP
 CROTCH = .80         # below this each side collides only with its own leg
 STEPS, ROUNDS = 250, 12
+WHOLE_TOP, WHOLE_STEPS = 2., 400   # --whole: only the waistband held (TOP stands for "no constant line"), and more steps
+# the pieces dressed with --whole (stretch.py measures their waist below the waistband)
+WHOLE_PIECES = {
+    '004',
+}
+WAISTBAND, EDGE_STEP = .05, 10   # dressed whole, the waistband: the band below the top edge, per slice of degrees
 WALL_BEND = 1.       # the inner wall (separate_legs.py) is flat: when it bends it turns inside out
 BEND = .1            # bending stiffness (stiffer bending stretches the print more)
 ARM_X = .17          # the arm hangs beside the thigh: it is not a collider
@@ -40,6 +49,11 @@ MIDDLE, CUFF = .015, .20   # regions measured on their own: the middle between t
 MAX = {'middle': (.15, .35), 'cuff': (.10, .35), 'waist': (.10, .35), 'hip': (.10, .35), 'rest': (.10, .35)}   # p99 of the edge length and of the area of the faces that move
 THIN = .1            # height / longest side below this: a sliver
 MAX_FLIPPED = .007   # area of flipped faces (the cuff folding over the sneaker)
+# the waistband, per SECTOR degrees around the hip: the top BAND below the edge stretches (p99 of the area) up to
+# MAX_BAND_AREA, and the edge does not slide down more than MAX_DROP against the original. Dressed whole as cloth, 004's
+# waistband slid 1.4 cm down the back and folded over (33% at 210 degrees) while the waist region's p99 read 13.6%;
+# the published bottoms reach 27.6% (012) and 0.1 cm (calibration case waistband-004)
+SECTOR, BAND, MAX_BAND_AREA, MAX_DROP = 30, .07, .30, .005
 # fraction of the way to the center: wholly at the center, the wide hem of 006 moves in front of its back hem and the
 # ankle shows through the fraying; less than this, the fraying leaves the leg (cuff.py)
 CENTER_PIECES = {'006': .8}
@@ -81,18 +95,34 @@ def constrain(X, idx, rest, k):
     return acc / np.maximum(n, 1)[:, None]
 
 
-def regions(Xo, F):
+def waistband(Xo):
+    """Dressed whole: per vertex, its slice of EDGE_STEP degrees around the hip, the hip's center (x, z) and the height
+    of the top edge per slice."""
+    h = Xo[Xo[:, 1] >= CROTCH]; o = h[:, [0, 2]].mean(0)
+    sl = lambda P: (np.degrees(np.arctan2(P[:, 0] - o[0], P[:, 2] - o[1])) % 360 // EDGE_STEP).astype(int)
+    edge = np.full(360 // EDGE_STEP, -np.inf); np.maximum.at(edge, sl(h), h[:, 1])
+    return sl, o, edge
+
+
+def regions(Xo, F, whole=False):
     """Region of each face: 'middle' (center closer than MIDDLE to x = 0, below CROTCH), 'cuff' (below CUFF), 'waist'
-    (within WAIST of TOP, where the held fabric meets the loose one and a pleat can form), 'hip' (from CROTCH up, which
-    leg_shape.py moves), 'rest'. Each is measured on its own so that a small region that stretches shows."""
+    (within WAIST of TOP, where the held fabric meets the loose one and a pleat can form; dressed whole, the held part is
+    the waistband and TOP is WAISTBAND below its top edge, per slice of EDGE_STEP degrees around the hip),
+    'hip' (from CROTCH up, which leg_shape.py moves), 'rest'. Each is measured on its own so that a small region that
+    stretches shows."""
     c = Xo[F].mean(1); top = Xo[F, 1].max(1)
     base = Xo[F, 1].min(1)
+    if whole:
+        sl, _, edge = waistband(Xo)
+        line = edge[sl(c)] - WAISTBAND
+        waist = (top >= CROTCH) & (top >= line - WAIST) & (base < line + WAIST)
+    else:
+        waist = (top >= TOP - WAIST) & (base < TOP + WAIST)
     return np.where((np.abs(c[:, 0]) < MIDDLE) & (top < CROTCH), 'middle', np.where(top < CUFF, 'cuff',
-                    np.where((top >= TOP - WAIST) & (base < TOP + WAIST), 'waist',
-                             np.where(base >= CROTCH, 'hip', 'rest'))))
+                    np.where(waist, 'waist', np.where(base >= CROTCH, 'hip', 'rest'))))
 
 
-def measures(Xo, X, F, printed=None, moved=None):
+def measures(Xo, X, F, printed=None, moved=None, whole=False):
     """Per region: p99 of the change in edge length and in area of the faces that move, against the original; and the
     fraction of the area in flipped faces. A face without print (the three UVs on the same point: the walls of
     separate_legs.py, of a single colour) does not distort any design and stays out of the p99. The area only counts
@@ -107,13 +137,33 @@ def measures(Xo, X, F, printed=None, moved=None):
     if printed is not None: move &= printed
     if moved is not None: move &= moved[F].any(1)   # only what this step moved (the rest comes from earlier steps)
     full = a0 / np.maximum(L0.max(1), 1e-9) ** 2 >= THIN
-    r, out = regions(Xo, F), {}
+    r, out = regions(Xo, F, whole), {}
     for name in MAX:
         k = move & (r == name); e = est[k][L0[k] > 1e-5]
         out[name] = (np.percentile(e, 99) if len(e) else 0.0, np.percentile(area[k & full], 99) if (k & full).any() else 0.0)
     flipped = (np.einsum('ij,ij->i', n0, n1) < 0) & (True if moved is None else moved[F].any(1))   # flipped in this step
     if printed is not None: flipped &= printed   # a wall without print folding is no design turned over
     return out, a0[flipped].sum() / a0.sum()
+
+
+def waistband_check(Xo, X, F, printed):
+    """Per SECTOR of the waistband: p99 of the change in area of its printed faces in the top BAND, and the median drop
+    of its top edge, against the original; returns the worst of each."""
+    sl, o, edge = waistband(Xo); c = Xo[F].mean(1); top = Xo[F, 1].max(1)
+    band = printed & (top >= CROTCH) & (top >= edge[sl(c)] - BAND)
+    n0 = np.cross(Xo[F[:, 1]] - Xo[F[:, 0]], Xo[F[:, 2]] - Xo[F[:, 0]]); n1 = np.cross(X[F[:, 1]] - X[F[:, 0]], X[F[:, 2]] - X[F[:, 0]])
+    a0 = np.linalg.norm(n0, axis=1); area = np.abs(np.linalg.norm(n1, axis=1) / np.maximum(a0, 1e-12) - 1)
+    L0 = np.max([np.linalg.norm(Xo[F[:, i]] - Xo[F[:, (i + 1) % 3]], axis=1) for i in range(3)], 0)
+    band &= a0 / np.maximum(L0, 1e-9) ** 2 >= THIN
+    sector = lambda P: (np.degrees(np.arctan2(P[:, 0] - o[0], P[:, 2] - o[1])) % 360 // SECTOR).astype(int)
+    fs = sector(c); worst_area = max([np.percentile(area[band & (fs == k)], 99) for k in set(fs[band])
+                                      if (band & (fs == k)).sum() >= 5] or [0.])
+    m = trimesh.Trimesh(X, F, process=False)
+    v = np.unique(m.edges_sorted[trimesh.grouping.group_rows(m.edges_sorted, require_count=1)])
+    v = v[(Xo[v, 1] >= CROTCH) & (Xo[v, 1] >= edge[sl(Xo[v])] - .03)]   # the top edge (the leg openings are far lower)
+    vs = sector(Xo[v]); drop = Xo[v, 1] - X[v, 1]
+    worst_drop = max([np.median(drop[vs == k]) for k in set(vs) if (vs == k).sum() >= 3] or [0.])
+    return worst_area, worst_drop
 
 
 def center_cuffs(X0, side, b, strength=1.):
@@ -158,7 +208,16 @@ def dress(orig, src, dst):
     X0 = center_cuffs(X0, side, b, CENTER_PIECES.get(pid, 1.))
     # nothing of the original's hip moves: where displacement_field.py lowered the hip, the band below TOP would pull it
     # back to the original's length and stretch it
-    w = np.clip((TOP - np.maximum(X0[:, 1], Xo[:, 1])) / LOOSE, 0, 1); movable = w > 0
+    whole = TOP >= WHOLE_TOP
+    if whole:
+        # dressed whole, the waistband stays as in INPUT (already fitted by waist.py and waistband.py) and the cloth
+        # starts below it: Tripo's waistband of 004 is 1 to 3 cm narrower than the body at the sides and back; dressed as
+        # cloth it slid 3 cm down the small of the back and folded over, pushed out whole it stretches 38%, and held as
+        # Tripo made it the body pokes through it 212 times (poke_through.py) instead of INPUT's 99
+        sl, _, edge = waistband(Xo); top = edge[sl(Xo)] - WAISTBAND
+    else:
+        top = TOP
+    w = np.clip((top - np.maximum(X0[:, 1], Xo[:, 1])) / LOOSE, 0, 1); movable = w > 0
 
     def collide(X):
         sd = np.zeros(len(X)); n = np.zeros_like(X); d = np.zeros(len(X))
@@ -182,14 +241,23 @@ def dress(orig, src, dst):
         X[inside] += ((slack[inside] - sd[inside]) * w[inside])[:, None] * n[inside]
         far = movable & (sd > ceiling) & (d < .10)
         X[far] -= ((sd[far] - ceiling[far]) * w[far])[:, None] * n[far]
-    m, flipped = measures(Xo, X, F, ~plain, np.linalg.norm(X - X0, axis=1) > 1e-4)
+    m, flipped = measures(Xo, X, F, ~plain, np.linalg.norm(X - X0, axis=1) > 1e-4, whole)
     sd, _, d = collide(X)
     print(f'{pid}: ' + ', '.join(f'{k} {100 * e:.1f}% (area {100 * a:.1f}%)' for k, (e, a) in m.items()) +
           f'; flipped {100 * flipped:.2f}% of the area; inside the body {int(((sd < -.003) & movable & (d < .06)).sum())} vertices')
-    bad = [k for k in MAX if m[k][0] > MAX[k][0] or m[k][1] > MAX[k][1]] + (['flipped'] if flipped > MAX_FLIPPED else [])
+    band_area, drop = waistband_check(Xo, X, F, ~plain)
+    print(f'{pid}: waistband {100 * band_area:.1f}% (area), its edge {100 * drop:.1f} cm lower')
+    bad = [k for k in MAX if m[k][0] > MAX[k][0] or m[k][1] > MAX[k][1]] + (['flipped'] if flipped > MAX_FLIPPED else []) + \
+          (['waistband'] if band_area > MAX_BAND_AREA else []) + (['waistband edge lower'] if drop > MAX_DROP else [])
     if bad: sys.exit(f'{src}: print distorts too much ({", ".join(bad)}); nothing written')
     g.save(dst, X[inv], before=P1)
 
 
 if __name__ == '__main__':
-    dress(*sys.argv[1:4])
+    if sys.argv[1] == '--whole':
+        # the whole piece below the waistband (WHOLE_PIECES: the cloth is wide enough for the neutral body, it only sat
+        # inside it); more steps, or the band at the crotch stays pleated
+        TOP, STEPS = WHOLE_TOP, WHOLE_STEPS
+        dress(*sys.argv[2:5])
+    else:
+        dress(*sys.argv[1:4])
