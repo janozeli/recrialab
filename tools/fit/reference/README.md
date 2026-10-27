@@ -25,6 +25,7 @@ o PR que apertou fica vermelho e atualiza o depois. Os casos medidos nas fotos d
 
 | Caso | Defeito | Verificações que separam |
 |---|---|---|
+| `arm-stump-022/` | a 022 publicada antes do recorte do braço na barra da manga: a manga 5 cm à frente do braço e a máscara escondendo o braço em triângulos longos, que sob a manga acabava num toco serrilhado com o fundo à vista | `poke_through.py 022`: furos 15.957 → 3.688 raios (teto da 022 em `TOP_HOLES`); nas fotos do site (`--visual`), `measure.py --ci` no look 007.022: o antes reprova em fenda do braço (`arm_gap`) 28,2 cm² (vista eye-180, limite 4); o depois fica dentro dos limites |
 | `bridge-013/` | tira de tecido pendurada no vão entre as pernas da calça 013, descendo até o tênis | `cuff.py 013` (103,9 → 0 cm²) |
 | `hip-014/` | quadril da calça 014 do lado de fora da barra das peças de cima: as tabelas de camadas o esconderam em fiapos que mostravam o fundo, e o cós furava as blusas | `layer_check.py` nos 23 pares da 014: por peça, a soma dos pares contra `layer_baseline.json` (8.859 → 2.248 pontas; nenhum par passava de 1.500); nas fotos do site (`--visual`), `measure.py --ci` nos looks 014.022 e 014.035: o antes reprova em pedaço solto 2,4 cm² na 014.022 (vista eye-90) e corpo furando 13,6 cm² na 014.035 (vista high-0); o depois fica dentro dos limites |
 | `projected-014/` | calça 014 refeita no manequim neutro: barra moldada sobre o tênis como polaina, listras laterais mais largas, quebradas onde o quadril encontra as pernas, e as listras da outra perna no lado de dentro | `shoe.py 014` (158 → 1,0 cm²); `print_check.py 014` (largura ×1,13 e ×1,30 → ×0,93; quebra 36 e 27 → 3,4 e 7,3 mm; branco por dentro 3,3 e 3,8% → 0%) |
@@ -32,16 +33,19 @@ o PR que apertou fica vermelho e atualiza o depois. Os casos medidos nas fotos d
 | `waistband-004/` | cós de trás da calça 004, vestida inteira como tecido, escorregou 1,4 cm pela lombar e dobrou, com o avesso escuro à vista; a região da cintura do `stretch.py` deixava passar | `stretch.py 004`: por setor de 30° do cós, a borda desceu 1,4 cm (limite 0,5) e os 7 cm de cima esticaram 33% (limite 30) |
 | `torn-sleeve-022/` | 63 faces tiradas da manga direita da 022, de 2 a 9 cm acima da barra: o recorte do braço por vista tira o braço de vista atrás do rasgo, e só o braço recortado sem pano na frente o denuncia | `poke_through.py 022`: furos acima do teto de `TOP_HOLES`; `sleeve_tear.py 022`: 63 faces de área zero, borda aberta 288,2 → 423,5 cm |
 | `torn-sleeve-020/` | 17 faces da manga direita da 020 com área zero, de 0,4 a 3,2 cm acima da barra: de baixo, o braço atrás do rasgo parece o braço subindo na manga, que a medida visual deixa de fora | `sleeve_tear.py 020`: 17 faces de área zero |
+| `cuff-tip-021/` | ponta do punho esquerdo da 021 pendurada 4 cm abaixo da borda, um V bege sobre o braço | `cuff_tip.py --check` |
 | `slit-033/` | fenda para o fundo entre a manga esquerda da jaqueta 033 e a lateral, onde o braço escondido estaria, vista de frente com o short 003 | nas fotos do site (`--visual`), `measure.py --ci` no look 003.033: o antes reprova em fenda do braço (`arm_gap`) 5,2 cm² (limite 4); o depois mede 0 |
 | `notch-016/` | uma face de 0,7 cm² tirada da barra da frente da 016: a borda aberta ganha uma aresta e menos de 0,05 cm, que só os cm arredondavam para o mesmo valor | `sleeve_tear.py 016`: 101 → 102 arestas de borda |
 | `cords-009/` | cordões pendurados na frente da saia 009, que o 3D desenhou onde a foto tem botões | `cords.py --measure --max 10` (203,4 cm² → abaixo de 10) |
 | `inside-body-007/` | saia 007 como o Tripo a fez no manequim dele: 5,4% do corpo neutro coberto fica dentro dela, 13,8% no quadril | `penetration.py` contra `penetration.json` (5,4 → 0,1%); `poke_through.py 007` (43 → 3 pontas, limite 30) |
-| `large-jackets/` | jaquetas 036 e 038 grandes demais para o corpo: manga passando dos dedos, barra no gancho | `site/fit.test.ts`: `-t 'long sleeves'` pega os dois testes de manga (no braço de perfil e terminando no pulso); `-t 'no lining hanging'`, o forro abaixo da barra |
+| `large-jackets/` | jaquetas 036 e 038 grandes demais para o corpo: manga passando dos dedos, barra no gancho | `site/fit.test.ts`: `-t 'long sleeves'` pega os dois testes de manga (no braço de perfil e terminando no pulso); `-t 'no lining hanging'`, o forro abaixo da barra; `layer_check.py` nos 30 pares das duas: o corpo fura 036 em 14.160 pontas somadas e 038 em 13.396 (linhas de base 3.685 e 6.438); `back_inside.py`: o avesso visto de trás 206 cm² na 036 e 22 na 038 (registrados 116 e 18); nas fotos do site (`--visual`), `measure.py --ci` nos looks 006.036 e 008.038: com as tabelas de camadas do 006 e do 008 geradas para as jaquetas de antes, o antes reprova em pedaço solto 1,5 cm² na 006.036 e junção 8,4 na 008.038; o depois fica dentro dos limites |
 
 Estado de cada arquivo:
 
 | Arquivo | Estado |
 |---|---|
+| `arm-stump-022/before/` | a 022 e as máscaras dela antes do recorte na barra da manga (sem `sleeve_line`); tabela de camadas do 007 com o par da 022 gerado para essa 022 |
+| `arm-stump-022/after/` | iguais aos publicados |
 | `bridge-013/before/` | a 013 com a ponte, como foi vista |
 | `bridge-013/after/` | a 013 logo depois do conserto da ponte; não é a publicada, que mudou depois |
 | `hip-014/before/` | a 014 de uma rodada de conserto que não foi publicada, com a tabela de camadas e a máscara dela |
@@ -56,13 +60,15 @@ Estado de cada arquivo:
 | `torn-sleeve-022/after/` | GLB igual ao publicado |
 | `torn-sleeve-020/before/` | a 020 publicada com 17 faces da manga direita reduzidas a área zero |
 | `torn-sleeve-020/after/` | GLB igual ao publicado |
+| `cuff-tip-021/before/` | a 021 com a ponta do punho pendurada, como foi vista |
+| `cuff-tip-021/after/` | GLB igual ao publicado |
 | `slit-033/before/` | a 033 publicada antes de `arm_clear.py`, com as máscaras e a tabela de camadas do 003 dela |
 | `slit-033/after/` | iguais aos publicados |
 | `notch-016/before/` | a 016 publicada sem a face 1677, na barra da frente |
 | `notch-016/after/` | GLB igual ao publicado |
 | `cords-009/before/`, `inside-body-007/before/` | iguais a `originals/tripo/` |
 | `cords-009/after/`, `inside-body-007/after/` | GLB igual ao publicado |
-| `large-jackets/before/` | 036 e 038 grandes demais, como foram vistas |
+| `large-jackets/before/` | 036 e 038 grandes demais, como foram vistas, com as máscaras delas; tabelas de camadas do 006 e do 008 com os pares da 036 e da 038 geradas para essas jaquetas (as do main apontam para as publicadas) |
 | `large-jackets/after/` 036 | a 036 publicada com a manga vestida como tecido e o punho sobre a palma |
 | `large-jackets/after/` 038 | GLB igual ao publicado; máscaras da época do conserto |
 

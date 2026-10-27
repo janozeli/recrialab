@@ -17,13 +17,13 @@ concurrency:
 
 jobs:
   changes:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 5
     outputs:
       phones: ${{ steps.filter.outputs.phones }}
       visual_qa: ${{ steps.filter.outputs.visual_qa }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 2  # the PR merge and its base
           persist-credentials: false
@@ -39,7 +39,7 @@ jobs:
   phones:
     needs: changes
     if: needs.changes.outputs.phones == 'true'
-    # Playwright 1.56.1 has no browser builds for Ubuntu 26.04 (ubuntu-latest).
+    # Playwright 1.56.1 has no browser builds for Ubuntu 26.04 (the image of the other jobs).
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     strategy:
@@ -47,13 +47,13 @@ jobs:
       matrix:
         profile: [pixel, budget-android, iphone]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: '1.4.2'
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: '22'
       - run: bun install --frozen-lockfile
@@ -68,7 +68,7 @@ jobs:
         run: node tools/verify-site/showcase.mjs
       - name: Keep the screenshots
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: verify-site-${{ matrix.profile }}
           path: site/verify-out/
@@ -78,7 +78,7 @@ jobs:
     # runs, and a single "phones" when it is skipped. Passes when every phone passed or the PR does not reach them.
     needs: [changes, phones]
     if: always()
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 5
     steps:
       - name: Phones passed or were skipped
@@ -95,22 +95,22 @@ jobs:
     # see-through cloth, loose bits, dark patches the photo does not have, sunken waistband.
     needs: changes
     if: needs.changes.outputs.visual_qa != ''
-    # Playwright 1.56.1 has no browser builds for Ubuntu 26.04 (ubuntu-latest).
+    # Playwright 1.56.1 has no browser builds for Ubuntu 26.04 (the image of the other jobs).
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     env:
       VISUAL_QA: ${{ needs.changes.outputs.visual_qa }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: '1.4.2'
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: '22'
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.13'
       - run: python3 -m pip install -r tools/visual-qa/requirements.txt
@@ -138,7 +138,7 @@ jobs:
         run: python3 tools/fit/calibration.py --visual
       - name: Keep the photos and the measures
         if: always() && env.VISUAL_QA != 'check'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: visual-qa
           path: site/verify-out/visual-qa/

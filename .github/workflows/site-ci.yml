@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   validate:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 15
     defaults:
       run:
@@ -23,7 +23,7 @@ jobs:
     outputs:
       fit: ${{ steps.filter.outputs.fit }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0  # the PR merge and main: the filter and the baselines that may only go down (penetration.test.ts)
           persist-credentials: false
@@ -44,14 +44,14 @@ jobs:
   fit:
     needs: validate
     if: needs.validate.outputs.fit == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0  # main: sleeve_tear.py holds EDGE to each top as main has it
           persist-credentials: false
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.13'
       - uses: oven-sh/setup-bun@v2
@@ -98,18 +98,18 @@ jobs:
         run: python3 tools/fit/calibration.py
 
   secrets:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     permissions:
       contents: read
       pull-requests: read  # gitleaks lists the commits of the PR
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
           persist-credentials: false
       # free for repositories of personal accounts; under an organization it needs a GITLEAKS_LICENSE secret
       - name: Look for committed keys and tokens
-        uses: gitleaks/gitleaks-action@v2
+        uses: gitleaks/gitleaks-action@v3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

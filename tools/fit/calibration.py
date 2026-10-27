@@ -29,6 +29,9 @@ CASES = {
     'large-jackets': ('jackets 036 and 038 too large for the body: sleeve past the fingers, hem at the crotch', [
         "bun test site/fit.test.ts -t 'long sleeves'",
         "bun test site/fit.test.ts -t 'no lining hanging'",
+        'python3 tools/fit/layer_check.py --max-pokes 1500 --max-holes 5500 --max-total-pokes 90000 --max-total-holes 185000 '
+        '--no-cache 001.036 002.036 003.036 004.036 005.036 006.036 007.036 008.036 009.036 010.036 011.036 012.036 013.036 014.036 015.036 001.038 002.038 003.038 004.038 005.038 006.038 007.038 008.038 009.038 010.038 011.038 012.038 013.038 014.038 015.038',
+        'python3 tools/fit/back_inside.py',
     ]),
     'hem-hole-002': ('hole of 9.6 cm in the hem of trousers 002, left by the generator: dressed as cloth, the body shows '
                      'through it from behind, and main\'s 002 had it and passed every check', [
@@ -38,6 +41,10 @@ CASES = {
                         'arm out of sight behind the tear, and only the arm clipped with no cloth in front tells it', [
         'python3 tools/fit/poke_through.py 022',
         'python3 tools/fit/sleeve_tear.py 022',
+    ]),
+    'arm-stump-022': ('022 as published before the sleeve clip: the jersey sleeve 5 cm in front of the arm and the mask hiding the arm '
+                      'in long triangles, so under the sleeve the arm ends in a jagged stump with the background showing', [
+        'python3 tools/fit/poke_through.py 022',
     ]),
     'torn-sleeve-020': ('17 faces of the right sleeve of 020 cut to zero area, 0.4 to 3.2 cm above the hem: seen from below the '
                         'arm behind the tear looks like the arm going up into the sleeve, which the visual measure leaves out', [
@@ -71,6 +78,14 @@ RENDER = ('cd site && GITHUB_SHA=calibration bun run build > /dev/null && cd .. 
           '--looks {} --out site/verify-out/calibration > /dev/null && python3 tools/visual-qa/measure.py '
           'site/verify-out/calibration --ci')
 VISUAL_CASES = {
+    'arm-stump-022': ('022 as seen in the site before the sleeve clip: the jersey sleeve 5 cm in front of the arm and the mask hiding the arm '
+                      'in long triangles, so under the sleeve the arm ends in a jagged stump with the background showing', [
+        RENDER.format('007.022'),
+    ]),
+    'large-jackets': ('jackets 036 and 038 too large for the body, seen in the site: the body poking through 036 and its hem '
+                      'loose over trousers 006, the junction of 038 over shorts 008 jagged', [
+        RENDER.format('006.036,008.038'),
+    ]),
     'hip-014': ('hip of trousers 014 outside the tops\' hems, seen in the site: slivers of the hip loose beside the hem of '
                 '022 and the body poking through the cloth of 014.035', [
         RENDER.format('014.022,014.035'),
