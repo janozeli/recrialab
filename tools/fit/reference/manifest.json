@@ -1,4 +1,12 @@
 {
+ "calibration/arm-stump-022/after/garments/022.glb": "9c170b03a19e1b9d1a075a048ed98e375c73b755e97570994bb6ebff4d741c7b",
+ "calibration/arm-stump-022/after/layers/007.json": "19fc89448c6eb2a28272739f89acc088add4a9228da1db312deccc472fece76c",
+ "calibration/arm-stump-022/after/masks/pose-b/022.json": "91338fe396bff5953b0115ccc1e03a4ef55d808ca84d5c088ec8f1822da760d6",
+ "calibration/arm-stump-022/after/masks/pose-c/022.json": "dab1288eea72d225241b8ad73df9dcc8cacce8b2bc8af06b682e55ed687f2350",
+ "calibration/arm-stump-022/before/garments/022.glb": "1229ecf318aee62b0eb2187a36cc86af8258af82850d58a4b55445d4f3b23f8c",
+ "calibration/arm-stump-022/before/layers/007.json": "83773a208c07538ba1c729291e5038af75e6e7c7b2271c3390c45decff1262ce",
+ "calibration/arm-stump-022/before/masks/pose-b/022.json": "58d0a27e6eaa2dd76929c1be7b00e42800e8274446d88bad14b5738bf9825c3e",
+ "calibration/arm-stump-022/before/masks/pose-c/022.json": "2df257459b53a4a895a76b8da790b0202efcc55e6a55c0badcb8cdc918066001",
  "calibration/bridge-013/after/garments/013.glb": "3db8791aa7a25a077a7834eb82c8900a1d766bc9f4263bb2625a0458232b031f",
  "calibration/bridge-013/after/masks/pose-c/013.json": "d69735fb414d6e7d29efdf5d76e93dec4e7b5cebb76995d84820fee1436b40a0",
  "calibration/bridge-013/before/garments/013.glb": "2ff286375296fb95dba919cc8ae6513160407bb8ad9504fa26c09a27230663e8",

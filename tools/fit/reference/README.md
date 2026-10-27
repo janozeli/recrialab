@@ -25,6 +25,7 @@ o PR que apertou fica vermelho e atualiza o depois. Os casos medidos nas fotos d
 
 | Caso | Defeito | Verificações que separam |
 |---|---|---|
+| `arm-stump-022/` | a 022 publicada antes do recorte do braço na barra da manga: a manga 5 cm à frente do braço e a máscara escondendo o braço em triângulos longos, que sob a manga acabava num toco serrilhado com o fundo à vista | `poke_through.py 022`: furos 15.957 → 3.688 raios (teto da 022 em `TOP_HOLES`); nas fotos do site (`--visual`), `measure.py --ci` no look 007.022: o antes reprova em fenda do braço (`arm_gap`) 28,2 cm² (vista eye-180, limite 4); o depois fica dentro dos limites |
 | `bridge-013/` | tira de tecido pendurada no vão entre as pernas da calça 013, descendo até o tênis | `cuff.py 013` (103,9 → 0 cm²) |
 | `hip-014/` | quadril da calça 014 do lado de fora da barra das peças de cima: as tabelas de camadas o esconderam em fiapos que mostravam o fundo, e o cós furava as blusas | `layer_check.py` nos 23 pares da 014: por peça, a soma dos pares contra `layer_baseline.json` (8.859 → 2.248 pontas; nenhum par passava de 1.500); nas fotos do site (`--visual`), `measure.py --ci` nos looks 014.022 e 014.035: o antes reprova em pedaço solto 2,4 cm² na 014.022 (vista eye-90) e corpo furando 13,6 cm² na 014.035 (vista high-0); o depois fica dentro dos limites |
 | `projected-014/` | calça 014 refeita no manequim neutro: barra moldada sobre o tênis como polaina, listras laterais mais largas, quebradas onde o quadril encontra as pernas, e as listras da outra perna no lado de dentro | `shoe.py 014` (158 → 1,0 cm²); `print_check.py 014` (largura ×1,13 e ×1,30 → ×0,93; quebra 36 e 27 → 3,4 e 7,3 mm; branco por dentro 3,3 e 3,8% → 0%) |
@@ -43,6 +44,8 @@ Estado de cada arquivo:
 
 | Arquivo | Estado |
 |---|---|
+| `arm-stump-022/before/` | a 022 e as máscaras dela antes do recorte na barra da manga (sem `sleeve_line`); tabela de camadas do 007 com o par da 022 gerado para essa 022 |
+| `arm-stump-022/after/` | iguais aos publicados |
 | `bridge-013/before/` | a 013 com a ponte, como foi vista |
 | `bridge-013/after/` | a 013 logo depois do conserto da ponte; não é a publicada, que mudou depois |
 | `hip-014/before/` | a 014 de uma rodada de conserto que não foi publicada, com a tabela de camadas e a máscara dela |

@@ -42,6 +42,10 @@ CASES = {
         'python3 tools/fit/poke_through.py 022',
         'python3 tools/fit/sleeve_tear.py 022',
     ]),
+    'arm-stump-022': ('022 as published before the sleeve clip: the jersey sleeve 5 cm in front of the arm and the mask hiding the arm '
+                      'in long triangles, so under the sleeve the arm ends in a jagged stump with the background showing', [
+        'python3 tools/fit/poke_through.py 022',
+    ]),
     'torn-sleeve-020': ('17 faces of the right sleeve of 020 cut to zero area, 0.4 to 3.2 cm above the hem: seen from below the '
                         'arm behind the tear looks like the arm going up into the sleeve, which the visual measure leaves out', [
         'python3 tools/fit/sleeve_tear.py 020',
@@ -74,6 +78,10 @@ RENDER = ('cd site && GITHUB_SHA=calibration bun run build > /dev/null && cd .. 
           '--looks {} --out site/verify-out/calibration > /dev/null && python3 tools/visual-qa/measure.py '
           'site/verify-out/calibration --ci')
 VISUAL_CASES = {
+    'arm-stump-022': ('022 as seen in the site before the sleeve clip: the jersey sleeve 5 cm in front of the arm and the mask hiding the arm '
+                      'in long triangles, so under the sleeve the arm ends in a jagged stump with the background showing', [
+        RENDER.format('007.022'),
+    ]),
     'large-jackets': ('jackets 036 and 038 too large for the body, seen in the site: the body poking through 036 and its hem '
                       'loose over trousers 006, the junction of 038 over shorts 008 jagged', [
         RENDER.format('006.036,008.038'),
