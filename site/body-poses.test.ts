@@ -129,7 +129,7 @@ test('the sleeve clip discards the arm only where the clothes depth is close beh
   mesh.material.onBeforeCompile(shader, null);
   const sleeve = shader.fragmentShader.slice(shader.fragmentShader.indexOf('sleeveH'));
   const band = sleeve.slice(sleeve.indexOf(`y + ${SLEEVE_BAND.toFixed(3)}`));
-  expect(band.indexOf(`behind < ${SLEEVE_POKE.toFixed(3)}) discard`)).toBeGreaterThan(0);
+  expect(band.indexOf(`if (uClothReady > 0.5 && cloth < 1.0 && behind < ${SLEEVE_POKE.toFixed(3)}) discard`)).toBeGreaterThan(0);
   expect(band.split('discard').length - 1).toBe(1);
   expect(shader.uniforms).toHaveProperty('uCloth');
   expect(mesh.onBeforeRender).not.toBe(THREE.Object3D.prototype.onBeforeRender);

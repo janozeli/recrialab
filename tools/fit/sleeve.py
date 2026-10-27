@@ -22,7 +22,7 @@ from gen_mask import first
 from trimesh.ray.ray_pyembree import RayMeshIntersector
 from paths import GARMENTS, MASKS
 
-STEP, ARM_X, RADIUS, BAND, BELOW, SLACK, FAR = 5, .17, .06, .20, .08, .004, .12   # degrees and meters
+STEP, ARM_X, RADIUS, BAND, BELOW, SLACK, FAR = 5, .17, .06, .10, .08, .004, .12   # degrees and meters
 DY = .004               # m: a stored line further than this from hem() fails --check
 AXIS_Y, AXIS_X, AXIS_Z, AXIS_DX, AXIS_DZ = 1.15, .215, -.033, -.07, -.127   # arm axis: point and lean per metre up
 LOW, HIGH = .9, 1.45    # the hem is looked for between the wrist and the armpit; no hem found: the line stays at HIGH
