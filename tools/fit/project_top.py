@@ -13,14 +13,15 @@ multiview-to-model without texture, the recipe of project_print.py:
   3. shape: smooth the relief the generator made of the print (the number and a panel around it stood out as plates:
      SMOOTH rounds of Taubin), bring the front back to CHEST off the chest (it came 3.9 cm out, a box), and take the
      hem out over the 15 bottoms by SLACK (the hip was tight to the body and the jeans' hip poked through at the sides);
-     then push out, simplify, drop crumbs and close the small holes;
+     then push out, simplify, smooth the sleeves' ends, push out, drop crumbs, close the small holes the arm's cut
+     left and bring the lining below the front hem forward to the front (lining.py's computation; removing it opened a
+     hole above the hem);
   4. print: UV unwrap (xatlas) and each texel takes the colour of the generated view that sees it most head-on with
      nothing in front (the top itself or the body's arm), above MIN_FACING; the right side, which no view shows, takes
      the left view mirrored. The views are what the shape was generated from, so print and shape agree. The camera is
      the one of the mannequin renders (fov 20°, framing the body, 1024 x 1536) with a 2D fit per view (VIEWS: scale and
      offset matching the outline of the generated shape, IoU 0.90 to 0.95). A pixel on the white background (connected
      to the image border) is left to another view; what no view sees takes the print source's colour along the normal.
-     Last, the lining below the front hem leaves (lining.py's computation; that tool does not read this layout).
 usage: python3 tools/fit/project_top.py NNN SHAPE.glb VIEWS_DIR PRINT_SOURCE.glb OUT.glb
        (030: SHAPE = reference/originals/tripo-shape/030.glb, VIEWS_DIR = reference/originals/tripo-views/030,
         PRINT_SOURCE = reference/originals/print-source/030.glb)"""
@@ -49,6 +50,7 @@ SKIN, NECK_SKIN = .02, .011           # the generated mannequin sits ~0.7 cm off
 NECK, HEM, SLEEVE, TORSO_X = 1.42, .88, 1.28, .17
 ARM_GAP = .012
 HIP, FOREARM = 1.05, 1.21             # the hip under the hem goes with the tight skin; below the sleeve (>= 1.22) the arm goes whole
+FOREARM_SKIN = .04                    # below the sleeve the generated forearm stands up to 2.8 cm off the body's (030's left)
 
 
 def align(m, B):
@@ -88,7 +90,7 @@ def without_mannequin(m, B):
     arm = (np.abs(q[:, 0]) > TORSO_X) & (d < dt - ARM_GAP) & ~faces_arm
     head = flood(m, (d < NECK_SKIN) & (q[:, 1] > NECK), c[:, 1] > 1.68)
     legs = flood(m, (d < SKIN) & (c[:, 1] < HEM) | (d < NECK_SKIN) & (c[:, 1] < HIP), c[:, 1] < .1)
-    hands = arm & (q[:, 1] < FOREARM) & (d < SKIN) | flood(m, (d < SKIN) & arm & (q[:, 1] < SLEEVE), arm & (q[:, 1] < .85))
+    hands = arm & (q[:, 1] < FOREARM) & (d < FOREARM_SKIN) | flood(m, (d < SKIN) & arm & (q[:, 1] < SLEEVE), arm & (q[:, 1] < .85))
     return pp.keep(m, ~(head | legs | hands))
 
 
@@ -127,6 +129,20 @@ def over_bottoms(m, B):
     return trimesh.Trimesh(V, m.faces, process=False)
 
 
+def smooth_cuffs(m, rounds=10):
+    """The cut of the arm (per face) leaves the sleeve's end jagged: the boundary loops of the sleeves (beyond TORSO_X)
+    are smoothed along themselves."""
+    w = trimesh.Trimesh(m.vertices, m.faces); w.merge_vertices()
+    e = w.edges[trimesh.grouping.group_rows(w.edges_sorted, require_count=1)]
+    g = trimesh.graph.nx.Graph(); g.add_edges_from(e)
+    V = w.vertices.copy()
+    for comp in trimesh.graph.nx.connected_components(g):
+        loop = max(trimesh.graph.nx.cycle_basis(g.subgraph(comp)) or [[]], key=len)
+        if len(loop) < 3 or np.abs(V[loop, 0].mean()) < TORSO_X: continue
+        for _ in range(rounds): V[loop] = (np.roll(V[loop], 1, 0) + 2 * V[loop] + np.roll(V[loop], -1, 0)) / 4
+    return trimesh.Trimesh(V, w.faces, process=False)
+
+
 def close_small(m, limit=.3):
     """Fills each boundary loop shorter than LIMIT (the cut of the arm left a few beside it) with a fan from its centre;
     the collar, the hem and the sleeves are longer."""
@@ -143,16 +159,30 @@ def close_small(m, limit=.3):
 
 
 def lining_below_hem(V, F):
-    """Faces of the lining below the front hem: the computation of lining.py (which does not read this layout)."""
+    """Faces of the lining below the front hem (the computation of lining.py, which does not read this layout), and the
+    front of their column."""
     from lining import SHELL, LINING, WINDOW
-    c = V[F].mean(1); out = np.zeros(len(c), bool)
+    c = V[F].mean(1); out = np.zeros(len(c), bool); front = np.zeros(len(c))
     for x0 in np.arange(-.17, .171, .01):
         col = (np.abs(c[:, 0] - x0) < .005) & (c[:, 2] > 0) & (c[:, 1] > .5) & (c[:, 1] < 1.2)
         if col.sum() < 5: continue
         win = col & (c[:, 1] < c[col, 1].min() + WINDOW)
         zf = c[win, 2].max(); hem = c[win & (c[:, 2] > zf - SHELL), 1].min()
-        out |= col & (c[:, 1] < hem) & (c[:, 2] < zf - LINING)
-    return out
+        k = col & (c[:, 1] < hem) & (c[:, 2] < zf - LINING); out |= k; front[k] = zf
+    return out, front
+
+
+def lining_out(m):
+    """The lining below the front hem comes forward to the front of its column. It is the fold of the hem itself, joined
+    to the shell: removing it left a hole above the hem, with the inside showing (030)."""
+    from lining import SHELL
+    V = m.vertices.copy()
+    for _ in range(4):
+        bad, front = lining_below_hem(V, m.faces)
+        if not bad.any(): break
+        for f in np.flatnonzero(bad): V[m.faces[f], 2] = np.maximum(V[m.faces[f], 2], front[f] - SHELL / 2)
+    assert not lining_below_hem(V, m.faces)[0].any()
+    return trimesh.Trimesh(V, m.faces, process=False)
 
 
 def project(P, yaw, fit, B):
@@ -186,7 +216,7 @@ def along_normal(old, uv, img, P, n):
 
 
 def from_views(pid, views_dir, B):
-    def sample(old, uv, img, P, new):
+    def sample(old, uv, img, P, new, striped=True):
         _, _, t = trimesh.proximity.closest_point(new, P); n = new.face_normals[t]
         blocker = RayMeshIntersector(trimesh.util.concatenate([new, B]))
         colour = np.zeros((len(P), 3)); best = np.full(len(P), MIN_FACING)
@@ -216,19 +246,11 @@ def main(pid, shape, views_dir, source, out):
     m = without_mannequin(align(pp.load(shape), B), B)
     trimesh.smoothing.filter_taubin(m, iterations=SMOOTH)
     m = over_bottoms(chest(m, B), B)
-    m = pp.drop_crumbs(pp.push_out(pp.simplify(pp.push_out(m, B), pp.FACES), B, rounds=3))
-    m = close_small(m)
+    m = pp.drop_crumbs(pp.push_out(smooth_cuffs(pp.simplify(pp.push_out(m, B), pp.FACES)), B, rounds=3))
+    m = lining_out(close_small(m))
     old, uv, img = pp.print_source(source)
     pp.sample = from_views(pid, views_dir, B)
     V, F, UV, image = pp.bake(m, old, uv, img)
-    for _ in range(4):   # removing it moves the hem the column measures from: until nothing is left
-        F = F[~lining_below_hem(V, F)]
-    w = trimesh.Trimesh(V, F, process=False); w.merge_vertices()   # crumbs it left (islands of the site's check)
-    lab = trimesh.graph.connected_component_labels(w.face_adjacency, len(F))
-    area = np.bincount(lab, w.area_faces) * 1e4; crumb = area < 20; crumb[np.argmax(area)] = False
-    F = F[~crumb[lab]]
-    used = np.unique(F); remap = np.zeros(len(V), int); remap[used] = np.arange(len(used))
-    V, UV, F = V[used], UV[used], remap[F]
     pp.save(out, V, F, UV, image)
     print(f'{out}: {len(F)} triangles, hem {V[:, 1].min():.3f} m, top {V[:, 1].max():.3f} m')
 

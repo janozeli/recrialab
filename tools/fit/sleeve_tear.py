@@ -29,7 +29,7 @@ EDGE = {  # cm, edges, loops
     '025': (234.3, 133, 4),
     '026': (267.8, 129, 4),
     '029': (243.0, 133, 4),
-    '030': (409.8, 301, 5),
+    '030': (327.5, 285, 4),
     '032': (295.9, 166, 6),
 }
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
