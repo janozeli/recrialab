@@ -42,7 +42,8 @@ def main(args):
         sides = [json.loads(subprocess.run(['git', 'show', f':{n}:site/assets/layers/{f}'], cwd=ROOT, capture_output=True,
                                            text=True, check=True).stdout) for n in (2, 3)]
         current = sha(GARMENTS + f'{f[:3]}.glb')
-        save(LAYERS + f, next((t for t in sides if t['bottomHash'] == current), sides[1]))
+        t = next((t for t in sides if t['bottomHash'] == current), sides[1])
+        save(LAYERS + f, {'generatorHash': '', **t})   # a side from before generatorHash: rebuilt whole below
     tops = [f'{i:03d}' for i in range(16, 39)]
     hashes = {id: sha(GARMENTS + f'{id}.glb') for id in tops}
     redo = {}; generator = sha(GENERATOR)
