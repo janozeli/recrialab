@@ -46,6 +46,12 @@ CASES = {
                       'and folded over, with the dark inside showing; the waist region of stretch.py passed it', [
         'python3 tools/fit/stretch.py 004',
     ]),
+    'cords-009': ('cords hanging down the front of skirt 009, which the 3D model drew where the photo has buttons', [
+        'python3 tools/fit/cords.py --measure --max 10',
+    ]),
+    'inside-body-007': ('skirt 007 as Tripo made it on its mannequin: 5.4% of the covered neutral body inside it, 14% at the hip', [
+        'python3 tools/fit/penetration.py',
+    ]),
     'cuff-tip-021': ('tip of the left cuff of 021 hanging 4 cm below the rim, a beige V over the arm', [
         'python3 tools/fit/cuff_tip.py --check',
     ]),
