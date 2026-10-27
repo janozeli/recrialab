@@ -98,8 +98,8 @@ os pares cujo hash mudou.
 
 | Script | Reprova |
 |---|---|
-| `poke_through.py` | corpo atravessando a roupa ou aparecendo oco sob ela; na faixa da manga, braço recortado sem pano na frente nem até 5 cm atrás conta como buraco, como o triângulo escondido (cada peça de manga curta com base própria em `TOP_HOLES`, que só baixa contra o main, `site/baselines.test.ts`; caso de calibração `torn-sleeve-022`) |
-| `sleeve_tear.py` | rasgo na manga curta, na malha: face de área zero ou borda aberta encostando na manga entre a barra e a axila, a qualquer distância do eixo do braço (base por peça em `EDGE`, em cm, presa ao main por `site/baselines.test.ts`; o rasgo que chega à barra ou à cava soma igual); segura o rasgo com a parede do fundo a menos de 5 cm, que `poke_through.py` deixa passar como triângulo escondido (casos `torn-sleeve-022` e `torn-sleeve-020`) |
+| `poke_through.py` | corpo atravessando a roupa ou aparecendo oco sob ela; na faixa da manga, braço recortado sem pano na frente nem até 5 cm atrás conta como buraco, como o triângulo escondido (cada peça de manga curta com base própria em `TOP_HOLES`, que só baixa contra o main, `site/baselines.test.ts`, que no CI falha sem o main; caso de calibração `torn-sleeve-022`) |
+| `sleeve_tear.py` | rasgo nas peças de manga curta, na malha inteira (manga, tronco e ombro): face de área zero, ou borda aberta diferente de `EDGE` (cm, as barras, a gola e as cavas de hoje); `EDGE` não passa da mesma medida na peça como está no main (`git show origin/main`), o que segura a base mesmo se a medida mudar; segura o rasgo com a parede do fundo a menos de 5 cm, que `poke_through.py` deixa passar como triângulo escondido (casos `torn-sleeve-022` e `torn-sleeve-020`) |
 | `layer_check.py` | peça de baixo com borda serrilhada sob a barra da de cima ou que a atravessa, nos 345 pares; por peça, a soma dos seus pares acima do valor registrado em `layer_baseline.json`, que só pode baixar |
 | `holes.py` | rasgo na frente das peças de baixo mostrando o corpo |
 | `crotch.py --measure` | tecido no vão entre as coxas do short 008 |

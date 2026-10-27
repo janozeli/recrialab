@@ -49,6 +49,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          fetch-depth: 0  # main: sleeve_tear.py holds EDGE to each top as main has it
           persist-credentials: false
       - uses: actions/setup-python@v5
         with:
@@ -91,7 +92,7 @@ jobs:
         run: python3 tools/fit/back_inside.py
       - name: The arm clip under short sleeves follows the sleeve hem
         run: python3 tools/fit/sleeve.py --check
-      - name: No tear in the short sleeves (zero-area faces or open boundary between the hem and the armpit)
+      - name: No tear in the short-sleeve tops (zero-area faces, or open boundary past the recorded one and main's)
         run: python3 tools/fit/sleeve_tear.py
       - name: Each check still fails the saved defect and passes its fix (reference/calibration/)
         run: python3 tools/fit/calibration.py

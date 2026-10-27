@@ -14,10 +14,6 @@
   title: "Body showing through hems, cuffs and tears"
   pieces: ["003", "005", "006", "007", "008", "010", "015", "028", "033", "035", "036", "038"]
 
-- id: arm-in-sleeve-opening
-  title: "Arm going up into a short sleeve, seen from below past the hem, measured as a tear"
-  pieces: ["020", "030"]
-
 - id: jagged-junction
   title: "Bottom jagged under the hem of a few tops, seen from below"
   pieces: ["003", "007", "008", "014"]

@@ -77,7 +77,10 @@ def run(case, state):
     try:
         tree(dst)
         for n in files(src): shutil.copy2(os.path.join(src, n), os.path.join(dst, 'site/assets', n))
-        return [subprocess.run(c, shell=True, cwd=dst, capture_output=True).returncode for c in CASES[case][1]]
+        # the repository's git, for the checks that compare with main (sleeve_tear.py)
+        git = subprocess.run(['git', 'rev-parse', '--absolute-git-dir'], cwd=ROOT, capture_output=True, text=True).stdout.strip()
+        env = dict(os.environ, GIT_DIR=git) if git else None
+        return [subprocess.run(c, shell=True, cwd=dst, capture_output=True, env=env).returncode for c in CASES[case][1]]
     finally:
         shutil.rmtree(dst)
 
