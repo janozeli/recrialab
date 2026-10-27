@@ -5,6 +5,7 @@
 // Usage (in Actions, on the PR merge checkout with fetch-depth 2): bun site/ci-filter.ts >> "$GITHUB_OUTPUT"
 // Outside pull_request (dispatch, push) everything is on.
 import { execFileSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 
 export type Filter = {
   /** fit job of Site CI (tools/fit/*.py over the GLBs) */
@@ -26,6 +27,13 @@ const OF_PIECE = [/^site\/assets\/garments\/(\d{3})\.glb$/, /^site\/assets\/mask
 /** Selector thumbnails and their renderer: they change the row of pieces, not the stage (visual QA does not see them). */
 const THUMBNAILS = [/^site\/assets\/thumbnails\/\d{3}\.webp$/, /^site\/thumbnails\.(ts|lock\.json)$/, /^site\/thumbnail-render\.(ts|html)$/];
 const LAYERS = /^site\/assets\/layers\/(\d{3})\.json$/;
+/** The calibration script and its saved defects: the fit job runs its cases, visual QA its --visual cases. */
+const CALIBRATION = /^tools\/fit\/(calibration\.py|reference\/calibration\/)/;
+
+/** Looks the visual cases of tools/fit/calibration.py photograph (RENDER.format('014.022,014.035')). */
+export function calibrationLooks(text: string): string[] {
+  return [...text.matchAll(/RENDER\.format\('([^']+)'\)/g)].flatMap(m => m[1].split(','));
+}
 
 type Layers = { bottomHash?: string; topHashes?: Record<string, string>; meshes?: unknown; pairs?: Record<string, unknown> };
 const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
@@ -61,6 +69,11 @@ export function filter(files: string[], read: (f: string, when: 'before' | 'afte
     if (a === 'site/fit.test.ts') { f.fit = true; continue; }
     if (NOTHING.some(r => r.test(a))) continue;
     if (a === 'tools/known-issues.yaml') { check = true; continue; }
+    if (CALIBRATION.test(a)) {
+      f.fit = true;
+      calibrationLooks(readFileSync(new URL('../tools/fit/calibration.py', import.meta.url), 'utf8')).forEach(x => looks.add(x));
+      continue;
+    }
     if (a === '.github/workflows/site-ci.yml' || a.startsWith('tools/fit/')) { f.fit = true; continue; }
     if (a === 'tools/visual-qa/defects.json') {
       const l = changedDefects(read(a, 'before'), read(a, 'after'));
