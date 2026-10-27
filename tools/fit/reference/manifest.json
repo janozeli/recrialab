@@ -31,6 +31,8 @@
  "calibration/large-jackets/before/masks/pose-c/038.json": "e2bbe996c165316478aa4b8572a9459fd9f3fa44abbff8bd3c1575ef5e9c4090",
  "calibration/projected-014/after/garments/014.glb": "e837a1e2ae1bf828287258a512121d6aea2d4a9ef0a458df85cee28d073f545a",
  "calibration/projected-014/before/garments/014.glb": "6795cf7f453212f1ed73fd413813b83759b33cd16644c9309be437fb5010bd1d",
+ "calibration/notch-016/after/garments/016.glb": "12c9b174a75c40ed4f1629d8feaed6a4eca7808b1123b92ca0b26faacfb04267",
+ "calibration/notch-016/before/garments/016.glb": "5f430ce2bfbe82ebc1f1525561a7ae1540de12ecd0e38bf4cda3e414a2797729",
  "calibration/torn-sleeve-020/after/garments/020.glb": "d7d9a60c14ebb5e483ede12b401d5f4dd8f61157c70dc4a40114cdc3e68941ea",
  "calibration/torn-sleeve-020/before/garments/020.glb": "175d8e93c17a4b80574150380b356028c982d41d324e0260aefa63bd6dd6d8ee",
  "calibration/torn-sleeve-022/after/garments/022.glb": "9c170b03a19e1b9d1a075a048ed98e375c73b755e97570994bb6ebff4d741c7b",
