@@ -80,7 +80,8 @@ node tools/verify-site/drive.mjs --profile budget-android   # the site on an emu
 
 Every pull request runs `.github/workflows/site-ci.yml` (check, tests, build, secrets and fit) and
 `.github/workflows/site-e2e.yml` (emulated phones and visual QA). Both skip what the change does not
-reach (`site/ci-filter.ts`). Before opening a pull request, run `bun run check`, `bun run test` and
+reach (`site/ci-filter.ts`); a garment whose model or mask changed is photographed with every garment
+of the other group. Before opening a pull request, run `bun run check`, `bun run test` and
 `bun run build` in `site/`; if you changed a garment, render it (`tools/verify-site/showcase.mjs`) and
 compare with the thrift-store photo. Merging into `main` deploys the site through Cloudflare Workers
 Builds.
