@@ -30,6 +30,10 @@
   title: "Skirt 010 with its waistband on the hips"
   pieces: ["010"]
 
+- id: arm-hidden-016
+  title: "Back edge of the arm hidden by the mask of tank top 016 beside the armhole, so the background shows where the arm is (arm_gap 12.8 cm² with 001, 16.3 before the per-pixel sleeve clip)"
+  pieces: ["016"]
+
 - id: arm-slit
   title: "Slit to the background between the sleeve and the side of jacket 033 where the hidden arm is, seen from the front"
   pieces: ["033"]
