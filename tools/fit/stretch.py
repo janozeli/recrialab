@@ -14,7 +14,7 @@ Skirt 009 stays out (EXCLUDED): hem.py shortened it as in the photo and cords.py
 usage: python3 tools/fit/stretch.py [IDs]"""
 import os, sys, tempfile, numpy as np
 from garment import Garment
-from pant_leg_cloth import MAX, MAX_FLIPPED, measures, weld, uvs
+from pant_leg_cloth import MAX, MAX_FLIPPED, WHOLE_PIECES, measures, weld, uvs
 from paths import GARMENTS
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '../visual-qa'))
 from known_issues import FILE as KNOWN_ISSUES, known_issues  # noqa: E402
@@ -69,7 +69,7 @@ def measure(pid):
     has = (j[F] >= 0).all(1)                       # a printed face that existed in the original
     X, inv, FF = weld(P, F)   # welded by the published position: the two copies from separate_legs.py's cut stay apart
     Xo = X.copy(); k = j >= 0; Xo[inv[k]] = Po[j[k]]   # the wall (no original) welded to the cut keeps the cut's original
-    m, flipped = measures(Xo, X, FF, has)
+    m, flipped = measures(Xo, X, FF, has, whole=pid in WHOLE_PIECES)
     return m, flipped
 
 

@@ -33,10 +33,11 @@ SHOULDER = {
     '025': 1,
     '031': 807,
 }
-# Bottom pokes above --max-bottom-pokes: the pose C pants 006 and 011 to 013 and 002 and 008 are narrower than the
-# mannequin at the waist, and pushing their waistband out stretches the print (stretch.py).
+# Bottom pokes above --max-bottom-pokes: the pose C pants 006 and 011 to 013 and 002, 004 and 008 are narrower than
+# the mannequin at the waist, and pushing their waistband out stretches the print (stretch.py).
 BOTTOM_AS_IS = {
     '002': 91,
+    '004': 99,
     '006': 248,
     '008': 139,
     '011': 304,
@@ -48,7 +49,7 @@ BOTTOM_HOLES = {
     '001': 128,
     '002': 439,
     '003': 1051,
-    '004': 564,
+    '004': 667,
     '005': 153,
     '006': 6553,
     '007': 415,

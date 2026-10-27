@@ -124,13 +124,13 @@
   "004": {
    "bands": {
     "total": {
-     "penetrates": 0.0,
-     "penetrates_visible": 0.0,
-     "gap_over_4cm": 0.7
+     "penetrates": 0.2,
+     "penetrates_visible": 0.2,
+     "gap_over_4cm": 0.6
     },
     "waist": {
-     "penetrates": 0.0,
-     "penetrates_visible": 0.0,
+     "penetrates": 5.4,
+     "penetrates_visible": 5.4,
      "gap_over_4cm": 0.0
     },
     "hip": {
@@ -141,7 +141,7 @@
     "thigh": {
      "penetrates": 0.0,
      "penetrates_visible": 0.0,
-     "gap_over_4cm": 0.8
+     "gap_over_4cm": 1.0
     },
     "knee": {
      "penetrates": 0.0,
@@ -151,12 +151,12 @@
     "shin": {
      "penetrates": 0.0,
      "penetrates_visible": 0.0,
-     "gap_over_4cm": 0.7
+     "gap_over_4cm": 0.5
     },
     "ankle": {
      "penetrates": 0.0,
      "penetrates_visible": 0.0,
-     "gap_over_4cm": 12.5
+     "gap_over_4cm": 9.4
     }
    }
   },
