@@ -48,8 +48,8 @@
      "gap_over_4cm": 0.2
     },
     "waist": {
-     "penetrates": 0.0,
-     "penetrates_visible": 0.0,
+     "penetrates": 1.1,
+     "penetrates_visible": 1.1,
      "gap_over_4cm": 0.0
     },
     "hip": {

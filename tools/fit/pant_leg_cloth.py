@@ -38,6 +38,7 @@ STEPS, ROUNDS = 250, 12
 WHOLE_TOP, WHOLE_STEPS = 2., 400   # --whole: only the waistband held (TOP stands for "no constant line"), and more steps
 # the pieces dressed with --whole (stretch.py measures their waist below the waistband)
 WHOLE_PIECES = {
+    '002',
     '004',
 }
 WAISTBAND, EDGE_STEP = .05, 10   # dressed whole, the waistband: the band below the top edge, per slice of degrees

@@ -28,6 +28,7 @@ o PR que apertou fica vermelho e atualiza o depois.
 | `bridge-013/` | tira de tecido pendurada no vão entre as pernas da calça 013, descendo até o tênis | `cuff.py 013` (103,9 → 0 cm²) |
 | `hip-014/` | quadril da calça 014 do lado de fora da barra das peças de cima: as tabelas de camadas o esconderam em fiapos que mostravam o fundo, e o cós furava as blusas | `layer_check.py` nos 23 pares da 014: por peça, a soma dos pares contra `layer_baseline.json` (8.859 → 2.248 pontas; nenhum par passava de 1.500) |
 | `projected-014/` | calça 014 refeita no manequim neutro: barra moldada sobre o tênis como polaina, listras laterais mais largas, quebradas onde o quadril encontra as pernas, e as listras da outra perna no lado de dentro | `shoe.py 014` (158 → 1,0 cm²); `print_check.py 014` (largura ×1,13 e ×1,30 → ×0,93; quebra 36 e 27 → 3,4 e 7,3 mm; branco por dentro 3,3 e 3,8% → 0%) |
+| `hem-hole-002/` | furo de 9,6 cm na barra da calça 002, deixado pelo gerador: vestida como tecido, o corpo aparece por ele de trás, e a 002 do main o tinha e passava em tudo | `close_holes.py --check 002` (1 → 0 furos na barra) |
 | `large-jackets/` | jaquetas 036 e 038 grandes demais para o corpo: manga passando dos dedos, barra no gancho | `site/fit.test.ts`: `-t 'long sleeves'` pega os dois testes de manga (no braço de perfil e terminando no pulso); `-t 'no lining hanging'`, o forro abaixo da barra |
 
 Estado de cada arquivo:
@@ -40,6 +41,8 @@ Estado de cada arquivo:
 | `hip-014/after/` | iguais aos publicados |
 | `projected-014/before/` | a 014 com a barra moldada sobre o tênis e as listras largas e quebradas, como foi vista |
 | `projected-014/after/` | GLB igual ao publicado |
+| `hem-hole-002/before/` | a 002 publicada antes de ser vestida inteira, com o furo |
+| `hem-hole-002/after/` | GLB igual ao publicado |
 | `large-jackets/before/` | 036 e 038 grandes demais, como foram vistas |
 | `large-jackets/after/` 036 | a 036 publicada com a manga vestida como tecido e o punho sobre a palma |
 | `large-jackets/after/` 038 | GLB igual ao publicado; máscaras da época do conserto |

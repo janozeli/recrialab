@@ -29,6 +29,10 @@ CASES = {
         "bun test site/fit.test.ts -t 'long sleeves'",
         "bun test site/fit.test.ts -t 'no lining hanging'",
     ]),
+    'hem-hole-002': ('hole of 9.6 cm in the hem of trousers 002, left by the generator: dressed as cloth, the body shows '
+                     'through it from behind, and main\'s 002 had it and passed every check', [
+        'python3 tools/fit/close_holes.py --check 002',
+    ]),
     'cuff-tip-021': ('tip of the left cuff of 021 hanging 4 cm below the rim, a beige V over the arm', [
         'python3 tools/fit/cuff_tip.py --check',
     ]),
