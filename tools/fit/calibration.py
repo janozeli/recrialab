@@ -75,6 +75,10 @@ VISUAL_CASES = {
                 '022 and the body poking through the cloth of 014.035', [
         RENDER.format('014.022,014.035'),
     ]),
+    'slit-033': ('slit to the background between the left sleeve of jacket 033 and its side, where the hidden arm would '
+                 'be, seen from the front with shorts 003', [
+        RENDER.format('003.033'),
+    ]),
 }
 
 
