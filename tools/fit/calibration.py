@@ -29,6 +29,10 @@ CASES = {
         "bun test site/fit.test.ts -t 'long sleeves'",
         "bun test site/fit.test.ts -t 'no lining hanging'",
     ]),
+    'torn-sleeve-022': ('63 faces cut out of the right sleeve of 022, 2 to 9 cm above the hem: the per-view arm clip keeps the '
+                        'arm out of sight behind the tear, and only the arm clipped with no cloth in front tells it', [
+        'python3 tools/fit/poke_through.py 022',
+    ]),
     'cuff-tip-021': ('tip of the left cuff of 021 hanging 4 cm below the rim, a beige V over the arm', [
         'python3 tools/fit/cuff_tip.py --check',
     ]),

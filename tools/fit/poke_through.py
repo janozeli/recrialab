@@ -10,7 +10,7 @@ Hiding more of the body removes pokes and opens holes, so the two are measured t
 body at the waistband line (waist.py), the clipped body counts as invisible, and clipped with no cloth up to TIGHT
 behind it counts as a hole.
 
-Tops share one limit (--max-pokes, --max-holes). Bottoms share --max-bottom-pokes, except the pieces in BOTTOM_AS_IS,
+Tops share one limit (--max-pokes, --max-holes), except the holes of the pieces in TOP_HOLES. Bottoms share --max-bottom-pokes, except the pieces in BOTTOM_AS_IS,
 and their holes are per piece (BOTTOM_HOLES): both are baselines that may only go down.
 usage: python3 tools/fit/poke_through.py [--max-pokes N] [--max-holes N] [--max-bottom-pokes N] [IDs]   (no IDs: all 38)"""
 import sys, os, json, numpy as np
@@ -43,6 +43,12 @@ BOTTOM_AS_IS = {
     '011': 304,
     '012': 221,
     '013': 363,
+}
+# Holes of the tops whose arm is clipped in the sleeve band (sleeve.py), above --max-holes: the arm clipped with no cloth
+# in front of it counts (the view goes through where the arm is); a tear in the sleeve raises it (calibration torn-sleeve-022).
+TOP_HOLES = {
+    '016': 11873,
+    '022': 8381,
 }
 # Bottom holes: hiding the body that pokes through must not let the background show.
 BOTTOM_HOLES = {
@@ -89,11 +95,15 @@ def measure_top(pid):
         tt, ft = first(rt, o, dd, front_only=True)
         with np.errstate(invalid='ignore'):
             hole = np.isfinite(tt) & ~(tg < tt + .05) & hid[np.maximum(ft, 0)] & (ft >= 0)
-            # neck clipped by the shader (collar.py): a gap if there is no cloth up to FAR behind; the arm in the sleeve
-            # band (sleeve.py) is clipped only with cloth up to POKE behind it, so it never opens one
+            # neck clipped by the shader (collar.py): a gap if there is no cloth up to FAR behind
             if neck:
                 k = np.isfinite(tt); c = np.zeros(len(tt), bool); c[k] = neck(o[k] + dd[k] * tt[k, None])
                 hole = (hole & ~c) | (c & ~(tg < tt + collar.FAR))
+            # arm in the sleeve band (sleeve.py): clipped where cloth is in front or up to POKE behind it; clipped with
+            # no cloth in front, the view goes through where the arm is (a tear in the sleeve, the arm beside the torso)
+            if arm:
+                k = np.isfinite(tt); c = np.zeros(len(tt), bool); c[k] = arm(o[k] + dd[k] * tt[k, None], dd[0])
+                hole = (hole & ~c) | (c & ~(tg < tt))
             holes += int(hole.sum())
     return pid, pokes, holes, on_shoulder
 
@@ -132,7 +142,7 @@ if __name__ == '__main__':
     for pid, p, h, o in res: print(pid, 'pokes', p, 'holes', h, 'shoulder through the strap', o)
     print('total pokes', sum(r[1] for r in res), 'holes', sum(r[2] for r in res))
     bad = [f'{pid} pokes {p}' for pid, p, _, _ in res if p > lim.get('pokes', 1e9)] + \
-          [f'{pid} holes {h}' for pid, _, h, _ in res if h > lim.get('holes', 1e9)] + \
+          [f'{pid} holes {h}' for pid, _, h, _ in res if h > TOP_HOLES.get(pid, lim.get('holes', 1e9))] + \
           [f'{pid} shoulder {o}' for pid, _, _, o in res if o > SHOULDER.get(pid, 0)]
     for pid, p, h in rb: print(pid, 'pokes (body through the bottom garment)', p, 'holes', h)
     bad += [f'{pid} pokes {p}' for pid, p, _ in rb if p > BOTTOM_AS_IS.get(pid, lim.get('bottom-pokes', 1e9))] + \
