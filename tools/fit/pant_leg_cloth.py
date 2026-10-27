@@ -50,6 +50,11 @@ MIDDLE, CUFF = .015, .20   # regions measured on their own: the middle between t
 MAX = {'middle': (.15, .35), 'cuff': (.10, .35), 'waist': (.10, .35), 'hip': (.10, .35), 'rest': (.10, .35)}   # p99 of the edge length and of the area of the faces that move
 THIN = .1            # height / longest side below this: a sliver
 MAX_FLIPPED = .007   # area of flipped faces (the cuff folding over the sneaker)
+# the waistband, per SECTOR degrees around the hip: the top BAND below the edge stretches (p99 of the area) up to
+# MAX_BAND_AREA, and the edge does not slide down more than MAX_DROP against the original. Dressed whole as cloth, 004's
+# waistband slid 1.4 cm down the back and folded over (33% at 210 degrees) while the waist region's p99 read 13.6%;
+# the published bottoms reach 27.6% (012) and 0.1 cm (calibration case waistband-004)
+SECTOR, BAND, MAX_BAND_AREA, MAX_DROP = 30, .07, .30, .005
 # fraction of the way to the center: wholly at the center, the wide hem of 006 moves in front of its back hem and the
 # ankle shows through the fraying; less than this, the fraying leaves the leg (cuff.py)
 CENTER_PIECES = {'006': .8}
@@ -142,6 +147,26 @@ def measures(Xo, X, F, printed=None, moved=None, whole=False):
     return out, a0[flipped].sum() / a0.sum()
 
 
+def waistband_check(Xo, X, F, printed):
+    """Per SECTOR of the waistband: p99 of the change in area of its printed faces in the top BAND, and the median drop
+    of its top edge, against the original; returns the worst of each."""
+    sl, o, edge = waistband(Xo); c = Xo[F].mean(1); top = Xo[F, 1].max(1)
+    band = printed & (top >= CROTCH) & (top >= edge[sl(c)] - BAND)
+    n0 = np.cross(Xo[F[:, 1]] - Xo[F[:, 0]], Xo[F[:, 2]] - Xo[F[:, 0]]); n1 = np.cross(X[F[:, 1]] - X[F[:, 0]], X[F[:, 2]] - X[F[:, 0]])
+    a0 = np.linalg.norm(n0, axis=1); area = np.abs(np.linalg.norm(n1, axis=1) / np.maximum(a0, 1e-12) - 1)
+    L0 = np.max([np.linalg.norm(Xo[F[:, i]] - Xo[F[:, (i + 1) % 3]], axis=1) for i in range(3)], 0)
+    band &= a0 / np.maximum(L0, 1e-9) ** 2 >= THIN
+    sector = lambda P: (np.degrees(np.arctan2(P[:, 0] - o[0], P[:, 2] - o[1])) % 360 // SECTOR).astype(int)
+    fs = sector(c); worst_area = max([np.percentile(area[band & (fs == k)], 99) for k in set(fs[band])
+                                      if (band & (fs == k)).sum() >= 5] or [0.])
+    m = trimesh.Trimesh(X, F, process=False)
+    v = np.unique(m.edges_sorted[trimesh.grouping.group_rows(m.edges_sorted, require_count=1)])
+    v = v[(Xo[v, 1] >= CROTCH) & (Xo[v, 1] >= edge[sl(Xo[v])] - .03)]   # the top edge (the leg openings are far lower)
+    vs = sector(Xo[v]); drop = Xo[v, 1] - X[v, 1]
+    worst_drop = max([np.median(drop[vs == k]) for k in set(vs) if (vs == k).sum() >= 3] or [0.])
+    return worst_area, worst_drop
+
+
 def center_cuffs(X0, side, b, strength=1.):
     """The cuff of each leg moves, whole, to the center of the body's leg at the same height (013 came with the left
     cuff 4.5 cm inwards: pushed along the normal, half of it came out on each side of the ankle, as flaps)."""
@@ -221,7 +246,10 @@ def dress(orig, src, dst):
     sd, _, d = collide(X)
     print(f'{pid}: ' + ', '.join(f'{k} {100 * e:.1f}% (area {100 * a:.1f}%)' for k, (e, a) in m.items()) +
           f'; flipped {100 * flipped:.2f}% of the area; inside the body {int(((sd < -.003) & movable & (d < .06)).sum())} vertices')
-    bad = [k for k in MAX if m[k][0] > MAX[k][0] or m[k][1] > MAX[k][1]] + (['flipped'] if flipped > MAX_FLIPPED else [])
+    band_area, drop = waistband_check(Xo, X, F, ~plain)
+    print(f'{pid}: waistband {100 * band_area:.1f}% (area), its edge {100 * drop:.1f} cm lower')
+    bad = [k for k in MAX if m[k][0] > MAX[k][0] or m[k][1] > MAX[k][1]] + (['flipped'] if flipped > MAX_FLIPPED else []) + \
+          (['waistband'] if band_area > MAX_BAND_AREA else []) + (['waistband edge lower'] if drop > MAX_DROP else [])
     if bad: sys.exit(f'{src}: print distorts too much ({", ".join(bad)}); nothing written')
     g.save(dst, X[inv], before=P1)
 
