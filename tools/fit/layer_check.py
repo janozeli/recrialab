@@ -68,15 +68,13 @@ def measure(pair, hid=None):
             hid_hit = np.isfinite(tb) & h[np.maximum(fb, 0)]
             # hidden below the top's hem: the site draws it (garment-hem.ts)
             p = o[hid_hit] + d[hid_hit] * tb[hid_hit, None]; back = np.zeros(len(o), bool); back[hid_hit] = p[:, 1] < top_hem.height(hem, p, rad)
-            # above the hem line it comes back only inside every layer of the top: seen there it pokes through nothing
-            below = np.zeros(len(o), bool); below[hid_hit] = p[:, 1] < top_hem.height(hem, p)
             holes += int((hid_hit & ~back & ~(tg < tb + .05)).sum())
             poke = lambda t: np.isfinite(t) & (t < tg) & (tg - t < POKE) & outside
             if rv is not None:
                 tv, _ = first(rv, o, d, front_only=single[vis])
-                pokes += int((poke(tv) | (below & poke(tb))).sum())
+                pokes += int((poke(tv) | (back & poke(tb))).sum())
             else:
-                pokes += int((below & poke(tb)).sum())
+                pokes += int((back & poke(tb)).sum())
     return pair, pokes, holes
 
 
