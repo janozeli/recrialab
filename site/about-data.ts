@@ -67,7 +67,6 @@ export const ABOUT = {
     { name: 'Luísa da Cruz Firmino', role: 'Styling e direção de arte de moda', area: 'Moda' },
     { name: 'Moska', role: 'Curadoria de moda e acervo, Jundiaí', area: 'Brechós parceiros' },
     { name: 'VTU', role: 'Curadoria de moda e acervo, Jundiaí', area: 'Brechós parceiros' },
-    { name: 'Elisa Valderano', role: 'Captação audiovisual', area: 'Audiovisual e roteiro' },
     { name: 'Sophia Medina', role: 'Montagem e edição', area: 'Audiovisual e roteiro' },
     { name: 'Beatriz Rodrigues', role: 'Roteiro e pesquisa', area: 'Audiovisual e roteiro' },
     { name: 'Oli', role: 'Ilustração e design digital', area: 'Design e tecnologia' },
