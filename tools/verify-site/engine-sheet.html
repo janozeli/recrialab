@@ -1,0 +1,258 @@
+<title>Folha das 38 peças</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<!-- Template of tools/verify-site/engine-sheet.mjs, which replaces the data placeholder below. On-screen text in Portuguese. -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600&display=swap">
+<style>
+/* Layout: a contact sheet. One card per garment; inside it a matrix, columns = front, profile, back and
+   rows = today, engine, difference, with the thrift-store photo beside it. Summary and index before the cards. */
+:root {
+  --bg: #f4f3f6; --surface: #ffffff; --ink: #1d1b24; --muted: #625d70; --line: #dcd9e3;
+  --accent: #5b3fd1; --accent-ink: #ffffff;
+  --alert: #b3261e; --alert-bg: #fbe6e3; --ok: #2b6b45; --ok-bg: #e2f1e7;
+  --lost: #d6286e; --gained: #1c7ed6; --print: #f08c00;
+  --display: 'Space Grotesk', 'Inter', system-ui, sans-serif; --body: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #16141c; --surface: #201d29; --ink: #eeebf5; --muted: #a9a3b8; --line: #373246;
+  --accent: #a892ff; --accent-ink: #16141c;
+  --alert: #ff9a8f; --alert-bg: #4a1f1c; --ok: #8fd3a8; --ok-bg: #1d3a29; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #16141c; --surface: #201d29; --ink: #eeebf5; --muted: #a9a3b8; --line: #373246;
+  --accent: #a892ff; --accent-ink: #16141c;
+  --alert: #ff9a8f; --alert-bg: #4a1f1c; --ok: #8fd3a8; --ok-bg: #1d3a29; color-scheme: dark }
+body { background: var(--bg); color: var(--ink); font: 15px/1.5 var(--body); }
+.wrap { max-width: 1180px; margin: 0 auto; padding-block: 28px 64px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: flex; flex-direction: column; gap: 22px; }
+h1 { font: 600 30px/1.15 var(--display); margin: 0; text-wrap: balance; }
+h2 { font: 600 18px/1.25 var(--display); margin: 0; }
+p { margin: 0; }
+.lede { color: var(--muted); max-width: 68ch; }
+.stamp { color: var(--muted); font-size: 13px; }
+.num { font-variant-numeric: tabular-nums; }
+
+.totals { display: flex; flex-wrap: wrap; gap: 10px 28px; }
+.totals div { display: flex; flex-direction: column; }
+.totals b { font: 600 22px/1.2 var(--display); font-variant-numeric: tabular-nums; }
+.totals span { color: var(--muted); font-size: 13px; }
+
+.how { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px 24px; font-size: 14px; color: var(--muted); }
+.how b { color: var(--ink); font-weight: 600; }
+.sw { display: inline-block; width: 11px; height: 11px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+
+.bar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg); border-bottom: 1px solid var(--line);
+  padding-block: 8px; display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--surface); }
+.seg button { font: 500 14px var(--body); color: var(--ink); background: none; border: 0; padding: 0 12px; min-height: 40px; cursor: pointer; }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+button:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.count { color: var(--muted); font-size: 13px; margin-left: auto; }
+
+.index { display: grid; grid-template-columns: repeat(auto-fill, minmax(58px, 1fr)); gap: 6px; }
+.index a { display: flex; align-items: center; justify-content: center; gap: 5px; min-height: 36px; border-radius: 6px; text-decoration: none;
+  font: 500 13px var(--body); font-variant-numeric: tabular-nums; color: var(--ok); background: var(--ok-bg); }
+.index a.flag { color: var(--alert); background: var(--alert-bg); font-weight: 600; }
+
+.cards { display: flex; flex-direction: column; gap: 18px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px; display: flex; flex-direction: column; gap: 12px;
+  scroll-margin-top: 70px; }
+.card.flag { border-color: var(--alert); }
+.head { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: baseline; }
+.head .id { font: 600 20px var(--display); font-variant-numeric: tabular-nums; }
+.head .name { font-weight: 600; }
+.head .parts { color: var(--muted); font-size: 13px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { font-size: 13px; padding: 2px 9px; border-radius: 999px; background: var(--bg); color: var(--muted); font-variant-numeric: tabular-nums; }
+.chip.flag { background: var(--alert-bg); color: var(--alert); font-weight: 600; }
+
+.body { display: grid; grid-template-columns: minmax(0, 150px) minmax(0, 1fr); gap: 14px; align-items: start; }
+.photo { display: flex; flex-direction: column; gap: 4px; }
+.photo img, .cell img { display: block; width: 100%; height: auto; border-radius: 6px; background: #eceae7; }
+.matrix { display: grid; grid-template-columns: auto repeat(3, minmax(0, 1fr)); gap: 6px; align-items: center; min-width: 0; }
+.lab { font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.col { text-align: center; }
+.row { writing-mode: vertical-rl; transform: rotate(180deg); text-align: center; }
+.cell { border: 0; padding: 0; background: none; cursor: zoom-in; position: relative; display: block; }
+.meas { font-size: 12.5px; color: var(--muted); text-align: center; font-variant-numeric: tabular-nums; line-height: 1.35; }
+.meas .flag { color: var(--alert); font-weight: 600; }
+/* blink mode: the engine row alternates with today's picture in place */
+.cell .over { position: absolute; inset: 0; opacity: 0; }
+[data-mode="blink"] .r-now { display: none; }
+[data-mode="blink"] .cell .over { animation: blink 1.6s steps(1) infinite; }
+@keyframes blink { 0%, 49% { opacity: 0 } 50%, 100% { opacity: 1 } }
+@media (prefers-reduced-motion: reduce) { [data-mode="blink"] .cell .over { animation: none; opacity: 0 } [data-mode="blink"] .r-now { display: revert; } }
+[data-mode="blink"] .tag-engine::after { content: " ⇄ hoje"; }
+
+@media (max-width: 640px) {
+  .body { grid-template-columns: minmax(0, 1fr); }
+  .photo { flex-direction: row; align-items: end; gap: 10px; }
+  .photo img { width: 96px; }
+  h1 { font-size: 25px; }
+}
+
+dialog { border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--ink); padding: 14px; width: min(94vw, 460px); }
+dialog::backdrop { background: rgb(10 8 16 / .6); }
+dialog img { display: block; width: 100%; border-radius: 6px; }
+dialog .top { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 10px; }
+dialog .seg { margin-top: 10px; width: 100%; }
+dialog .seg button { flex: 1; }
+.x { font: 500 14px var(--body); background: none; border: 1px solid var(--line); color: var(--ink); border-radius: 8px; min-height: 40px; padding: 0 12px; cursor: pointer; }
+</style>
+
+<div class="wrap" id="app" data-mode="all">
+  <header style="display:flex;flex-direction:column;gap:8px">
+    <h1>Folha das 38 peças</h1>
+    <p class="lede">Cada peça como está hoje no site ao lado da mesma peça refeita pela engine, de frente, de perfil e de costas, com a foto do brechó. As duas são fotografadas pela mesma câmera e a mesma luz, então o que muda entre as fotos mudou na peça.</p>
+    <p class="stamp num" id="stamp"></p>
+  </header>
+
+  <section class="totals" id="totals" aria-label="Resumo da rodada"></section>
+
+  <section class="how" aria-label="Como ler">
+    <p><b>Silhueta.</b> Área que só uma das duas peças cobre, em % da área das duas juntas. Sobe quando a peça encurta, alarga ou muda de caimento.</p>
+    <p><b>Estampa.</b> Diferença média de cor entre as duas, sem luz, onde as duas têm tecido. Sobe quando o desenho escorrega, estica ou rasga.</p>
+    <p><b>Diferença.</b> <span class="sw" style="background:var(--lost)"></span>tecido que a peça de hoje tem e a engine tirou. <span class="sw" style="background:var(--gained)"></span>tecido que a engine pôs. <span class="sw" style="background:var(--print)"></span>estampa que mudou.</p>
+    <p><b>Corpo.</b> O de hoje é o do site só com a máscara de triângulos, sem os cortes na cintura, na gola e na manga: ele pode aparecer nessas linhas mais do que aparece no site. As medidas olham só a roupa.</p>
+  </section>
+
+  <nav class="bar" aria-label="Filtros">
+    <div class="seg" role="group" aria-label="Modo">
+      <button id="mode-all" data-mode="all" aria-pressed="true">Lado a lado</button>
+      <button id="mode-blink" data-mode="blink" aria-pressed="false">Piscar</button>
+    </div>
+    <div class="seg" role="group" aria-label="Quais peças">
+      <button id="f-all" data-filter="all" aria-pressed="true">Todas</button>
+      <button id="f-flag" data-filter="flag" aria-pressed="false">Com alerta</button>
+      <button id="f-top" data-filter="top" aria-pressed="false">De cima</button>
+      <button id="f-bottom" data-filter="bottom" aria-pressed="false">De baixo</button>
+    </div>
+    <div class="seg" role="group" aria-label="Ordem">
+      <button id="s-id" data-sort="id" aria-pressed="true">Por número</button>
+      <button id="s-change" data-sort="change" aria-pressed="false">Maior mudança</button>
+    </div>
+    <span class="count num" id="count"></span>
+  </nav>
+
+  <nav class="index" id="index" aria-label="Peças"></nav>
+  <main class="cards" id="cards"></main>
+</div>
+
+<dialog id="zoom" aria-label="Vista ampliada">
+  <div class="top"><b id="zoom-title"></b><button class="x" id="zoom-close">Fechar</button></div>
+  <img id="zoom-img" alt="">
+  <div class="seg" role="group" aria-label="Qual foto">
+    <button id="z-now" data-z="now" aria-pressed="false">Hoje</button>
+    <button id="z-engine" data-z="engine" aria-pressed="true">Engine</button>
+    <button id="z-diff" data-z="diff" aria-pressed="false">Diferença</button>
+  </div>
+</dialog>
+
+<script id="sheet-data" type="application/json">__SHEET_DATA__</script>
+<script>
+const data = JSON.parse(document.getElementById('sheet-data').textContent);
+const VIEWS = [['front', 'Frente'], ['profile', 'Perfil'], ['back', 'Costas']];
+const PARTS = { shell: 'casca', tube: 'tubo', hood: 'capuz' };
+const nf = (v, d = 1) => v.toLocaleString('pt-BR', { minimumFractionDigits: d, maximumFractionDigits: d });
+const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+const L = data.limits;
+const worst = (g, k) => Math.max(...VIEWS.map(([v]) => g.views[v][k]));
+const change = g => worst(g, 'silhouette') / L.silhouette + worst(g, 'print') / L.print;
+const state = { filter: 'all', sort: 'id' };
+
+document.getElementById('stamp').textContent =
+  `Rodada de ${new Date(data.made).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}` + (data.commit ? ` · commit ${data.commit}` : '') +
+  ` · alerta acima de ${L.silhouette}% de silhueta, ${L.print}% de estampa ou ${L.crossing}% de corpo atravessando`;
+
+const flagged = data.garments.filter(g => g.flags.length);
+const totals = [[`${flagged.length} de ${data.garments.length}`, 'peças com alerta']];
+if (data.summary) totals.push(
+  [`${nf(data.summary.belly_total_cm2, 0)} cm²`, 'barriga à vista nos 345 looks'],
+  [`${nf(data.summary.poke_total_cm2, 0)} cm²`, 'peça de baixo na frente da de cima'],
+  [`${nf(data.summary.body_crossing_mean_pct, 2)}%`, 'corpo atravessando, em média']);
+for (const [v, label] of totals) { const d = el('div'); d.append(el('b', null, v), el('span', null, label)); document.getElementById('totals').append(d); }
+
+function chips(g) {
+  const out = el('div', 'chips');
+  const add = (text, flag) => out.append(el('span', 'chip' + (flag ? ' flag' : ''), text));
+  add(`silhueta até ${nf(worst(g, 'silhouette'))}%`, worst(g, 'silhouette') > L.silhouette);
+  add(`estampa até ${nf(worst(g, 'print'))}%`, worst(g, 'print') > L.print);
+  const m = g.measures;
+  if (m.crossing != null) add(`corpo atravessando ${nf(m.crossing, 2)}%`, m.crossing > L.crossing);
+  const id = m.identity;
+  if (id) {
+    if (typeof id.tear_back_cm === 'number') add(`rasgo da estampa nas costas ${nf(id.tear_back_cm, 0)} cm`);
+    if (typeof id.tear_cm === 'number') add(`rasgo da estampa no total ${nf(id.tear_cm, 0)} cm`);
+    if (typeof id.distortion === 'number') add(`estampa distorcida ${nf(Math.abs(id.distortion - 1) * 100)}%`);
+  }
+  if (m.before && m.registered) for (const [k, label] of [['hem', 'barra'], ['sleeve', 'manga'], ['waist', 'cós']]) {
+    const a = m.before[k], b = m.registered[k];
+    if (typeof a === 'number' && typeof b === 'number' && Math.abs(a - b) >= .005) add(`${label} ${nf(a, 2)} → ${nf(b, 2)} m`);
+  }
+  if (m.triangles != null) add(`${nf(m.triangles, 0)} triângulos`);
+  return out;
+}
+
+function card(g) {
+  const c = el('article', 'card' + (g.flags.length ? ' flag' : '')); c.id = `p${g.id}`;
+  const head = el('div', 'head');
+  head.append(el('span', 'id', g.id), el('span', 'name', g.name), el('span', 'parts', g.parts.map(p => PARTS[p] ?? p).join(' + ')));
+  const body = el('div', 'body');
+  const photo = el('div', 'photo'); const pi = el('img'); pi.src = g.photo; pi.alt = `Foto do brechó: ${g.name}`; pi.loading = 'lazy';
+  photo.append(pi, el('span', 'lab', 'Foto do brechó'));
+  const mx = el('div', 'matrix');
+  mx.append(el('span'), ...VIEWS.map(([, label]) => el('span', 'lab col', label)));
+  for (const [key, label, cls] of [['now', 'Hoje', 'r-now'], ['engine', 'Engine', 'r-engine'], ['diff', 'Diferença', 'r-diff']]) {
+    mx.append(el('span', `lab row ${cls}` + (key === 'engine' ? ' tag-engine' : ''), label));
+    for (const [v, vl] of VIEWS) {
+      const b = el('button', `cell ${cls}`); b.type = 'button'; b.setAttribute('aria-label', `Ampliar ${g.id}, ${vl}, ${label}`);
+      const img = el('img'); img.src = g.views[v][key]; img.alt = `${g.name}, ${vl}, ${label}`; img.loading = 'lazy'; img.width = 300; img.height = 400;
+      b.append(img);
+      if (key === 'engine') { const o = el('img', 'over'); o.src = g.views[v].now; o.alt = ''; o.loading = 'lazy'; b.append(o); }
+      b.addEventListener('click', () => zoom(g, v, vl, key));
+      mx.append(b);
+    }
+  }
+  mx.append(el('span'));
+  for (const [v] of VIEWS) {
+    const s = g.views[v], m = el('div', 'meas');
+    m.append(el('span', s.silhouette > L.silhouette ? 'flag' : '', `silhueta ${nf(s.silhouette)}%`), document.createElement('br'),
+      el('span', s.print > L.print ? 'flag' : '', `estampa ${nf(s.print)}%`));
+    mx.append(m);
+  }
+  body.append(photo, mx);
+  c.append(head, chips(g), body);
+  return c;
+}
+
+const cards = new Map(data.garments.map(g => [g.id, card(g)]));
+function draw() {
+  let list = data.garments.filter(g => state.filter === 'all' || (state.filter === 'flag' ? g.flags.length : g.slot === state.filter));
+  list = [...list].sort((a, b) => state.sort === 'id' ? a.id.localeCompare(b.id) : change(b) - change(a));
+  document.getElementById('cards').replaceChildren(...list.map(g => cards.get(g.id)));
+  document.getElementById('index').replaceChildren(...list.map(g => {
+    const a = el('a', g.flags.length ? 'flag' : '', g.id); a.href = `#p${g.id}`; a.title = g.name + (g.flags.length ? ' (com alerta)' : ''); return a; }));
+  document.getElementById('count').textContent = `${list.length} peças`;
+}
+function group(attr, apply) {
+  for (const b of document.querySelectorAll(`.bar button[data-${attr}]`)) b.addEventListener('click', () => {
+    for (const o of document.querySelectorAll(`.bar button[data-${attr}]`)) o.setAttribute('aria-pressed', String(o === b));
+    apply(b.dataset[attr]);
+  });
+}
+group('mode', v => { document.getElementById('app').dataset.mode = v; });
+group('filter', v => { state.filter = v; draw(); });
+group('sort', v => { state.sort = v; draw(); });
+
+const dlg = document.getElementById('zoom'); let zoomed = null;
+function zoomShow(key) {
+  document.getElementById('zoom-img').src = zoomed.g.views[zoomed.v][key];
+  for (const b of dlg.querySelectorAll('button[data-z]')) b.setAttribute('aria-pressed', String(b.dataset.z === key));
+}
+function zoom(g, v, vl, key) { zoomed = { g, v }; document.getElementById('zoom-title').textContent = `${g.id} ${g.name} · ${vl}`; zoomShow(key); dlg.showModal(); }
+for (const b of dlg.querySelectorAll('button[data-z]')) b.addEventListener('click', () => zoomShow(b.dataset.z));
+document.getElementById('zoom-close').addEventListener('click', () => dlg.close());
+dlg.addEventListener('click', e => { if (e.target === dlg) dlg.close(); });
+draw();
+</script>
