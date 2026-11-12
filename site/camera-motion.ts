@@ -54,11 +54,11 @@ export function createCameraMotion(camera: PerspectiveCamera, controls: Controls
     move(to, false, now);
   }
 
-  /** Brings the camera to `target` at `radius`, keeping the angle: the zoom button. */
-  function frame(target: Vector3, radius: number, now = performance.now()): void {
+  /** Brings the camera to `target` at `radius`, keeping the angle: the zoom (button animated, wheel and pinch instant). */
+  function frame(target: Vector3, radius: number, now = performance.now(), instant = false): void {
     interact(now);
     const to = { ...current(), radius, target: target.clone() };
-    if (reducedMotion) {
+    if (reducedMotion || instant) {
       place(to);
       controls.update();
       return;
