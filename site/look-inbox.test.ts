@@ -58,8 +58,8 @@ test('the server keeps a valid look once and refuses what is not from the form',
   expect((await post('{not json')).status).toBe(400);
   expect((await post({ ...look, note: 'x'.repeat(5000) })).status).toBe(413);
   expect((await post(look, { origin: 'https://example.com' })).status).toBe(403);
-  // The form always sends its origin: a request without one is not the form.
-  expect((await handle(new Request(`https://recrialab.com${INBOX_PATH}`, { method: 'POST', body: JSON.stringify({ ...look, credit: 'Ana' }) }), server(storage).env)).status).toBe(403);
+  // A browser that leaves the Origin header out still sends: no student is locked out by it.
+  expect((await handle(new Request(`https://recrialab.com${INBOX_PATH}`, { method: 'POST', body: JSON.stringify(look) }), server(storage).env)).status).toBe(200);
   // Size is counted in bytes: 2000 characters of 3 bytes each do not pass as 2000.
   expect((await post({ ...look, note: 'あ'.repeat(2000) })).status).toBe(413);
   expect([...storage.data.keys()].filter(key => key.startsWith('look:')).length).toBe(2);

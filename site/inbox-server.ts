@@ -86,9 +86,11 @@ export async function handle(request: Request, env: Env): Promise<Response> {
     return inbox.fetch(new Request('https://inbox/', { method: 'DELETE', body: JSON.stringify({ at }) }));
   }
   if (request.method !== 'POST') return json({ error: 'method' }, 405);
-  // The form always says where it is: a form on another site cannot fill the inbox through a visitor's browser.
+  // A form on another site cannot fill the inbox through a visitor's browser. A request that names no origin is let
+  // in: refusing it would stop no script (which writes the header it likes) and could stop a student whose browser
+  // leaves the header out.
   const origin = request.headers.get('origin');
-  if (!origin || !ORIGINS.test(origin)) return json({ error: 'origin' }, 403);
+  if (origin && !ORIGINS.test(origin)) return json({ error: 'origin' }, 403);
   // Too large by its own account is refused before it is read; then the bytes actually read are counted.
   if (Number(request.headers.get('content-length') ?? 0) > MAX_BODY_BYTES) return json({ error: 'too large' }, 413);
   const body = await request.text();
