@@ -42,13 +42,7 @@ export async function exportLookImage(
   }
   ctx.restore();
 
-  ctx.fillStyle = colors.paper;
-  ctx.strokeStyle = colors.ink;
-  ctx.lineWidth = 4;
-  ctx.beginPath();
-  ctx.ellipse(canvas.width / 2, frame.y + frame.height * .9, frame.width * .25, frame.height * .04, -.05, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.stroke();
+  // The floor under the feet comes from the scene (floor.ts), the same one the fitting room shows.
 
   const size = renderer.getSize(new Vector2());
   const pixelRatio = renderer.getPixelRatio();

@@ -7,6 +7,8 @@ import { hemLine, hemFill, hemRadius } from './garment-hem';
 import { CATALOG } from './catalog-data';
 import { evictionCandidates } from './asset-cache';
 import { createCameraMotion } from './camera-motion';
+import { focusHeight, zoomStep } from './zoom';
+import { addFloor } from './floor';
 import { exportLookImage } from './look-export';
 import { initLookSend } from './look-send';
 import { addPngText, encodeLook, LOOK_VERSION, parseLook, readPngText } from './look-code';
@@ -226,8 +228,8 @@ export function initDressUp(): void {
   const controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = !reducedMotion.matches;
   controls.enablePan = false;
-  // Zoom by pinch and wheel, between the full body and a close look at the print.
-  controls.enableZoom = true;
+  // Zoom by pinch and wheel is ours (zoom.ts), the same as the button's; OrbitControls only turns.
+  controls.enableZoom = false;
   controls.minDistance = MIN_RADIUS;
   // From above, the camera saw into the collars and the inside of the clothes (made from photos taken at chest
   // height). The orbit stays between ~22° above and ~22° below the chest line.
@@ -242,7 +244,6 @@ export function initDressUp(): void {
   const key = PS1 ? addPs1Lights(scene, renderer) : addGarmentLights(scene, renderer);
   if (PS1) {
     addRimLights(scene, camera);
-    stage.classList.add('ps1');
     stage.append(filmGrain(reducedMotion.matches));
   }
   // The light turns with the camera: front and back of the piece get the same light.
@@ -257,6 +258,8 @@ export function initDressUp(): void {
 
   // Mannequin: the two body poses (B and C), loaded at the end of initDressUp.
   const mannequin = new THREE.Group();
+  // Visual QA classifies every pixel that is not background: the floor stays out of its pictures.
+  if (!new URLSearchParams(location.search).has('qa')) addFloor(scene);
   scene.add(mannequin);
 
   // Drawing 60 times a second while the scene stands still wastes battery. The
@@ -345,28 +348,65 @@ export function initDressUp(): void {
     const zoomed = zoomedIn();
     if (zoomed === zoomShown) return;
     zoomShown = zoomed;
-    // The floor is drawn by the page, not the 3D: it would float under a close view.
-    stage.classList.toggle('zoomed', zoomed);
     zoomButton.setAttribute('aria-pressed', String(zoomed));
     zoomButton.setAttribute('aria-label', zoomed ? 'Ver o corpo inteiro' : 'Aproximar da peça');
     zoomButton.title = zoomButton.getAttribute('aria-label')!;
     zoomButton.querySelector('use')!.setAttribute('href', zoomed ? '#i-zoom-out' : '#i-zoom');
   }
+  const zoomLimits = { minRadius: MIN_RADIUS, homeRadius: cameraMotion.homeRadius, homeY: HOME_TARGET.y, minY: .3, maxY: 1.5 };
+  /** The only zoom: towards `focusY` (the height under the finger, the cursor or the open tab's piece). */
+  function zoomAt(factor: number, focusY: number, instant: boolean): void {
+    const radius = camera.position.distanceTo(controls.target);
+    const next = zoomStep({ radius, targetY: controls.target.y }, factor, focusY, zoomLimits);
+    if (next.radius === radius && next.targetY === controls.target.y) return;
+    cameraMotion.frame(new THREE.Vector3(0, next.targetY, 0), next.radius, performance.now(), instant);
+    requestRender();
+  }
+  /** Height of the figure under a screen point of the stage. */
+  function heightAt(clientY: number): number {
+    const box = renderer.domElement.getBoundingClientRect();
+    const ndcY = 1 - 2 * (clientY - box.top) / box.height;
+    return focusHeight(camera.position.y, controls.target.y, camera.position.distanceTo(controls.target), camera.fov, ndcY);
+  }
   function toggleZoom(): void {
     if (zoomedIn()) {
-      cameraMotion.frame(HOME_TARGET, cameraMotion.homeRadius);
+      zoomAt(cameraMotion.homeRadius / camera.position.distanceTo(controls.target), HOME_TARGET.y, false);
       announce('Corpo inteiro.');
     } else {
       const close = CLOSE_UP[activeSlot];
-      cameraMotion.frame(new THREE.Vector3(0, close.y, 0), close.radius);
+      zoomAt(close.radius / camera.position.distanceTo(controls.target), close.y, false);
       announce(activeSlot === 'top' ? 'Perto da peça de cima.' : 'Perto da peça de baixo.');
     }
-    requestRender();
   }
   function zoomBy(factor: number): void {
-    const radius = THREE.MathUtils.clamp(camera.position.distanceTo(controls.target) * factor, MIN_RADIUS, cameraMotion.homeRadius);
-    cameraMotion.frame(controls.target, radius);
-    requestRender();
+    zoomAt(factor, factor < 1 ? controls.target.y : HOME_TARGET.y, false);
+  }
+  renderer.domElement.addEventListener('wheel', (event) => {
+    event.preventDefault();
+    zoomAt(Math.exp(event.deltaY * (event.deltaMode ? 0.03 : 0.001)), heightAt(event.clientY), true);
+  }, { passive: false });
+  // Pinch: two fingers on the stage, aimed at the point between them.
+  const touches = new Map<number, { x: number; y: number }>();
+  const spread = (): { d: number; y: number } => {
+    const [a, b] = [...touches.values()];
+    return { d: Math.hypot(a.x - b.x, a.y - b.y), y: (a.y + b.y) / 2 };
+  };
+  let pinch: number | null = null;
+  renderer.domElement.addEventListener('pointerdown', (event) => {
+    if (event.pointerType !== 'touch') return;
+    touches.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    pinch = touches.size === 2 ? spread().d : null;
+  });
+  renderer.domElement.addEventListener('pointermove', (event) => {
+    if (!touches.has(event.pointerId)) return;
+    touches.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    if (touches.size !== 2 || !pinch) return;
+    const now = spread();
+    if (now.d > 0) zoomAt(pinch / now.d, heightAt(now.y), true);
+    pinch = now.d;
+  });
+  for (const name of ['pointerup', 'pointercancel', 'pointerleave'] as const) {
+    renderer.domElement.addEventListener(name, (event) => { touches.delete(event.pointerId); pinch = null; });
   }
   // Enlarged stage: the stage takes the whole window inside the page. The phone's back, Esc and the same button leave.
   const app = stage.closest<HTMLElement>('.app')!;
