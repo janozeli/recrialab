@@ -24,3 +24,12 @@ test('PS1 material: faceted, matte, lit by its own texture (garment) or colour (
   expect(body.emissiveMap).toBeNull();
   expect(`#${body.emissive.getHexString()}`).toBe(PS1_LOOK.body);
 });
+
+test('rim lights are near white: a faceted shell keeps its fabric colour, facets change brightness only', () => {
+  for (const hex of PS1_LOOK.rim) {
+    // chroma of the light in sRGB (max - min channel): the cyan and amber of the first version had .5 and over
+    const [r, g, b] = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16) / 255);
+    expect(Math.max(r, g, b) - Math.min(r, g, b)).toBeLessThan(.15);
+    expect(Math.min(r, g, b)).toBeGreaterThan(.85);
+  }
+});

@@ -5,14 +5,16 @@ import * as THREE from 'three';
 /**
  * The look: faceted shading, matte cloth that
  * carries its own light (the texture shows even in shade, as in games of that era), flat ambient light, coloured
- * rim lights that follow the camera and film grain over the stage. Full resolution: no pixelation and no aliasing.
+ * near-white rim lights that follow the camera and film grain over the stage. Full resolution: no pixelation and no aliasing.
  * Values calibrated on the 38 garments so the colour stays near today's (median ΔE 3.9; study of 10/11/2026).
  */
 export const PS1 = typeof location !== 'undefined' && new URLSearchParams(location.search).has('ps1');
 export const PS1_LOOK = {
   ambient: 1.9, sky: '#ffffff', ground: '#8a8fb5',
   key: '#fff3e0', keyIntensity: 2.2,
-  rim: ['#7fd4ff', '#ffd27f'] as const, rimIntensity: 4,
+  // Near-white rims: coloured ones (cyan and amber) tinted whole facets of a low-poly shell, so a dark shirt's back
+  // turned into a mosaic of green, teal and olive triangles. The facets now differ in brightness only.
+  rim: ['#e6eeff', '#fff2e0'] as const, rimIntensity: 2.5,
   selfLight: .45, exposure: .9, body: '#d6d6de',
 } as const;
 
