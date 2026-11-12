@@ -1,0 +1,18 @@
+{
+ "009": {"wider_cm": 2.05, "narrower_cm": 0.53, "hem_girth_pct": 1.6, "seam_cm": 0.0, "tear_cm": 85.3, "distortion": 0.005},
+ "010": {"wider_cm": 4.79, "narrower_cm": 1.45, "hem_girth_pct": 2.3, "seam_cm": 0.64, "tear_cm": 144.0, "distortion": 0.011},
+ "017": {"wider_cm": 3.71, "narrower_cm": 1.31, "hem_girth_pct": 5.0, "seam_cm": 1.94, "tear_cm": 142.2, "distortion": 0.048},
+ "018": {"wider_cm": 3.2, "narrower_cm": 1.24, "hem_girth_pct": 3.2, "seam_cm": 0.81, "tear_cm": 108.8, "distortion": 0.027},
+ "019": {"wider_cm": 2.58, "narrower_cm": 0.81, "hem_girth_pct": 0.3, "seam_cm": 0.91, "tear_cm": 193.8, "distortion": 0.001},
+ "022": {"wider_cm": 3.83, "narrower_cm": 1.2, "hem_girth_pct": 4.4, "seam_cm": 0.83, "tear_cm": 279.0, "distortion": 0.049},
+ "023": {"wider_cm": 2.64, "narrower_cm": 1.65, "hem_girth_pct": 1.0, "seam_cm": 1.16, "tear_cm": 177.5, "distortion": 0.005},
+ "025": {"wider_cm": 2.91, "narrower_cm": 0.62, "hem_girth_pct": 6.4, "seam_cm": 1.82, "tear_cm": 211.4, "distortion": 0.019},
+ "026": {"wider_cm": 2.87, "narrower_cm": 0.89, "hem_girth_pct": 3.1, "seam_cm": 1.17, "tear_cm": 224.0, "distortion": 0.017},
+ "027": {"wider_cm": 4.02, "narrower_cm": 0.37, "hem_girth_pct": 4.9, "seam_cm": 2.19, "tear_cm": 34.4, "distortion": 0.048},
+ "028": {"wider_cm": 4.66, "narrower_cm": 2.67, "hem_girth_pct": -0.8, "seam_cm": 2.32, "tear_cm": 196.0, "distortion": 0.051},
+ "029": {"wider_cm": 2.7, "narrower_cm": 0.83, "hem_girth_pct": 0.8, "seam_cm": 1.37, "tear_cm": 202.8, "distortion": 0.013},
+ "030": {"wider_cm": 2.97, "narrower_cm": 1.88, "hem_girth_pct": -2.2, "seam_cm": 0.96, "tear_cm": 90.8, "distortion": 0.024},
+ "031": {"wider_cm": 2.68, "narrower_cm": 1.76, "hem_girth_pct": 1.7, "seam_cm": 1.56, "tear_cm": 116.5, "distortion": 0.003},
+ "032": {"wider_cm": 2.44, "narrower_cm": 1.05, "hem_girth_pct": -0.3, "seam_cm": 0.81, "tear_cm": 46.5, "distortion": 0.025},
+ "034": {"wider_cm": 1.21, "narrower_cm": 0.84, "hem_girth_pct": -0.1, "seam_cm": 0.34, "tear_cm": 274.7, "distortion": 0.004}
+}
