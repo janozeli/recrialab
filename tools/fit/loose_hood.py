@@ -246,8 +246,9 @@ def check(report):
     """Failures of an engine report against the baseline, which only goes down."""
     base = json.load(open(BASELINE)); fails = []
     for pid, was in sorted(base.items()):
-        now = report['garments'].get(pid, {}).get('hood')
-        if now is None: continue
+        if pid not in report['garments']: continue             # a run of other garments
+        now = report['garments'][pid].get('hood')
+        if now is None: fails.append(f'{pid}: has a baseline and the engine built no loose part for it'); continue
         if now['triangles'] > TARGET: fails.append(f"{pid}: {now['triangles']} triangles in the loose part, above {TARGET}")
         fails += [f'{pid}: {k} {now[k]} above the baseline {was[k]}' for k, slack in SLACK.items() if now[k] > was[k] + slack]
     return fails
@@ -257,7 +258,10 @@ def write(report):
     base = json.load(open(BASELINE))
     new = {p: {k: report['garments'][p]['hood'][k] for k in ('triangles', *SLACK)} for p in base}
     for p, g in new.items():
-        for k in SLACK: assert not base[p] or g[k] <= base[p][k] + SLACK[k], f'{p}: {k} would go up'
+        for k in SLACK:
+            if not base[p]: continue
+            assert g[k] <= base[p][k] + SLACK[k], f'{p}: {k} would go up'
+            g[k] = min(g[k], base[p][k])                       # within the slack the recorded value stays: it never creeps up
     open(BASELINE, 'w').write('{\n' + ',\n'.join(f' "{p}": {json.dumps(g)}' for p, g in sorted(new.items())) + '\n}\n')
 
 
