@@ -87,7 +87,10 @@ dela, em `inbox-server.ts`):
 ```sh
 RECRIALAB_INBOX_KEY=... bun inbox.ts          # entradas prontas para a lista `looks` de about-data.ts
 RECRIALAB_INBOX_KEY=... bun inbox.ts --json   # tudo o que foi enviado, com a hora
+RECRIALAB_INBOX_KEY=... bun inbox.ts --delete 2026-11-13T14:02:00.000Z   # tira um look (teste, lixo) pela hora
 ```
+
+A caixa guarda até 5.000 looks e recusa peça fora do acervo ou look com duas peças do mesmo grupo.
 
 ## Página Sobre
 
