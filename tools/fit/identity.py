@@ -8,6 +8,9 @@ the garment. Between neighboring texels of the same chart:
 - STRETCH is the length on the new shape over the length on the garment, along the height and around the body;
   their ratio is the print's distortion (a circle that becomes an oval), which the eye catches long before it
   catches a uniform change of size.
+Only texels in view count: the low-poly mannequin is built in parts that run into each other (leg into hip, arm into
+shoulder), and so is a shell over it; a texel with the shape itself less than HIDDEN in front of it is inside a joint
+or faces the other leg, and what the print does there is not seen.
 Each is reported for the whole garment and for its back (texels facing -z on the torso), where a tear shows most.
 The garment side of the map is taken on the garment as published, before register.py moved it, so what the
 registration stretched counts too.
@@ -16,6 +19,7 @@ import numpy as np, trimesh
 
 TEAR_RATIO, TEAR_MIN = 3.0, .005   # a pair this many times further apart on the garment than on the new shape, plus this (m)
 BACK_NZ, TORSO_X = -.3, .16        # back: normal pointing back, between the arms
+HIDDEN = .05                       # m: the shape itself this close in front of a texel hides it
 
 
 def measure(t, registered=None, published=None, where=None):
@@ -24,6 +28,13 @@ def measure(t, registered=None, published=None, where=None):
     if published is not None:
         f = registered.f[t['tri']]; b = trimesh.triangles.points_to_barycentric(registered.v[f], t['old'])
         t = dict(t, old=np.einsum('ij,ijk->ik', b, published.v[f]))
+    V, F = t['shape']; shape = trimesh.Trimesh(V, F, process=False)
+    hit = shape.ray.intersects_first(t['new'] + t['normal'] * .002, t['normal'])
+    seen = np.ones(len(hit), bool); h = hit >= 0
+    if h.any():
+        loc, ir, _ = shape.ray.intersects_location(t['new'][h] + t['normal'][h] * .002, t['normal'][h], multiple_hits=False)
+        idx = np.flatnonzero(h)[ir]; seen[idx] = np.linalg.norm(loc - t['new'][idx], axis=1) > HIDDEN
+    t = {k: (v[seen] if isinstance(v, np.ndarray) and len(v) == len(seen) else v) for k, v in t.items()}
     n = t['size']; new = np.full((n, n, 3), np.nan); old = np.full((n, n, 3), np.nan); nz = np.zeros((n, n))
     new[t['y'], t['x']] = t['new']; old[t['y'], t['x']] = t['old']; nz[t['y'], t['x']] = t['normal'][:, 2]
     out = {}; pairs = []

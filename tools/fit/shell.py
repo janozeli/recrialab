@@ -305,7 +305,7 @@ def bake(piece, kd, body_v, P, B, N, F, reach, limbs=True, trace=None):
         g = f[has]; chosen = near[has, first[has]]
         tri[g] = piece.sample_f[chosen]; pt[g] = piece.sample_p[chosen]; ok[g] = True
     if trace is not None:
-        trace.update(x=ox[ok], y=oy[ok], size=W, new=np.einsum('ij,ijk->ik', ob, V2[F2[of]])[ok], tri=tri[ok], old=pt[ok], normal=nor[ok])
+        trace.update(x=ox[ok], y=oy[ok], size=W, new=np.einsum('ij,ijk->ik', ob, V2[F2[of]])[ok], tri=tri[ok], old=pt[ok], normal=nor[ok], shape=(V2, F2))
     color = np.zeros((len(base), 3), np.float32); color[ok] = piece.color(tri[ok], pt[ok])
     img = np.zeros((H, W, 3), np.float32); valid = np.zeros((H, W), bool); owned = np.zeros((H, W), bool)
     yy = H - 1 - oy
