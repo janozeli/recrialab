@@ -47,8 +47,9 @@ TOP_GAP = .06          # m: the garment may start this far below the top ring (u
 JUMP = .02             # m per row: a wall this far from the one right above is another cloth (sleeve, cord, fringe)
 HOLE = .04             # m: a gap of the wall up to this height is a hole of the cloth, not its end
 NOTCH = 3              # angles to each side: a notch of the hem narrower than this many is a rip
-MIN_TUBE = .01         # m: shortest tube at any angle
-SKIRT_SIDES = 36       # sides of a skirt's tube
+MIN_TUBE = .02         # m: shortest tube at any angle
+SKIRT_SIDES = 31       # sides of a skirt's tube
+WAIST_OVER = .05       # m over SEAM: a waistband's edge is above this
 SKIRT_TOP_RINGS = 2    # rings of a skirt from the waistband line down to SEAM
 # check
 SEAM_BAND = .06        # m below the weld where the kink is measured
@@ -89,16 +90,16 @@ def cut_shell(src, dst):
 
 
 def waistband_edge(src):
-    """A bottom shell's upper edge (the waistband line) as a level ring of SKIRT_SIDES points."""
+    """A bottom shell's upper edge as a ring of SKIRT_SIDES points: the waistband, with the curve the shell gave it."""
     m = trimesh.load(src, process=False).to_geometry(); V = np.asarray(m.vertices)
     _, inv = np.unique(np.round(V, 4), axis=0, return_inverse=True); F = inv.ravel()[np.asarray(m.faces)]
     e = np.sort(np.vstack([F[:, [0, 1]], F[:, [1, 2]], F[:, [2, 0]]]), axis=1); u, c = np.unique(e, axis=0, return_counts=True)
     P = np.zeros((inv.max() + 1, 3)); P[inv.ravel()] = V
-    B = P[np.unique(u[c == 1])]; B = B[B[:, 1] > V[:, 1].max() - .03]      # open edge at the top
+    B = P[np.unique(u[c == 1])]; B = B[B[:, 1] > SEAM + WAIST_OVER]         # open edge at the top, not the rims of the legs
     cen = B[:, [0, 2]].mean(0); a = np.arctan2(B[:, 2] - cen[1], B[:, 0] - cen[0]); o = np.argsort(a)
     t = -np.pi + np.arange(SKIRT_SIDES) * 2 * np.pi / SKIRT_SIDES
     r = np.interp(t, a[o], np.hypot(B[:, 0] - cen[0], B[:, 2] - cen[1])[o], period=2 * np.pi)
-    return np.c_[cen[0] + r * np.cos(t), np.full(SKIRT_SIDES, float(np.median(B[:, 1]))), cen[1] + r * np.sin(t)]
+    return np.c_[cen[0] + r * np.cos(t), np.interp(t, a[o], B[o, 1], period=2 * np.pi), cen[1] + r * np.sin(t)]
 
 
 def around(a, t):
@@ -196,15 +197,15 @@ def build(dense_path, shell_path, garment_path, shell_out, tube_out, n, envelope
     piece = S.Piece(garment_path); prof = Profile(piece, cen, top)
     hem = np.minimum(prof.hem(ang), SEAM - MIN_TUBE)
     # heights: a skirt follows its shell down to SEAM (every top was built outside that shell), then hangs like a hem
-    ys = [top - (top - SEAM) * j / SKIRT_TOP_RINGS for j in range(1, SKIRT_TOP_RINGS + 1)] if skirt else []
-    ys = [np.full(k, y) for y in ys] + [SEAM - (SEAM - hem) * j / n for j in range(1, n + 1)]
+    ys = [edge[:, 1] - (edge[:, 1] - SEAM) * j / SKIRT_TOP_RINGS for j in range(1, SKIRT_TOP_RINGS + 1)] if skirt else []
+    ys = ys + [SEAM - (SEAM - hem) * j / n for j in range(1, n + 1)]
     if skirt:
         def on_shell(y):
-            o3 = np.c_[np.full(k, cen[0]), np.full(k, y), np.full(k, cen[1])]; d3 = np.c_[u[:, 0], np.zeros(k), u[:, 1]]
+            o3 = np.c_[np.full(k, cen[0]), y, np.full(k, cen[1])]; d3 = np.c_[u[:, 0], np.zeros(k), u[:, 1]]
             loc, ir, _ = sm.ray.intersects_location(o3, d3, multiple_hits=True); r = np.zeros(k)
             np.maximum.at(r, ir, np.hypot(loc[:, 0] - cen[0], loc[:, 2] - cen[1]))
             return np.where(r > 0, r, np.interp(np.arange(k), np.flatnonzero(r > 0), r[r > 0], period=k))
-        r_seam = on_shell(SEAM)
+        r_seam = on_shell(np.full(k, SEAM))
     else: r_seam = np.hypot(edge[:, 0] - cen[0], edge[:, 2] - cen[1])
     off = r_seam - prof.at(ang, np.full(k, SEAM))
     ba, br, by = polar(BV, cen); aa, ar, ay = polar(arms, cen)
@@ -212,7 +213,7 @@ def build(dense_path, shell_path, garment_path, shell_out, tube_out, n, envelope
     rings = [edge]; span = np.gradient(np.unwrap(np.r_[ang, ang[0] + 2 * np.pi]))[:k]
     for j, y in enumerate(ys):
         if skirt and j < SKIRT_TOP_RINGS:
-            r = on_shell(y[0]); rings.append(np.c_[cen[0] + r * u[:, 0], y, cen[1] + r * u[:, 1]]); continue
+            r = on_shell(y); rings.append(np.c_[cen[0] + r * u[:, 0], y, cen[1] + r * u[:, 1]]); continue
         x = np.clip((SEAM - y) / BLEND, 0, 1); fade = x * x * (3 - 2 * x)
         r = prof.at(ang, y) + off * (1 - fade)
         up = np.abs(ys[j - 1] - y) if j else SEAM - y; down = np.abs(ys[j + 1] - y) if j + 1 < len(ys) else np.zeros(k)
@@ -269,6 +270,7 @@ def record(report):
     old = recorded() if os.path.exists(RECORD) else {}
     up = [f'{p} {key}: {old[p][key]} -> {v}' for p, g in new.items() for key, v in g.items() if key in old.get(p, {}) and v > old[p][key] + TOLERANCE[key]]
     if up: raise SystemExit('a baseline only goes down:\n' + '\n'.join(up))
+    new = {p: {key: min(v, old.get(p, {}).get(key, v)) for key, v in g.items()} for p, g in new.items()}   # inside the slack the recorded value stays
     open(RECORD, 'w').write('{\n' + ',\n'.join(f' "{p}": {json.dumps(g)}' for p, g in new.items()) + '\n}\n')
 
 
