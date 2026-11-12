@@ -50,6 +50,11 @@ button:active:not(:disabled), .action:active { scale: .97; }
 .stage::after { content: ''; position: absolute; inset: 0; background-image: radial-gradient(var(--ink) .8px, transparent .9px); background-size: 6px 6px; mask-image: linear-gradient(135deg, #000, transparent 32%, transparent 76%, #000); opacity: .25; pointer-events: none; z-index: -1; }
 .stage canvas { position: absolute; left: 0; top: 8px; z-index: 1; touch-action: none; cursor: grab; }
 .stage canvas:active { cursor: grabbing; }
+/* PS1 look (?ps1): film grain and a soft vignette over the 3D stage, under the toolbar; they never take a touch. */
+.film-grain { position: absolute; inset: 0; z-index: 1; pointer-events: none; mix-blend-mode: overlay; opacity: .7; background-image: var(--grain); background-size: calc(128px * var(--grain-frames)) 128px; animation: film-grain .32s steps(var(--grain-frames)) infinite; }
+.film-grain::after { content: ''; position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 46%, transparent 60%, #000 150%); }
+@keyframes film-grain { to { background-position: calc(-128px * var(--grain-frames)) 0; } }
+@media (prefers-reduced-motion: reduce) { .film-grain { animation: none; } }
 .floor { position: absolute; width: min(46%, 220px); height: 9%; left: 50%; bottom: 4%; transform: translateX(-50%) rotate(-3deg); border-radius: 50%; background: var(--paper); border: 2px solid var(--ink); box-shadow: 3px 3px 0 var(--ink); z-index: 0; pointer-events: none; }
 .floor { transition: opacity .2s; }
 .stage.zoomed .floor { opacity: 0; }
