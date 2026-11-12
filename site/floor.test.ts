@@ -19,3 +19,17 @@ test('no page-drawn floor left: it stayed put while the camera zoomed', () => {
   expect(readFileSync(new URL('./index.html', import.meta.url), 'utf8')).not.toContain('class="floor"');
   expect(readFileSync(new URL('./base.css', import.meta.url), 'utf8')).not.toMatch(/\.floor\b/);
 });
+
+test('the saved image has one floor: the scene\'s, not a second one drawn on its canvas', () => {
+  const exporter = readFileSync(new URL('./look-export.ts', import.meta.url), 'utf8');
+  expect(exporter).not.toMatch(/\.ellipse\(/);
+});
+
+test('the floor never writes depth and is drawn before everything, back layers first', () => {
+  const floor = addFloor(new THREE.Scene());
+  const disks = floor.children as THREE.Mesh[];
+  for (const d of disks) expect((d.material as THREE.Material).depthWrite).toBe(false);
+  const orders = disks.map(d => d.renderOrder);
+  expect(orders).toEqual([...orders].sort((a, b) => a - b));
+  expect(Math.max(...orders)).toBeLessThan(0);
+});

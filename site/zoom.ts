@@ -1,6 +1,6 @@
-/** One zoom for the button, the wheel and the pinch (Lucas, 12/11/2026: "o botão tem um comportamento, zoom manual tem
- * outro, e o zoom é muito centralizado no meio"). Zooming in keeps the point under the finger or cursor where it is on
- * the screen; zooming out walks the aim back to the full body, which it reaches at the far limit. */
+/** One zoom for the button, the wheel and the pinch, so they behave alike and do not always aim at the middle of the
+ * figure. Zooming in keeps the point under the finger or cursor where it is on the screen; zooming out walks the aim
+ * back to the full body, which it reaches at the far limit. */
 export type ZoomView = { radius: number; targetY: number };
 export type ZoomLimits = { minRadius: number; homeRadius: number; homeY: number; minY: number; maxY: number };
 
