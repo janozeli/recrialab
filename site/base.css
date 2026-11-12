@@ -132,6 +132,25 @@ button:active:not(:disabled), .action:active { scale: .97; }
 .export-code { margin-top: -6px; color: var(--muted); font-family: var(--display); font-size: 17px; font-weight: 600; letter-spacing: .04em; }
 .export-close { position: absolute; top: 18px; right: 18px; z-index: 1; }
 .export-side .action { flex: none; }
+/* Sending the look to the team: the same sheet as the save dialog, with a short form. Inputs at 16 px, so iOS does
+   not zoom the page on focus. */
+.look-send-dialog { margin: auto; width: min(420px, calc(100% - 24px)); max-height: calc(100dvh - 24px); overflow-y: auto; padding: 14px; border: 2px solid var(--ink); border-radius: 16px; background: var(--paper); color: var(--ink); }
+.look-send-dialog::backdrop { background: #1f2a5ecc; }
+.look-send-dialog .export-names { padding-right: 52px; min-height: 44px; display: flex; align-items: center; }
+.look-send-dialog .export-code { margin: 2px 0 10px; }
+.look-send-dialog .export-close { top: 12px; right: 12px; }
+.send-done { display: flex; flex-direction: column; gap: 10px; }
+.send-form { display: grid; grid-template-columns: 2fr 1fr; gap: 10px; }
+.send-form > * { grid-column: 1 / -1; }
+.send-form > .field-credit { grid-column: 1; }
+.send-form > .field-group { grid-column: 2; }
+.field { min-width: 0; display: flex; flex-direction: column; gap: 3px; font-size: 14px; line-height: 1.3; font-weight: 600; }
+.field input, .field textarea { width: 100%; min-height: 44px; padding: 8px 10px; border: 2px solid var(--ink); border-radius: 10px; color: var(--ink); background: #fff; font: inherit; font-size: 16px; font-weight: 400; resize: none; }
+.send-notice, .send-error { font-size: 13px; line-height: 1.35; }
+.send-notice { color: var(--muted); }
+.send-error { font-weight: 600; }
+.send-form .action, .send-done .action { flex: none; }
+.send-done-title { font-family: var(--display); font-size: 26px; line-height: 1.1; font-weight: 700; letter-spacing: .02em; text-transform: uppercase; }
 
 @media (hover: hover) {
   .card:hover:not(:disabled) .thumb { outline: 2px solid var(--ink); outline-offset: 2px; }
@@ -177,6 +196,13 @@ button:active:not(:disabled), .action:active { scale: .97; }
   .look-export-dialog[open] { flex-direction: row; align-items: center; }
   .look-export-dialog img { width: auto; height: calc(100dvh - 52px); max-height: none; }
   .export-side { flex: 1; padding-right: 52px; }
+  /* Lying down there is no height for four rows of fields: nickname, class and look name share one. */
+  .look-send-dialog { width: min(680px, calc(100% - 24px)); padding: 10px 14px; }
+  .look-send-dialog .export-code { display: none; }
+  .look-send-dialog .export-close { top: 8px; }
+  .send-form { grid-template-columns: 2fr 1fr 2fr; gap: 6px 10px; }
+  .send-form > .field-name { grid-column: 3; }
+  .field textarea { height: 44px; }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }

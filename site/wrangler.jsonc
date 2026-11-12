@@ -1,8 +1,13 @@
 {
   "name": "recrialab",
   "compatibility_date": "2026-08-31",
-  // Always built from scratch by `bun run build` (it deletes dist/ first).
-  "assets": { "directory": "./dist" },
+  // Only /api/* runs code (worker.ts: the looks sent from the fitting room). Pages and files are static assets,
+  // always built from scratch by `bun run build` (it deletes dist/ first).
+  "main": "./worker.ts",
+  "assets": { "directory": "./dist", "binding": "ASSETS", "run_worker_first": ["/api/*"] },
+  // The inbox of sent looks: a Durable Object with its own storage, created by the deploy itself.
+  "durable_objects": { "bindings": [{ "name": "INBOX", "class_name": "LookInbox" }] },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["LookInbox"] }],
   "routes": [
     { "pattern": "recrialab.com", "custom_domain": true },
     { "pattern": "www.recrialab.com", "custom_domain": true }

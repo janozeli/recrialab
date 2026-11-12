@@ -19,6 +19,7 @@
       <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18" /></symbol>
       <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5" /></symbol>
       <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 16V4m-5 5 5-5 5 5M4 16v5h16v-5" /></symbol>
+      <symbol id="i-send" viewBox="0 0 24 24"><path d="M21 3 10 14M21 3l-7 18-4-7-7-4z" /></symbol>
       <symbol id="i-expand" viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" /></symbol>
       <symbol id="i-shrink" viewBox="0 0 24 24"><path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5" /></symbol>
       <symbol id="i-zoom" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5" /><path d="m16 16 4.5 4.5M8.5 11h5M11 8.5v5" /></symbol>
@@ -44,6 +45,7 @@
             <span class="tool-separator" aria-hidden="true"></span>
             <button class="tool tool-labelled" id="export-look" title="Nada vestido ainda" disabled><svg class="icon" aria-hidden="true"><use href="#i-download" /></svg>Salvar</button>
             <button class="tool tool-labelled" id="import-look" title="Abrir um look salvo"><svg class="icon" aria-hidden="true"><use href="#i-upload" /></svg>Abrir</button>
+            <button class="tool tool-labelled" id="send-look" title="Nada vestido ainda" disabled><svg class="icon" aria-hidden="true"><use href="#i-send" /></svg>Enviar</button>
             <input id="import-file" type="file" accept="image/png" hidden />
           </div>
           <div class="toast" id="toast" role="status" aria-live="polite"></div>
@@ -69,6 +71,25 @@
           <p class="export-code" id="look-code"></p>
           <button class="export-share action action-primary" id="share-look" type="button" hidden>Compartilhar</button>
           <a class="export-save action" id="save-look" download>Salvar imagem</a>
+        </div>
+      </dialog>
+      <dialog class="look-send-dialog" id="look-send-dialog" aria-labelledby="send-names">
+        <button class="export-close icon-button" id="send-close" aria-label="Fechar"><svg class="icon" aria-hidden="true"><use href="#i-close" /></svg></button>
+        <h2 class="export-names" id="send-names"></h2>
+        <p class="export-code" id="send-code"></p>
+        <form class="send-form" id="send-form">
+          <label class="field field-credit">Apelido ou iniciais<input id="send-credit" name="credit" required autocomplete="off" enterkeyhint="next" /></label>
+          <label class="field field-group">Turma<input id="send-group" name="group" autocomplete="off" enterkeyhint="next" /></label>
+          <label class="field field-name">Nome do look<input id="send-name" name="name" autocomplete="off" enterkeyhint="next" /></label>
+          <label class="field">Por que ele tem a sua cara?<textarea id="send-note" name="note" rows="2"></textarea></label>
+          <p class="send-notice">Sem nome completo. O look pode aparecer no site e no ensaio do projeto.</p>
+          <p class="send-error" id="send-error" role="alert" hidden>Não foi possível enviar o look.</p>
+          <button class="action action-primary" id="send-submit" type="submit">Enviar look</button>
+        </form>
+        <div class="send-done" id="send-done" hidden>
+          <p class="send-done-title" role="status">Look enviado!</p>
+          <p>A equipe do ReCriaLab recebeu.</p>
+          <button class="action" id="send-finish" type="button">Fechar</button>
         </div>
       </dialog>
     </div>

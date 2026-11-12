@@ -19,6 +19,7 @@
     "verify-dist.ts",
     "check-live.ts",
     "about-look.ts",
+    "inbox.ts",
     "known-issues.ts",
     "ci-filter.ts",
     "thumbnails.ts"
