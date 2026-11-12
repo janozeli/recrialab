@@ -2,8 +2,8 @@
 
 Every fit rule so far carries its own numbers for where the waist, the wrist or the hem is. This reads them once:
 - mannequin, from horizontal cuts of the body every centimeter: crotch (highest cut where the legs are still two
-  loops), armpit (highest cut where the arm is still a loop apart from the torso), hip, waist and chest (largest,
-  smallest and largest torso perimeter between them), neck, shoulder, wrist (smallest arm perimeter above the hand),
+  loops), armpit (highest cut where the arm is still a loop apart from the torso), waist (smallest torso perimeter
+  between them, and not at either end of that stretch), neck, shoulder, wrist (smallest arm perimeter above the hand),
   elbow, ankle and knee;
 - bottom: waistband (top of the cloth around the body, how uneven it is, and its shape: how much lower the front
   is than the back and how much higher the sides are than both), crotch of the garment (highest cloth in the middle
@@ -19,7 +19,7 @@ usage: python3 tools/fit/landmarks.py            (prints the landmarks of the bo
        python3 tools/fit/landmarks.py --check    (fails if the body changed or its landmarks moved from the recorded ones)"""
 import sys, os, json, hashlib, numpy as np, trimesh
 from garment import Garment
-from metric import body, POSE_C
+from metric import body
 from paths import GARMENTS, BODY
 
 STEP = .01             # m between body cuts
@@ -64,10 +64,8 @@ def mannequin(b):
     ig = max(i for i, l in enumerate(L) if two_legs(l) and ys[i] < 1.1); m['crotch'] = float(ys[ig] + STEP)
     ia = max(i for i, l in enumerate(L) if len(l) >= 3 and i > ig); m['armpit'] = float(ys[ia] + STEP)
     torso = {i: max(L[i], key=lambda x: x[1]) for i in range(ig + 1, ia + 1)}
-    pick = lambda i0, i1, f: f(range(i0, i1), key=lambda i: torso[i][1])
-    ih = pick(ig + 1, min(ig + 23, ia), max); m['hip'] = float(ys[ih])
-    iw = pick(ih + 1, ia - 8, min); m['waist'] = float(ys[iw])
-    m['chest'] = float(ys[pick(iw + 1, ia + 1, max)])
+    iw = min(range(ig + 2, ia - 8), key=lambda i: torso[i][1]); m['waist'] = float(ys[iw])
+    assert ig + 2 < iw < ia - 9, 'the waist was read at the edge of where it is searched: not a waist'
     top = [i for i in range(ia + 1, len(ys)) if L[i]]
     width = {i: max(x[2] for x in L[i]) for i in top}
     ineck = min((i for i in top if ys[i] < m['armpit'] + .22), key=lambda i: width[i]); m['neck'] = float(ys[ineck])

@@ -19,13 +19,24 @@ long sleeves stays one. What the caps leave undone stays undone: a cropped top s
   under the wrist: one that passes the line is shortened to it (the hand stays in view), and the body of the top
   gives up the stretch that would take it more than PROPORTION away from its sleeve; one that ends above the line
   is lengthened by at most PROPORTION over the body.
-Sleeve or torso is decided by which the cloth is closer to, blended over a centimeter.
+Sleeve or torso is decided by which the cloth is closer to; what the sleeve differs by from the body starts at the
+armpit and is spread along the cloth between the two (along_cloth), so it is not sheared where they come near.
+register.json records the lines and, per garment, where the registration left it (KEPT) and two measures that do
+not come from the rule: how far its farthest vertex moved and how much its mesh edges stretched (95th percentile of
+the edge length after over before, in any direction: it also counts the shear where a hem comes down more at the
+back than at the front). The check compares a registration with that record and with the limits written
+here as numbers (LIMITS), not with the rule's own constants: changing a line, a cap or a garment fails it. And the
+check proves it can fail: each MUTATION breaks the rule on one garment and must be reported.
 usage: python3 tools/fit/register.py IN.glb OUT.glb   (file names carry the piece id, NNN)
-       python3 tools/fit/register.py --check          (registers the 38 in memory; fails if a garment lost a proportion or its
-                                                       length class, passed a cap, or stayed off its line with cap to spare)
+       python3 tools/fit/register.py --check          (registers the 38 in memory; fails if a garment is not where it was
+                                                       recorded, moved or stretched more than recorded or than the limits,
+                                                       lost a proportion or its length class, or if a mutation passes)
+       python3 tools/fit/register.py --write          (records register.json; moved and stretch may only go down)
        python3 tools/fit/register.py --table          (the 38, published and registered: lengths, classes and what moved)"""
-import sys, os, tempfile, numpy as np
+import sys, os, json, tempfile, numpy as np
 from scipy.spatial import cKDTree
+from scipy.sparse import coo_matrix, diags
+from scipy.sparse.linalg import spsolve
 from garment import Garment
 from metric import body, POSE_C
 from paths import GARMENTS, piece_id
@@ -42,6 +53,14 @@ WAISTBAND_LIFT = .025  # m: highest the mean height of a waistband goes above th
 FULL_LENGTH_LIFT = .01 # m: the same for a full-length bottom, whose hem would leave the ankle
 # --check: how far a registered garment may be from its line, and the error of reading a length (the sleeve end is read in 2 cm slices)
 WAIST_TOL, HEM_TOL, SLEEVE_TOL, LENGTH_TOL, SHAPE_TOL = .01, .006, .02, .012, .012
+
+
+RECORD = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'register.json')
+# the limits as numbers of their own: a cap changed in the rule above does not move them
+LIMITS = {'edge_stretch': 1.20, 'moved_cm': 13.5, 'waistband': (.985, 1.03), 'top_hem': .96, 'long_sleeve': (.82, .89)}
+# recorded per garment: landmark of the registered garment and how far a rerun may be from it (m)
+KEPT = {'waistband_mean': .004, 'waistband_front_drop': .006, 'waistband_side_rise': .006, 'hem': .005, 'hem_front': .005, 'hem_back': .005, 'sleeve': .011}
+MOVED_SLACK, STRETCH_SLACK = .3, .004
 
 
 def lines(mb):
@@ -71,6 +90,21 @@ def full_length(pid, g, mb):
     return L.proportions(pid, g, mb, lines(mb)['waistband'])['length_class'] == L.BOTTOM_CLASSES[-1][1]
 
 
+def along_cloth(m, w):
+    """The sleeve weight made smooth along the cloth: kept where it is clearly sleeve or clearly body, and in between
+    (the inner side of a sleeve hanging by the torso, the underarm) the mean of its neighbors on the mesh, solved.
+    Blended by distance in space, a sleeve that differs from the body of the top sheared wherever it came near it."""
+    _, inv = np.unique(np.round(m.vertices, 5), axis=0, return_inverse=True); inv = inv.ravel(); n = inv.max() + 1
+    e = np.unique(np.sort(inv[m.edges_unique], axis=1), axis=0); e = e[e[:, 0] != e[:, 1]]
+    A = coo_matrix((np.ones(2 * len(e)), (np.r_[e[:, 0], e[:, 1]], np.r_[e[:, 1], e[:, 0]])), shape=(n, n)).tocsr()
+    w0 = np.zeros(n); cnt = np.zeros(n); np.add.at(w0, inv, w); np.add.at(cnt, inv, 1); w0 /= cnt
+    free = (w0 > .02) & (w0 < .98); deg = np.asarray(A.sum(1)).ravel()
+    if free.any():
+        Lf = (diags(deg) - A)[free]; x = spsolve(Lf[:, free].tocsc() + diags(np.full(free.sum(), 1e-6)), -Lf[:, ~free] @ w0[~free] + 1e-6 * w0[free])
+        w0[free] = np.clip(x, 0, 1)
+    return w0[inv]
+
+
 def register(pid, src, dst, mb, axis, b):
     """Writes the registered garment to dst; returns its landmarks before and after."""
     g = Garment(src); P = g.vertices(); S = L.sample(src); before = L.garment(pid, S, mb, axis)
@@ -90,19 +124,28 @@ def register(pid, src, dst, mb, axis, b):
         kb = float(need(before['hem_front']) + need(before['hem_back'])) / 2; ka = kb; give = 1.; limit = 'cap' if max(need(before['hem_front']), need(before['hem_back'])) >= MAX_STRETCH else None
         if before['sleeve'] is not None and (sh - before['sleeve']) / (sh - mb['wrist']) >= LONG_SLEEVE:
             ka = float(np.clip((sh - ln['long_sleeve_end']) / (sh - before['sleeve']), 1 / MAX_STRETCH, min(kb * PROPORTION, MAX_STRETCH)))
-            if kb > ka * PROPORTION: give = (ka * PROPORTION - 1) / (kb - 1); kb = ka * PROPORTION; limit = 'sleeve'
+            if kb > ka * PROPORTION + 1e-9:
+                give = max(ka * PROPORTION - 1, 0) / (kb - 1) if kb > 1 else 1.; kb = 1 + give * (kb - 1); limit = 'sleeve'
+                ka = max(ka, kb / PROPORTION)                # a body that cannot shrink holds the sleeve
         k = 1 + give * (need(before['hem_front'] * f + before['hem_back'] * (1 - f)) - 1); yt = np.where(y < sh, sh - (sh - y) * k, y)
         V = np.asarray(b.vertices); arm = np.isin(L.limb(V), (1, 2))
         da = cKDTree(V[arm]).query(P)[0]; dt = cKDTree(V[~arm]).query(P)[0]
         w = np.where(y < ap, 1 / (1 + np.exp(-(dt - da) / .01)), 0)
-        ya = np.where(y < sh, sh - (sh - y) * ka, y)
+        # the sleeve follows the body of the top down to the armpit and takes what it differs by from there on, growing
+        # down the arm, so its end lands where a scale by ka from the shoulder puts it
+        end = before['sleeve'] if before['sleeve'] is not None else ap - .1
+        extra = (ka - kb) * (sh - end) / max(ap - end, .05) * np.clip(ap - y, 0, None)
+        if abs(ka - 1) + abs(kb - 1) > 1e-6: w = along_cloth(g.mesh(P), w)
+        ya = yt - extra
         for side in (1, -1):
             ys, c, _ = axis[side]; s = P[:, 0] * side > 0
             for j in (0, 2):
                 Q[s, j] += w[s] * (np.interp(ya[s], ys, c[:, j]) - np.interp(y[s], ys, c[:, j]))
-        Q[:, 1] = (1 - w) * yt + w * ya
+        Q[:, 1] = yt - w * extra
         stretch = float(max(k.max(), ka, 1 / ka)); how = {'body': round(kb, 3), 'sleeve': round(ka, 3), 'limit': limit}
     g.save(dst, Q, before=P)
+    e = g.mesh(P).edges_unique; l0 = np.linalg.norm(P[e[:, 0]] - P[e[:, 1]], axis=1); l1 = np.linalg.norm(Q[e[:, 0]] - Q[e[:, 1]], axis=1)
+    r = (l1 / l0)[l0 > 1e-4]; how['edge_stretch'] = round(float(np.percentile(np.maximum(r, 1 / r), 95)), 3)
     after = L.garment(pid, L.sample(dst), mb, axis)
     return before, after, {'moved_cm': round(float(np.abs(Q - P).max()) * 100, 1), 'stretch': round(stretch, 3), **how,
                            'proportions': [L.proportions(pid, x, mb, ln['waistband']) for x in (before, after)]}
@@ -140,10 +183,64 @@ def misses(pid, before, after, how, ln):
     return bad
 
 
+def entry(after, how):
+    return {'moved_cm': how['moved_cm'], 'edge_stretch': how['edge_stretch'], **{k: after[k] for k in KEPT if after.get(k) is not None}}
+
+
+def against_record(pid, after, how, rec):
+    """What a registered garment shows against register.json and LIMITS."""
+    bad = []; top = int(pid) > 15
+    if how['edge_stretch'] > LIMITS['edge_stretch']: bad.append(f'mesh edges stretched {how["edge_stretch"]}, limit {LIMITS["edge_stretch"]}')
+    if how['moved_cm'] > LIMITS['moved_cm']: bad.append(f'moved {how["moved_cm"]} cm, limit {LIMITS["moved_cm"]}')
+    if not top and not LIMITS['waistband'][0] <= after['waistband_mean'] <= LIMITS['waistband'][1]: bad.append(f'waistband at {after["waistband_mean"]}, outside {LIMITS["waistband"]}')
+    if top and how['limit'] is None and max(after['hem_front'], after['hem_back']) > LIMITS['top_hem']: bad.append(f'hem at {max(after["hem_front"], after["hem_back"])}, above {LIMITS["top_hem"]} with stretch to spare')
+    if top and how['proportions'][0]['sleeve_class'] == 'long' and not LIMITS['long_sleeve'][0] <= after['sleeve'] <= LIMITS['long_sleeve'][1]:
+        bad.append(f'long sleeve ends at {after["sleeve"]}, outside {LIMITS["long_sleeve"]}')
+    if rec is None: return bad + ['not in register.json (--write)']
+    if how['moved_cm'] > rec['moved_cm'] + MOVED_SLACK: bad.append(f'moved {how["moved_cm"]} cm, recorded {rec["moved_cm"]}')
+    if how['edge_stretch'] > rec['edge_stretch'] + STRETCH_SLACK: bad.append(f'mesh edges stretched {how["edge_stretch"]}, recorded {rec["edge_stretch"]}')
+    bad += [f'{k} at {after.get(k)}, recorded {x}' for k, x in rec.items() if k in KEPT and (after.get(k) is None or abs(after[k] - x) > KEPT[k])]
+    return bad
+
+
+def recorded():
+    return json.load(open(RECORD)) if os.path.exists(RECORD) else {'lines': None, 'garments': {}}
+
+
 def check(report):
-    """Called by engine.py --check on its report: the same misses, on the garments as the engine registered them."""
-    ln = lines(L.recorded())
-    return [f'{pid}: {x}' for pid, g in report['garments'].items() for x in misses(pid, g['before'], g['registered'], g, ln)]
+    """Called by engine.py --check on its report: the garments as the engine registered them, against the rule's own
+    terms (misses) and against the record and the limits."""
+    rec = recorded(); ln = lines(L.recorded())
+    bad = [] if rec['lines'] == ln else [f'lines are {ln}, recorded {rec["lines"]}']
+    return bad + [f'{pid}: {x}' for pid, g in report['garments'].items()
+                  for x in misses(pid, g['before'], g['registered'], g, ln) + against_record(pid, g['registered'], g, rec['garments'].get(pid))]
+
+
+# (what is broken, garment, constants of this module to change, garment registered in its place): each must fail the check
+MUTATIONS = (
+    ('stretch cap at 30%', '016', {'MAX_STRETCH': 1.30}, None),
+    ('waistband line 10 cm lower', '005', {'BELOW_WAIST': .17}, None),
+    ('waistband line 10 cm higher', '005', {'BELOW_WAIST': -.03}, None),
+    ('no cap on what the waistband rises', '003', {'WAISTBAND_LIFT': .15}, None),
+    ('sleeve free of the body of the top', '035', {'PROPORTION': 1.30}, None),
+    ('long sleeve left where it is', '033', {'BELOW_WRIST': -.03}, None),
+    ('another garment in its place', '017', {}, '016'),
+)
+
+
+def mutations(mb, axis, B, tmp):
+    """The mutations the check let through: with any, the check does not check."""
+    rec = recorded(); passed = []; mod = sys.modules[__name__]
+    for what, pid, change, other in MUTATIONS:
+        old = {k: getattr(mod, k) for k in change}
+        try:
+            for k, x in change.items(): setattr(mod, k, x)
+            ln = lines(mb); before, after, how = register(pid, GARMENTS + f'{other or pid}.glb', os.path.join(tmp, f'mutant-{pid}.glb'), mb, axis, B['C' if pid in POSE_C else 'B'])
+            caught = (rec['lines'] != ln) + len(against_record(pid, after, how, rec['garments'].get(pid)))
+        finally:
+            for k, x in old.items(): setattr(mod, k, x)
+        if not caught: passed.append(f'{what} ({pid}) passes the check')
+    return passed
 
 
 def row(pid, before, after, how):
@@ -156,14 +253,22 @@ def row(pid, before, after, how):
 
 if __name__ == '__main__':
     B = {p: body(p) for p in 'BC'}; mb = L.recorded(); axis = L.arm_axis(B['B'])
-    if '--check' in sys.argv or '--table' in sys.argv:
-        fail = 0; ln = lines(mb); print('lines:', ln, ' lengths in cm, published > registered')
+    if {'--check', '--table', '--write'} & set(sys.argv):
+        fail = 0; ln = lines(mb); rec = recorded(); new = {}; print('lines:', ln, ' lengths in cm, published > registered')
         with tempfile.TemporaryDirectory() as tmp:
             for n in range(1, 39):
                 pid = f'{n:03d}'
                 before, after, how = register(pid, GARMENTS + f'{pid}.glb', os.path.join(tmp, f'{pid}.glb'), mb, axis, B['C' if pid in POSE_C else 'B'])
-                bad = misses(pid, before, after, how, ln); fail += bool(bad)
-                print(row(pid, before, after, how), ' ', '; '.join(bad) or 'ok')
+                bad = misses(pid, before, after, how, ln); new[pid] = entry(after, how)
+                if '--check' in sys.argv: bad += against_record(pid, after, how, rec['garments'].get(pid))
+                fail += bool(bad); print(row(pid, before, after, how), ' ', '; '.join(bad) or 'ok')
+            if '--write' in sys.argv:
+                up = [f'{p} {k}: {rec["garments"][p][k]} -> {g[k]}' for p, g in new.items() for k in ('moved_cm', 'edge_stretch') if p in rec['garments'] and g[k] > rec['garments'][p][k]]
+                if up or fail: sys.exit('not recorded: moved and stretch only go down, and a garment that misses is not recorded\n' + '\n'.join(up))
+                open(RECORD, 'w').write('{\n "lines": ' + json.dumps(ln) + ',\n "garments": {\n' + ',\n'.join(f'  "{p}": {json.dumps(g)}' for p, g in new.items()) + '\n }\n}\n'); sys.exit()
+            if '--check' in sys.argv:
+                extra = ([] if rec['lines'] == ln else [f'lines are {ln}, recorded {rec["lines"]}']) + mutations(mb, axis, B, tmp)
+                print('\n'.join(extra) or f'{len(MUTATIONS)} mutations of the rule fail the check, as they must'); fail += bool(extra)
         sys.exit(1 if fail and '--check' in sys.argv else 0)
     src, dst = sys.argv[1:3]; pid = piece_id(src)
     before, after, how = register(pid, src, dst, mb, axis, B['C' if pid in POSE_C else 'B'])
