@@ -239,7 +239,6 @@ export function initDressUp(): void {
   const key = PS1 ? addPs1Lights(scene, renderer) : addGarmentLights(scene, renderer);
   if (PS1) {
     addRimLights(scene, camera);
-    stage.classList.add('ps1');
     stage.append(filmGrain(reducedMotion.matches));
   }
   // The light turns with the camera: front and back of the piece get the same light.

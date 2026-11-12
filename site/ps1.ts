@@ -3,7 +3,7 @@
 import * as THREE from 'three';
 
 /**
- * The look, behind `?ps1` while the art direction is being decided: faceted shading, matte cloth that
+ * The look: faceted shading, matte cloth that
  * carries its own light (the texture shows even in shade, as in games of that era), flat ambient light, coloured
  * rim lights that follow the camera and film grain over the stage. Full resolution: no pixelation and no aliasing.
  * Values calibrated on the 38 garments so the colour stays near today's (median ΔE 3.9; study of 10/11/2026).
