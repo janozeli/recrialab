@@ -15,9 +15,8 @@ usage: python3 tools/fit/engine.py WORK            (builds everything and writes
        python3 tools/fit/engine.py WORK 016 004    (only these garments; no look measures)
        python3 tools/fit/engine.py WORK --check    (fails where a garment is worse than its baseline or a look limit is passed)
        python3 tools/fit/engine.py WORK --write    (records the baseline; values may only go down against the recorded ones)"""
-import sys, os, json, glob, numpy as np, trimesh
+import sys, os, json, glob, shutil, numpy as np, trimesh
 from multiprocessing import Pool
-from garment import Garment
 from metric import measure, POSE_C
 from paths import GARMENTS
 import landmarks as L
@@ -102,6 +101,7 @@ def contour(pid, m, body):
 
 
 def run(work, ids):
+    for d in ('reg', 'shell', 'final'): shutil.rmtree(f'{work}/{d}', ignore_errors=True)   # nothing of an earlier run is read
     for d in ('reg', 'shell/env', 'final'): os.makedirs(f'{work}/{d}', exist_ok=True)
     for p in 'BC': mannequin.build(p, f'{work}/dense-{p}.glb', f'{work}/low-{p}.glb')
     B = {p: shell.load_body(f'{work}/dense-{p}.glb') for p in 'BC'}; mb = L.recorded(); axis = L.arm_axis(B['B'])
@@ -168,6 +168,7 @@ def check(rep):
 
 
 if __name__ == '__main__':
+    if len(sys.argv) < 2: sys.exit(__doc__)
     flags = [a for a in sys.argv[2:] if a.startswith('--')]
     work = sys.argv[1]; ids = [a for a in sys.argv[2:] if not a.startswith('--')] or [f'{n:03d}' for n in range(1, 39)]
     rep = run(work, ids)
