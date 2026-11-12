@@ -3,7 +3,8 @@
 register.py takes each garment to the mannequin's landmarks; shell.py rebuilds what wears the body as a skin of
 the low-poly mannequin (bottoms first: every top stays outside all of them); tube.py rebuilds skirts and hems
 below the hip as welded tubes; loose_hood.py keeps hoods and collars. Then it measures the result:
-- per garment: body crossing the garment, triangles, and identity.py on the print (tears and distortion);
+- per garment: body crossing the garment, triangles, identity.py on the print (tears and distortion) and on the
+  garment's lines (waistband, hem and silhouette against the published garment's: what the engine made straight);
 - over the 345 looks, from 12 cameras, one ray per cm²: bottom showing in front of the top (the bottom is first
   and the top is less than 3 cm behind) and belly in view between the top's hem and the waistband.
 Nothing here writes to site/assets: the output goes to WORK.
@@ -24,14 +25,21 @@ import register as R
 import mannequin, shell, tube, loose_hood, identity, looks
 
 BASELINE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'engine.json')
-# per-garment baseline: value read from the report and the slack a rerun may show over the recorded value
+# per-garment baseline: value read from the report and the slack a rerun on another machine may show over the
+# recorded value (CI against the machine that recorded: 1 triangle, 0.9 points of distortion)
 KEPT = {
     'body_crossing_pct': (lambda g: g['body_crossing_pct'], .2),
-    'triangles': (lambda g: g['triangles'], 0),
+    'triangles': (lambda g: g['triangles'], 5),
     'tear_cm': (lambda g: g['shell']['identity']['tear_cm'], 15),
     'tear_back_cm': (lambda g: g['shell']['identity']['tear_back_cm'], 10),
-    'distortion_pct': (lambda g: round(100 * abs(g['shell']['identity']['distortion'] - 1), 1), .5),
+    'contour_lost_cm': (lambda g: max(g['contour'][k]['lost_cm'] for k in CONTOUR[int(g['registered'].get('collar') is not None)] if k in g['contour']), .3),
+    'distortion_pct': (lambda g: round(100 * abs(g['shell']['identity']['distortion'] - 1), 1), 1.5),
 }
+# the lines that make a garment itself, for a bottom and for a top: the waistband or the hem, and the silhouette. A
+# line made straight shows here (a level cut on a waistband that dips 5 cm in front loses 1.7 cm). Over CONTOUR_LIMIT
+# a garment fails whatever its baseline says.
+CONTOUR = (('waistband', 'side'), ('hem', 'side'))
+CONTOUR_LIMIT = 2.0
 # over the 345 looks, in cm²
 LOOK_LIMITS = {
     'poke_total_cm2': 600,
@@ -64,9 +72,9 @@ def pose(pid): return 'C' if pid in POSE_C else 'B'
 
 
 def one_shell(a):
-    work, kind, pid = a; t = {}
+    work, kind, pid, above = a; t = {}
     r = shell.generate(kind, pid, f'{work}/reg/{pid}.glb', f'{work}/dense-{pose(pid)}.glb', f'{work}/low-{pose(pid)}.glb', f'{work}/shell', trace=t)
-    r['identity'] = identity.measure(t, shell.Piece(f'{work}/reg/{pid}.glb'), shell.Piece(GARMENTS + f'{pid}.glb'))
+    r['identity'] = identity.measure(t, shell.Piece(f'{work}/reg/{pid}.glb'), shell.Piece(GARMENTS + f'{pid}.glb'), above=above)
     return pid, r
 
 
@@ -88,6 +96,11 @@ def parts(work, pid):
     return trimesh.util.concatenate(out)
 
 
+def contour(pid, m, body):
+    """The garment's lines against the published garment's (identity.contour)."""
+    return identity.contour(pid, L.sample(GARMENTS + f'{pid}.glb'), np.asarray(trimesh.sample.sample_surface(m, 150000, seed=1)[0]), body)
+
+
 def run(work, ids):
     for d in ('reg', 'shell/env', 'final'): os.makedirs(f'{work}/{d}', exist_ok=True)
     for p in 'BC': mannequin.build(p, f'{work}/dense-{p}.glb', f'{work}/low-{p}.glb')
@@ -97,26 +110,27 @@ def run(work, ids):
         before, after, how = R.register(pid, GARMENTS + f'{pid}.glb', f'{work}/reg/{pid}.glb', mb, axis, B[pose(pid)])
         rep['garments'][pid] = {'before': before, 'registered': after, **how}
     bottoms = [p for p in ids if int(p) <= 15]; tops = [p for p in ids if int(p) > 15]
+    skirts = [p for p in bottoms if p in L.SKIRTS]
+    tubed = lambda p: p in skirts or (int(p) > 15 and rep['garments'][p]['registered']['hem'] < LONG_HEM)   # ends in a tube below the seam
     with Pool(min(6, os.cpu_count())) as pool:
         for group, kind in ((bottoms, 'bottom'), (tops, 'top')):
-            for pid, r in pool.map(one_shell, [(work, kind, p) for p in group]): rep['garments'][pid]['shell'] = r
-        skirts = [p for p in bottoms if p in L.SKIRTS]
+            for pid, r in pool.map(one_shell, [(work, kind, p, tube.SEAM if tubed(p) else None) for p in group]): rep['garments'][pid]['shell'] = r
         for pid, r in pool.map(one_tube, [(work, p, SKIRT_RINGS, None) for p in skirts]): rep['garments'][pid]['tube'] = r
         for p in ids:
-            if p not in skirts and not (int(p) > 15 and rep['garments'][p]['registered']['hem'] < LONG_HEM):
+            if not tubed(p):
                 os.replace(f'{work}/shell/shell-{p}.glb', f'{work}/final/{p}-shell.glb')
         # the set of the bottoms as built: long hems pass outside it
         env = np.vstack([np.asarray(trimesh.sample.sample_surface(trimesh.load(f, process=False).to_geometry(), 30000, seed=1)[0])
                          for p in bottoms for f in sorted(glob.glob(f'{work}/final/{p}-*.glb'))] or [np.zeros((0, 3))])
         np.save(f'{work}/envelope.npy', env[(env[:, 1] > .55) & (env[:, 1] < 1.05)])
-        long_tops = [p for p in tops if rep['garments'][p]['registered']['hem'] < LONG_HEM]
+        long_tops = [p for p in tops if tubed(p)]
         for pid, r in pool.map(one_tube, [(work, p, HEM_RINGS, f'{work}/envelope.npy' if bottoms else None) for p in long_tops]): rep['garments'][pid]['tube'] = r
         for pid, r in pool.map(one_hood, [(work, p) for p in tops if p in HOODS]): rep['garments'][pid]['hood'] = r
     low = {p: trimesh.load(f'{work}/low-{p}.glb', process=False).to_geometry() for p in 'BC'}
     for pid in ids:
         m = parts(work, pid); b = low[pose(pid)]
         r, _, _ = measure(m, trimesh.Trimesh(b.vertices, b.faces, process=False), legs=int(pid) <= 15)
-        rep['garments'][pid].update(body_crossing_pct=r['penetrates_pct'], triangles=int(len(m.faces)))
+        rep['garments'][pid].update(body_crossing_pct=r['penetrates_pct'], triangles=int(len(m.faces)), contour=contour(pid, m, B[pose(pid)]))
     if len(ids) == 38:
         b = trimesh.load(f'{work}/low-B.glb', process=False).to_geometry()
         rep['looks'] = looks.measure({p: parts(work, p) for p in ids}, b); v = np.array(list(rep['looks'].values()))
@@ -145,6 +159,7 @@ def check(rep):
     old = json.load(open(BASELINE)); bad = []
     for pid, g in baseline(rep).items():
         bad += [f'{pid} {k}: {v}, recorded {old[pid][k]}' for k, v in g.items() if v > old[pid][k] + KEPT[k][1]]
+    bad += [f'{pid} contour_lost_cm: {g["contour_lost_cm"]}, limit {CONTOUR_LIMIT}' for pid, g in baseline(rep).items() if g['contour_lost_cm'] > CONTOUR_LIMIT]
     bad += [f'{k}: {rep["summary"][k]}, limit {lim}' for k, lim in LOOK_LIMITS.items() if rep['summary'][k] > lim]
     for name in MODULES:
         m = __import__(name)

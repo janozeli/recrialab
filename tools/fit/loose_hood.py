@@ -36,6 +36,7 @@ SLOPE = .15            # m per m: below the neck a garment hangs looser, and a h
 HANGS = 1.42           # m: a loose piece that does not reach this height hangs from nothing
 EDGE = .3              # of 1: where the smoothed choice is cut; under one half, a thin collar is not eaten by the smoothing
 LIFT = .004            # m: the loose part stays this far over the shell
+IN_BODY = .002         # m: a triangle with a point this deep in the low-poly mannequin is inside it
 MIN_AREA = .004        # m²: a kept piece smaller than this is a sliver
 MIN_LOOSE = .025       # m²: less cloth than this outside the shell is no hood: the shell alone holds the garment
 TARGET = 260           # triangles
@@ -139,6 +140,16 @@ def lift(V, shell):
     return V
 
 
+def outside(V, F, low_body):
+    """The triangles that are not inside the low-poly mannequin, which is what the garment is worn on: a collar's
+    triangle that cuts through the neck is not seen, and it counts as body crossing the garment."""
+    if low_body is None: return F
+    P = V[F]; keep = np.ones(len(F), bool)
+    for w in ((1, 1, 1), (2, 1, 0), (0, 2, 1), (1, 0, 2), (1, 2, 0), (0, 1, 2), (2, 0, 1)):
+        keep &= nearest(low_body, np.einsum('k,ikj->ij', np.array(w) / 3, P))[0] > -IN_BODY
+    return F[keep]
+
+
 def bake(piece, faces, V, F):
     """Texture of the shape V, F from the triangles `faces` of the garment: each texel takes the color of the nearest
     point of them that faces its way."""
@@ -177,11 +188,12 @@ def build(dense_path, src, dst, shell_path=None):
     if os.path.exists(dst): os.remove(dst)
     body = S.load_body(dense_path); piece = S.Piece(src)
     sh = trimesh.load(shell_path, process=False).to_geometry(); sh = trimesh.Trimesh(sh.vertices, sh.faces, process=False)
+    low = dense_path.replace('dense-', 'low-'); low = S.load_body(low) if low != dense_path and os.path.exists(low) else None
     cloth = loose(piece, body, sh)
     if cloth is None: return measure(dense_path, src, [shell_path], dst)
     V, F, faces = cloth; before = len(F); V = lift(V, sh)
     V, F = simplify(V, F)
-    m = trimesh.Trimesh(lift(np.asarray(V, float), sh), F, process=False)
+    V = lift(np.asarray(V, float), sh); m = trimesh.Trimesh(V, outside(V, np.asarray(F), low), process=False); m.remove_unreferenced_vertices()
     V2, N2, UV, F2, img = bake(piece, faces, np.asarray(m.vertices), np.asarray(m.faces))
     S.export(dst, V2, F2, N2, UV, img, double_sided=True)
     return {**measure(dense_path, src, [shell_path], dst), 'triangles_before': int(before),
