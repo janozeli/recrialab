@@ -14,6 +14,7 @@ import { visibleBodyIndices, validateBodyMask, bodyClip, qaSleeve, type BodyMask
 import { BODY_MASKS, BODY_C_MASKS } from './body-masks';
 import { stageLabel } from './stage-label';
 import { addGarmentLights, matteFabric } from './fabric';
+import { addPs1Lights, addRimLights, PS1, ps1Material } from './ps1';
 import { FILTERS, wardrobeOrder } from './catalog-tags';
 
 import garment001 from './assets/garments/001.glb';
@@ -233,7 +234,12 @@ export function initDressUp(): void {
   controls.maxDistance = cameraMotion.homeRadius;
   const activePointers = new Set<number>();
 
-  const key = addGarmentLights(scene, renderer);
+  const key = PS1 ? addPs1Lights(scene, renderer) : addGarmentLights(scene, renderer);
+  if (PS1) {
+    addRimLights(scene, camera);
+    stage.classList.add('ps1');
+    stage.append(filmGrain(reducedMotion.matches));
+  }
   // The light turns with the camera: front and back of the piece get the same light.
   // A fixed light would leave the back dark, looking like another fabric.
   const keyHome = key.position.clone();
@@ -582,6 +588,7 @@ export function initDressUp(): void {
         piece.url,
         loadVerified(piece.url, (BODY_MASKS[piece.id] ?? BODY_C_MASKS[piece.id])?.garment_sha256).then(({scene: model}) => {
           matteFabric(model, piece.id);
+          if (PS1) model.traverse(node => { if (node instanceof THREE.Mesh) for (const m of [node.material].flat()) if (m instanceof THREE.MeshStandardMaterial) ps1Material(m); });
           return model;
         }).catch(error => { glbCache.delete(piece.url); throw error; }),
       );
@@ -751,6 +758,7 @@ export function initDressUp(): void {
       node.geometry = node.geometry.clone();
       if (!(node.material instanceof THREE.MeshStandardMaterial)) throw new Error('Unexpected body material');
       node.material = node.material.clone();
+      if (PS1) ps1Material(node.material);
       bodyGeometry.push({pose, mesh: node, original: indices.slice(), setClip: bodyClip(node, node.material)});
     });
     body.visible = pose === 'B';
@@ -777,4 +785,32 @@ export function initDressUp(): void {
     console.error('[body] failed to load', error);
     update();
   }).finally(() => stage.setAttribute('aria-busy', 'false'));
+}
+
+/**
+ * Film grain of the PS1 look: a layer over the canvas (not a post-processing pass, which would cost a full extra
+ * render on a cheap phone). A few frames of noise, drawn once and cycled; still when the system asks for less motion.
+ */
+function filmGrain(still: boolean): HTMLElement {
+  const layer = document.createElement('div');
+  layer.className = 'film-grain';
+  layer.setAttribute('aria-hidden', 'true');
+  const size = 128, frames = still ? 1 : 4;
+  const canvas = document.createElement('canvas');
+  canvas.width = size * frames;
+  canvas.height = size;
+  const context = canvas.getContext('2d');
+  if (!context) return layer;
+  const image = context.createImageData(canvas.width, size);
+  let seed = 7;
+  for (let i = 0; i < image.data.length; i += 4) {
+    seed = (seed * 16807) % 2147483647;
+    const value = 104 + seed % 49; // grey around the middle: overlay leaves middle grey unchanged, so this is a light grain
+    image.data[i] = image.data[i + 1] = image.data[i + 2] = value;
+    image.data[i + 3] = 255;
+  }
+  context.putImageData(image, 0, 0);
+  layer.style.setProperty('--grain', `url(${canvas.toDataURL()})`);
+  layer.style.setProperty('--grain-frames', String(frames));
+  return layer;
 }
