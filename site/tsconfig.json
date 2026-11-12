@@ -22,6 +22,7 @@
     "inbox.ts",
     "known-issues.ts",
     "ci-filter.ts",
-    "thumbnails.ts"
+    "thumbnails.ts",
+    "engine-import.ts"
   ]
 }
