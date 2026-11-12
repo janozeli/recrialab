@@ -4,8 +4,12 @@ import { encodeLook, parseLook } from './look-code';
 export const INBOX_PATH = '/api/looks';
 /** Longest text accepted in each field, in characters. The form and the server share these. */
 export const INBOX_LIMITS = { credit: 30, group: 12, name: 40, note: 160 } as const;
-/** A look has at most one top and one bottom. */
-const MAX_PIECES = 2;
+/**
+ * The collection, as the server needs it (catalog-data.ts imports the pictures, which the Worker cannot bundle):
+ * bottoms are 001 to LAST_BOTTOM, tops go on to LAST_PIECE. look-inbox.test.ts holds this to the catalog.
+ */
+export const LAST_BOTTOM = 15;
+export const LAST_PIECE = 38;
 
 export interface SentLook {
   /** Look code, as in `?look=` (e.g. `004.024`). */
@@ -30,7 +34,10 @@ export function checkSentLook(input: unknown): { ok: true; look: SentLook } | { 
   if (!input || typeof input !== 'object') return { ok: false, error: 'not an object' };
   const raw = input as Record<string, unknown>;
   const pieces = parseLook(typeof raw.look === 'string' ? raw.look : '');
-  if (!pieces.length || pieces.length > MAX_PIECES) return { ok: false, error: 'look' };
+  // Pieces of the collection only, and at most one top and one bottom, as the mannequin wears.
+  const numbers = pieces.map(Number);
+  const bottoms = numbers.filter(n => n <= LAST_BOTTOM).length;
+  if (!pieces.length || numbers.some(n => n < 1 || n > LAST_PIECE) || bottoms > 1 || pieces.length - bottoms > 1) return { ok: false, error: 'look' };
   const look: SentLook = { look: encodeLook(pieces), credit: line(raw.credit), group: line(raw.group), name: line(raw.name), note: line(raw.note) };
   if (!look.credit) return { ok: false, error: 'credit' };
   for (const field of ['credit', 'group', 'name', 'note'] as const) {
