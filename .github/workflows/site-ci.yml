@@ -94,6 +94,10 @@ jobs:
         run: python3 tools/fit/sleeve.py --check
       - name: No tear in the short-sleeve tops (zero-area faces, or open boundary past the recorded one and main's)
         run: python3 tools/fit/sleeve_tear.py
+      - name: Mannequin landmarks (waist, armpit, wrist) as recorded for this body
+        run: python3 tools/fit/landmarks.py --check
+      - name: Every garment registers to the landmark lines (waistband line, top hem over it, long sleeve at the wrist)
+        run: python3 tools/fit/register.py --check
       - name: Each check still fails the saved defect and passes its fix (reference/calibration/)
         run: python3 tools/fit/calibration.py
 

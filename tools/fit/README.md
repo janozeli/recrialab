@@ -111,6 +111,8 @@ os pares cujo hash mudou.
 | `cords.py --measure` | cordões na frente da saia 009 |
 | `penetration.py` | roupa mais folgada ou mais enfiada no corpo que o valor registrado em `penetration.json`, que só pode baixar |
 | `stretch.py` | estampa esticada em relação ao modelo original, região por região |
+| `landmarks.py --check` | corpo diferente do que deu os marcos gravados (`landmarks.json`), ou cintura, gancho, axila e punho do manequim fora do valor gravado |
+| `register.py --check` | registra as 38 peças em memória pela mesma regra e falha se alguma não chega nas linhas: cós a mais de 1 cm da linha do cós (cintura menos 7 cm) ou desnivelado mais de 3,5 cm, barra de peça de cima acima da linha do cós menos 5 cm, manga longa a mais de 2 cm de 2 cm abaixo do punho |
 | `hood.py --check` | capuz ou gola achatados além do limite em relação ao modelo original; gola da 035 esticada além do limite ou mais de 3 cm por dentro do pescoço, ou máscara da 035 abaixo de 1,40 m diferente da guardada |
 | `back_inside.py` | avesso da peça de cima à vista pelas costas (dobra da axila atravessando as costas), além do valor registrado |
 | `calibration.py` | medida que deixou de reprovar o antes ou de aprovar o depois de um defeito guardado em `reference/calibration/` |
