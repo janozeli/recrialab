@@ -22,7 +22,7 @@ go down (check):
 - wider_cm / narrower_cm: how far the tube stands outside / inside the garment's own outer face (95th percentile);
 - hem_girth_pct: perimeter of the tube's hem against the garment's at the same heights;
 - seam_cm: within SEAM_BAND below SEAM, how far the tube's change of radius is from the garment's own (a kink);
-- tear_cm, distortion: identity.py on the tube's print.
+- tear_cm, distortion: identity.py on the tube's print; texture_without_source_pct: texels that found no cloth.
 usage: python3 tools/fit/tube.py DENSE_BODY.glb SHELL.glb GARMENT.glb SHELL_CUT_OUT.glb TUBE_OUT.glb RINGS [ENVELOPE.npy]
        python3 tools/fit/tube.py --check [WORK]    (WORK: a folder engine.py already built; without it, builds one)
        python3 tools/fit/tube.py --record WORK     (rewrites tube.json from WORK/report.json)"""
@@ -47,7 +47,7 @@ TOP_GAP = .06          # m: the garment may start this far below the top ring (u
 JUMP = .02             # m per row: a wall this far from the one right above is another cloth (sleeve, cord, fringe)
 HOLE = .04             # m: a gap of the wall up to this height is a hole of the cloth, not its end
 NOTCH = 3              # angles to each side: a notch of the hem narrower than this many is a rip
-MIN_TUBE = .02         # m: shortest tube at any angle
+MIN_TUBE = .01         # m: shortest tube at any angle
 SKIRT_SIDES = 36       # sides of a skirt's tube
 SKIRT_TOP_RINGS = 2    # rings of a skirt from the waistband line down to SEAM
 # check
@@ -60,6 +60,7 @@ TOLERANCE = {          # what a measure may sit above its recorded value before 
     'seam_cm': .25,
     'tear_cm': 25.,
     'distortion': .015,
+    'texture_without_source_pct': 1.,
 }
 
 
@@ -263,9 +264,12 @@ def check(report):
 
 
 def record(report):
-    rep = report['garments']
-    rows = [f' "{p}": ' + json.dumps({key: g['tube'][key] for key in TOLERANCE}) for p, g in sorted(rep.items()) if 'tube' in g]
-    open(RECORD, 'w').write('{\n' + ',\n'.join(rows) + '\n}\n')
+    """Rewrites tube.json, one garment per line; a recorded value only goes down."""
+    rep = report['garments']; new = {p: {key: g['tube'][key] for key in TOLERANCE} for p, g in sorted(rep.items()) if 'tube' in g}
+    old = recorded() if os.path.exists(RECORD) else {}
+    up = [f'{p} {key}: {old[p][key]} -> {v}' for p, g in new.items() for key, v in g.items() if key in old.get(p, {}) and v > old[p][key] + TOLERANCE[key]]
+    if up: raise SystemExit('a baseline only goes down:\n' + '\n'.join(up))
+    open(RECORD, 'w').write('{\n' + ',\n'.join(f' "{p}": {json.dumps(g)}' for p, g in new.items()) + '\n}\n')
 
 
 if __name__ == '__main__':
