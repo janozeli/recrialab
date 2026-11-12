@@ -224,7 +224,9 @@ MUTATIONS = (
     ('no cap on what the waistband rises', '003', {'WAISTBAND_LIFT': .15}, None),
     ('sleeve free of the body of the top', '035', {'PROPORTION': 1.30}, None),
     ('long sleeve left where it is', '033', {'BELOW_WRIST': -.03}, None),
-    ('another garment in its place', '017', {}, '016'),
+    ('another garment in its place',
+     '017', {},
+     '016'),
 )
 
 
