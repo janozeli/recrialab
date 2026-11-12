@@ -8,6 +8,7 @@ import { CATALOG } from './catalog-data';
 import { evictionCandidates } from './asset-cache';
 import { createCameraMotion } from './camera-motion';
 import { exportLookImage } from './look-export';
+import { initLookSend } from './look-send';
 import { addPngText, encodeLook, LOOK_VERSION, parseLook, readPngText } from './look-code';
 import { BODY_POSES, bodyPoseForBottom, type BodyPose } from './body-poses';
 import { visibleBodyIndices, validateBodyMask, bodyClip, qaSleeve, type BodyMask } from './body-occlusion';
@@ -136,6 +137,7 @@ export function initDressUp(): void {
   const wide = matchMedia('(min-width: 900px), (orientation: landscape) and (max-height: 560px)');
   const exportButton = $<HTMLButtonElement>('#export-look');
   const exportDialog = $<HTMLDialogElement>('#look-export-dialog');
+  const sendDialog = $<HTMLDialogElement>('#look-send-dialog');
   const lookPreview = $<HTMLImageElement>('#look-preview');
   const saveLook = $<HTMLAnchorElement>('#save-look');
   const shareLook = $<HTMLButtonElement>('#share-look');
@@ -147,6 +149,9 @@ export function initDressUp(): void {
   const initialLook = linkedLook.length ? linkedLook : DEFAULT_LOOK;
   let exportUrl: string | null = null;
   const wornIds = (): string[] => [...worn.values()].map(entry => entry.piece.id);
+  /** What is worn, with the wardrobe names, top first. */
+  const wornNames = (): string => [...worn.values()].sort((a, b) => a.piece.slot === 'top' ? -1 : b.piece.slot === 'top' ? 1 : 0)
+    .map(entry => entry.piece.name).join(' + ');
   let syncedLook = encodeLook(linkedLook.length ? linkedLook : initialLook);
   /** Keeps `?look=` in the address bar: the link reopens the same look. */
   function syncLookUrl(): void {
@@ -292,7 +297,7 @@ export function initDressUp(): void {
   renderer.setAnimationLoop((now) => {
     const delta = Math.min((now - lastFrame) / 1000, .05);
     lastFrame = now;
-    if (document.hidden || exportDialog.open) return;
+    if (document.hidden || exportDialog.open || sendDialog.open) return;
     if (activePointers.size) cameraMotion.interact(now);
     const recentred = cameraMotion.update(now);
     const cameraMoved = controls.update(delta);
@@ -502,8 +507,7 @@ export function initDressUp(): void {
       saveLook.href = exportUrl;
       saveLook.download = `recria-look-${look.replace('.', '-')}.png`;
       // The code is already stamped on the image; the title says what is worn, with the wardrobe names.
-      lookNames.textContent = [...worn.values()].sort((a, b) => a.piece.slot === 'top' ? -1 : b.piece.slot === 'top' ? 1 : 0)
-        .map(entry => entry.piece.name).join(' + ');
+      lookNames.textContent = wornNames();
       lookCode.textContent = `LOOK ${look.replace('.', ' + ')}`;
       // On a phone, sharing leads to the gallery (iOS: "Salvar imagem") or straight to WhatsApp.
       exportFile = new File([png], saveLook.download, { type: 'image/png' });
@@ -518,6 +522,7 @@ export function initDressUp(): void {
       update();
     }
   });
+  const lookSend = initLookSend(() => ({ look: encodeLook(wornIds()), names: wornNames() }), () => interacted());
   const glbCache = new Map<string, Promise<THREE.Group>>();
   const gltfLoader = new GLTFLoader();
   async function loadVerified(url: string, expectedHash?: string) {
@@ -668,6 +673,8 @@ export function initDressUp(): void {
     exportButton.disabled = exporting || !worn.size || pending.size > 0 || bodyState !== 'ready';
     exportButton.setAttribute('aria-busy', String(exporting));
     exportButton.title = !worn.size ? 'Nada vestido ainda' : pending.size ? 'Carregando a peça' : 'Salvar o look como imagem';
+    lookSend.setReady(!!worn.size && !pending.size && bodyState === 'ready',
+      !worn.size ? 'Nada vestido ainda' : pending.size ? 'Carregando a peça' : 'Enviar o look para o ReCriaLab');
     for (const card of grid.querySelectorAll<HTMLElement>('[data-piece]')) {
       const slot = card.dataset.slot as Slot;
       const selected = worn.get(slot)?.piece.id === card.dataset.piece;

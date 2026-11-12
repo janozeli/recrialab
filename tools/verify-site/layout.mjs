@@ -90,13 +90,13 @@ function fittingRoomProblems() {
   const onScreen = el => { const r = el.getBoundingClientRect(); return r.width > 0 && r.left >= -1 && r.right <= vw + 1 && r.top >= -1 && r.bottom <= vh + 1; };
   const cards = [...document.querySelectorAll('#clothes-grid [data-piece]')].filter(onScreen).length;
   if (cards < 3) out.push(`only ${cards} whole garments in view next to the mannequin (minimum 3)`);
-  for (const sel of ['#export-look', '#import-look', 'a[href="/sobre"]', '#zoom-stage', '#expand-stage', '[data-reset]']) {
+  for (const sel of ['#export-look', '#import-look', '#send-look', 'a[href="/sobre"]', '#zoom-stage', '#expand-stage', '[data-reset]']) {
     const el = document.querySelector(sel);
     if (!el || !onScreen(el)) out.push(`${sel} is not in view`);
   }
   // In view, but not highlighted: no background, no shadow, small type. Save and Open sit in the stage toolbar with no
   // border of their own; the About link may have a thin outline (the toolbar's family), never a fill.
-  for (const [sel, border] of [['#export-look', 0], ['#import-look', 0], ['a[href="/sobre"]', 1.5]]) {
+  for (const [sel, border] of [['#export-look', 0], ['#import-look', 0], ['#send-look', 0], ['a[href="/sobre"]', 1.5]]) {
     const cs = getComputedStyle(document.querySelector(sel));
     const bg = cs.backgroundColor.match(/[\d.]+/g)?.map(Number) ?? [];
     if ((bg.length === 4 ? bg[3] : bg.length ? 1 : 0) > 0 || cs.boxShadow !== 'none' || parseFloat(cs.borderTopWidth) > border || parseFloat(cs.fontSize) > 18)
@@ -153,6 +153,43 @@ export async function auditExpandedStage(page) {
   await page.waitForTimeout(400);
   if (await page.evaluate(() => document.querySelector('.app').classList.contains('stage-expanded'))) out.push('Esc does not leave the enlarged stage');
   if (!(await page.locator('#filters').isVisible())) out.push('the wardrobe does not come back after the enlarged stage');
+  return out;
+}
+
+/**
+ * Sending the look to the team, from the stage toolbar: the form fits the screen, and with only the nickname filled it
+ * posts the look worn and confirms. The request is answered here, so no run writes to the real inbox.
+ */
+export async function auditSendLook(page, look) {
+  const out = [];
+  const sent = [];
+  await page.route('**/api/looks', route => { sent.push(route.request().postDataJSON()); return route.fulfill({ json: { ok: true } }); });
+  await page.locator('#send-look').click();
+  await page.waitForSelector('#look-send-dialog[open]');
+  await page.waitForTimeout(300);
+  out.push(...await page.evaluate(commonProblems));
+  const fits = await page.evaluate(() => {
+    const d = document.querySelector('#look-send-dialog').getBoundingClientRect();
+    const b = document.querySelector('#send-submit').getBoundingClientRect();
+    return d.top >= 0 && d.bottom <= innerHeight + 1 && b.top >= 0 && b.bottom <= innerHeight + 1;
+  });
+  if (!fits) out.push('the send form does not fit the screen');
+  // Without a nickname nothing is sent.
+  await page.locator('#send-submit').click();
+  await page.waitForTimeout(200);
+  if (sent.length) out.push('a look was sent without a nickname');
+  await page.locator('#send-credit').fill('teste');
+  await page.locator('#send-submit').click();
+  try {
+    await page.locator('#send-done').waitFor({ state: 'visible', timeout: 10_000 });
+  } catch { out.push('sending the look shows no confirmation'); }
+  // The look worn now, which the address follows (earlier steps may have swapped a piece).
+  const want = new URL(page.url()).searchParams.get('look') ?? look;
+  if (sent.at(-1)?.look !== want || sent.at(-1)?.credit !== 'teste') out.push(`sent ${JSON.stringify(sent.at(-1))}, expected look ${want} by teste`);
+  out.push(...await page.evaluate(commonProblems));
+  await page.locator('#send-finish').click();
+  if (await page.locator('#look-send-dialog[open]').count()) out.push('the send dialog does not close');
+  await page.unroute('**/api/looks');
   return out;
 }
 

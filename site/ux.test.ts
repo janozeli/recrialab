@@ -16,7 +16,7 @@ test('piece names are short like a thrift store tag, start with the kind of piec
 // The screen-reader-only text (stage-label.ts) is left out: there the instruction is needed.
 const OBVIOUS = /\bnenhum[a]? .{0,40}\b(é|são) mostrad|\bnão (é|são) mostrad/i;
 const ORDERS = /\b(toque|toc[ae]|arraste|escolha|anote|preencha|clique|deslize|tente|aguarde)\b/i;
-for (const file of ['./index.html', './sobre.html', './dressup.ts', './about.ts', './about-data.ts']) {
+for (const file of ['./index.html', './sobre.html', './dressup.ts', './look-send.ts', './about.ts', './about-data.ts']) {
   test(`no obvious instruction in ${file}`, () => {
     const source = readFileSync(new URL(file, import.meta.url), 'utf8');
     // Visible text: tag content in HTML, strings in TS (comments do not count).

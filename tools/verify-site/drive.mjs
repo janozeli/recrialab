@@ -6,7 +6,7 @@ import { execSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { extname, join } from 'node:path';
 import { createRequire } from 'node:module';
-import { SCREENS, auditFilters, auditAbout, auditStageOnDress, auditFittingRoom, auditExpandedStage } from './layout.mjs';
+import { SCREENS, auditFilters, auditAbout, auditStageOnDress, auditFittingRoom, auditExpandedStage, auditSendLook } from './layout.mjs';
 
 // The project's Playwright or the global one (`npm i -g playwright`), with no new dependency on the site.
 const require = createRequire(import.meta.url);
@@ -151,6 +151,10 @@ try {
   await page.waitForTimeout(1500);
   await page.screenshot({ path: join(out, '2-swap.png') });
 
+  // 3. The look goes to the team from the fitting room itself, on this phone's engine.
+  await page.waitForFunction(() => !document.querySelector('#send-look').disabled, null, { timeout: profile.limits.loadMs });
+  for (const p of await auditSendLook(page, look)) check(false, `sending the look on ${profileName}: ${p}`);
+
   // 4. The about page opens without three.js and with content.
   await page.goto(`${base}/sobre`);
   check(await page.locator('h1').textContent() === 'Sobre', 'about page without <h1>Sobre</h1>');
@@ -181,6 +185,8 @@ try {
     });
     check(save.fits && save.button, `the save dialog does not fit on ${screen}: ${JSON.stringify(save)}`);
     await p.locator('#export-close').click();
+    for (const x of await auditSendLook(p, look)) check(false, `sending the look on ${screen}: ${x}`);
+    await p.screenshot({ path: join(out, `screen-${screen}-sent.png`) });
     await p.goto(`${base}/sobre`);
     for (const x of await auditAbout(p)) check(false, `about page on ${screen}: ${x}`);
     await ctx.close();
