@@ -7,8 +7,13 @@ below the hip as welded tubes; loose_hood.py keeps hoods and collars. Then it me
 - over the 345 looks, from 12 cameras, one ray per cm²: bottom showing in front of the top (the bottom is first
   and the top is less than 3 cm behind) and belly in view between the top's hem and the waistband.
 Nothing here writes to site/assets: the output goes to WORK.
+engine.json holds the baseline: per garment, the values recorded for it, which may only go down; and limits over
+the 345 looks. A module of the engine that defines check(report) is called too and adds its own failures, so a new
+rule brings its check without another CI step.
 usage: python3 tools/fit/engine.py WORK            (builds everything and writes WORK/report.json)
-       python3 tools/fit/engine.py WORK 016 004    (only these garments; no look measures)"""
+       python3 tools/fit/engine.py WORK 016 004    (only these garments; no look measures)
+       python3 tools/fit/engine.py WORK --check    (fails where a garment is worse than its baseline or a look limit is passed)
+       python3 tools/fit/engine.py WORK --write    (records the baseline; values may only go down against the recorded ones)"""
 import sys, os, json, glob, numpy as np, trimesh
 from multiprocessing import Pool
 from garment import Garment
@@ -16,8 +21,33 @@ from metric import measure, POSE_C
 from paths import GARMENTS
 import landmarks as L
 import register as R
-import mannequin, shell, tube, loose_hood, identity
+import mannequin, shell, tube, loose_hood, identity, looks
 
+BASELINE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'engine.json')
+# per-garment baseline: value read from the report and the slack a rerun may show over the recorded value
+KEPT = {
+    'body_crossing_pct': (lambda g: g['body_crossing_pct'], .2),
+    'triangles': (lambda g: g['triangles'], 0),
+    'tear_cm': (lambda g: g['shell']['identity']['tear_cm'], 15),
+    'tear_back_cm': (lambda g: g['shell']['identity']['tear_back_cm'], 10),
+    'distortion_pct': (lambda g: round(100 * abs(g['shell']['identity']['distortion'] - 1), 1), .5),
+}
+# over the 345 looks, in cm²
+LOOK_LIMITS = {
+    'poke_total_cm2': 600,
+    'poke_worst_look_cm2': 40,
+    'belly_total_cm2': 150,
+    'belly_worst_look_cm2': 20,
+}
+MODULES = (
+    'register',
+    'shell',
+    'tube',
+    'loose_hood',
+    'identity',
+    'looks',
+    'mannequin',
+)
 LONG_HEM = .88         # m: a top whose registered hem is below this gets a tube below the seam
 HOODS = (
     '030',
@@ -58,32 +88,6 @@ def parts(work, pid):
     return trimesh.util.concatenate(out)
 
 
-def depth(m, X, Y, angles):
-    out = []
-    for a in angles:
-        d = np.array([np.sin(a), 0, np.cos(a)]); r = np.array([np.cos(a), 0, -np.sin(a)])
-        o = X[:, None] * r + Y[:, None] * [0, 1, 0] + d * 3
-        t = np.full(len(o), np.inf); loc, ir, _ = m.ray.intersects_location(o, np.repeat(-d[None], len(o), 0), multiple_hits=False)
-        t[ir] = np.linalg.norm(loc - o[ir], axis=1); out.append(t)
-    return np.array(out)
-
-
-def looks(work, ids):
-    """Bottom in front of the top and belly in view, in cm², for every bottom with every top."""
-    angles = np.arange(12) * np.pi / 6; X, Y = (a.ravel() for a in np.meshgrid(np.arange(-.45, .45, .01), np.arange(.60, 1.20, .01)))
-    D = {p: depth(parts(work, p), X, Y, angles) for p in ids}
-    low = trimesh.load(f'{work}/low-B.glb', process=False).to_geometry(); lab = L.limb(np.asarray(low.vertices))
-    torso = depth(trimesh.Trimesh(low.vertices, low.faces[(lab[low.faces] == 0).all(1)], process=False), X, Y, angles)
-    band = (Y > .90) & (Y < 1.05); out = {}
-    for b in [p for p in ids if int(p) <= 15]:
-        for t in [p for p in ids if int(p) > 15]:
-            with np.errstate(invalid='ignore'):
-                poke = int(((D[b] < D[t]) & (D[t] - D[b] < .03)).sum())
-            belly = int(((torso < np.minimum(D[b], D[t]) - .002) & np.isfinite(torso))[:, band].sum())
-            out[f'{b}.{t}'] = [poke, belly]
-    return out
-
-
 def run(work, ids):
     for d in ('reg', 'shell/env', 'final'): os.makedirs(f'{work}/{d}', exist_ok=True)
     for p in 'BC': mannequin.build(p, f'{work}/dense-{p}.glb', f'{work}/low-{p}.glb')
@@ -114,7 +118,8 @@ def run(work, ids):
         r, _, _ = measure(m, trimesh.Trimesh(b.vertices, b.faces, process=False), legs=int(pid) <= 15)
         rep['garments'][pid].update(body_crossing_pct=r['penetrates_pct'], triangles=int(len(m.faces)))
     if len(ids) == 38:
-        rep['looks'] = looks(work, ids); v = np.array(list(rep['looks'].values()))
+        b = trimesh.load(f'{work}/low-B.glb', process=False).to_geometry()
+        rep['looks'] = looks.measure({p: parts(work, p) for p in ids}, b); v = np.array(list(rep['looks'].values()))
         rep['summary'] = {'poke_total_cm2': int(v[:, 0].sum()), 'poke_worst_look_cm2': int(v[:, 0].max()), 'belly_total_cm2': int(v[:, 1].sum()), 'belly_worst_look_cm2': int(v[:, 1].max()),
                           'body_crossing_mean_pct': round(float(np.mean([g['body_crossing_pct'] for g in rep['garments'].values()])), 2),
                           'triangles_max': max(g['triangles'] for g in rep['garments'].values())}
@@ -122,9 +127,38 @@ def run(work, ids):
     return rep
 
 
+def baseline(rep):
+    return {pid: {k: f(g) for k, (f, _) in KEPT.items()} for pid, g in rep['garments'].items()}
+
+
+def write(rep):
+    """One garment per line, so changes to different garments do not conflict."""
+    new = baseline(rep)
+    if os.path.exists(BASELINE):
+        old = json.load(open(BASELINE))
+        up = [f'{p} {k}: {old[p][k]} -> {v}' for p, g in new.items() for k, v in g.items() if p in old and v > old[p][k] + KEPT[k][1]]
+        if up: raise SystemExit('a baseline only goes down:\n' + '\n'.join(up))
+    open(BASELINE, 'w').write('{\n' + ',\n'.join(f' "{p}": {json.dumps(g)}' for p, g in sorted(new.items())) + '\n}\n')
+
+
+def check(rep):
+    old = json.load(open(BASELINE)); bad = []
+    for pid, g in baseline(rep).items():
+        bad += [f'{pid} {k}: {v}, recorded {old[pid][k]}' for k, v in g.items() if v > old[pid][k] + KEPT[k][1]]
+    bad += [f'{k}: {rep["summary"][k]}, limit {lim}' for k, lim in LOOK_LIMITS.items() if rep['summary'][k] > lim]
+    for name in MODULES:
+        m = __import__(name)
+        if hasattr(m, 'check'): bad += [f'{name}: {x}' for x in m.check(rep)]
+    return bad
+
+
 if __name__ == '__main__':
-    work = sys.argv[1]; ids = sys.argv[2:] or [f'{n:03d}' for n in range(1, 39)]
+    flags = [a for a in sys.argv[2:] if a.startswith('--')]
+    work = sys.argv[1]; ids = [a for a in sys.argv[2:] if not a.startswith('--')] or [f'{n:03d}' for n in range(1, 39)]
     rep = run(work, ids)
     for pid, g in rep['garments'].items():
         print(pid, f"crossing {g['body_crossing_pct']}%  triangles {g['triangles']}  identity {g['shell']['identity']}")
     if 'summary' in rep: print(json.dumps(rep['summary']))
+    if '--write' in flags: write(rep)
+    if '--check' in flags:
+        bad = check(rep); print('\n'.join(bad) or 'ok'); sys.exit(1 if bad else 0)
