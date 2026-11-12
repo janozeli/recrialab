@@ -12,7 +12,9 @@ from scipy.spatial import cKDTree
 from landmarks import limb
 from paths import BODY
 
-LUMBAR, BLADE, GLUTE = (.03, 1.05, .08), (-.02, 1.36, .07), (-.015, .88, .06)   # (shift in z, height, spread) in meters
+# (shift in z, height, spread) in meters. The lumbar goes in by 0.8 cm only: at 3 cm the back curved but the waist
+# read as too thin (girth at 1.06 m: 68.0 cm on the site's body, 63.5 with 3 cm, 66.7 with 0.8)
+LUMBAR, BLADE, GLUTE = (.008, 1.05, .08), (-.022, 1.36, .07), (-.02, .88, .06)
 GREY = [235, 235, 240, 255]
 
 
