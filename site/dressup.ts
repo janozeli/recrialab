@@ -8,7 +8,7 @@ import { CATALOG } from './catalog-data';
 import { evictionCandidates } from './asset-cache';
 import { createCameraMotion } from './camera-motion';
 import { focusHeight, zoomStep } from './zoom';
-import { addFloor, type FloorKind } from './floor';
+import { addFloor } from './floor';
 import { exportLookImage } from './look-export';
 import { addPngText, encodeLook, LOOK_VERSION, parseLook, readPngText } from './look-code';
 import { BODY_POSES, bodyPoseForBottom, type BodyPose } from './body-poses';
@@ -255,7 +255,7 @@ export function initDressUp(): void {
   // Mannequin: the two body poses (B and C), loaded at the end of initDressUp.
   const mannequin = new THREE.Group();
   // Visual QA classifies every pixel that is not background: the floor stays out of its pictures.
-  if (!new URLSearchParams(location.search).has('qa')) addFloor(scene, (new URLSearchParams(location.search).get('chao') ?? 'elipse') as FloorKind);
+  if (!new URLSearchParams(location.search).has('qa')) addFloor(scene);
   scene.add(mannequin);
 
   // Drawing 60 times a second while the scene stands still wastes battery. The
