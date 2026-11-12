@@ -5,7 +5,7 @@ glute, lumbar and shoulder blade. curved() pulls the lumbar in and pushes the sh
 the dense body. lowpoly() fits rings to that body, in parts as on a PS1 character: torso with 12 sides, head, arms
 and legs with 8, sloped shoulder, flat hand, foot. Both are derived, never stored: engine.py builds them from
 site/assets/body/pose-b.glb and pose-c.glb on every run, so they cannot drift from the body.
-Origin: the PS1/PS2 look study (costas.py, lowpoly.py).
+Origin: the PS1/PS2 look study.
 usage: python3 tools/fit/mannequin.py B|C DENSE_OUT.glb LOWPOLY_OUT.glb"""
 import sys, numpy as np, trimesh
 from scipy.spatial import cKDTree
