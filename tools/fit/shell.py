@@ -6,7 +6,9 @@ inherits the mannequin's topology: the body cannot poke through it, it is never 
 no gap. The texture is baked from the generated garment, one ray per texel.
 
 Two rules of the fit engine sit on top (engine.py):
-- bottom: the upper cut is the waistband line of register.py, straight, the same for every bottom;
+- bottom: the upper cut follows the garment's own waistband around the body (edge), with its lowest point on the
+  waistband line of register.py; a top's hem follows the garment's hem the same way. A level cut fits and no longer
+  looks like the garment;
 - top: it stays outside the set of ALL the bottoms (the envelope) plus RISE, not outside one of them, so any top
   layers over any bottom without a table per pair.
 What hangs loose (skirt below the hip, hem below it, hood) is not shell: tube.py and loose_hood.py.
@@ -24,10 +26,17 @@ MIN_CLEAR = 0.006      # m: the shell is never closer than this to the body
 BACK_OFF = 0.03        # m: the ray starts this far inside the body, to catch cloth that sank into it
 WALL = 0.015           # m: thickest double wall (lining + outer face) of a generated garment
 TEX = 512              # px: side of the baked texture
+NEAR_PART = 0.05       # m: a top clears the bottoms' surface on every part of the mannequin within this distance
+PART_RISE = 0.012      # m: ... and by this much, since facets of two parts do not line up between their rings
 RISE = 0.004           # m: a top stays this far outside the envelope of the bottoms
 DEEP = 0.08            # m: second try of a texture ray that found nothing, starting this far inside the body
 LIMB_WALL = 0.04       # m: on a limb the outer face is looked for over folds this deep
 LIMB_BLEND = 0.04      # m: width of the blend between torso rays and limb rays in the texture bake
+EDGE_SECTORS = 24      # sectors around the body in which a waistband's or a hem's height is read
+WAIST_DIP = 0.0        # m: the lowest point of a waistband's curve sits this far under the waistband line; the curve rises from there
+WAIST_TOP = 0.01       # m: ... up to this far under the waist
+HEM_RISE = 0.02        # m: the hem of a top that reaches its line rises at most this far over it (WAIST_DIP + HEM_RISE < register.OVERLAP)
+HEM_TO = 1.25          # m: a top's hem is looked for on the torso below this height
 WAIST_FROM = 0.06      # m above the crotch from where a bottom's torso is cut at the waistband line
 
 
@@ -235,6 +244,16 @@ def coverage(piece, dense, radius, kind):
     return cov
 
 
+def edge(S, center, q, v, sides=True):
+    """Height of a garment's edge (percentile q of the points S per sector around center) at the angle of each
+    vertex of v, smoothed around the body."""
+    ang, h = L.sectors(S, center, EDGE_SECTORS, q)
+    if sides is False:                                    # under the arms the torso's cloth is hidden by the sleeve: read front and back only
+        ok = np.abs(np.sin(ang)) > .5; h = np.interp(ang, ang[ok], h[ok], period=2 * np.pi)
+    for _ in range(2): h = np.convolve(np.r_[h[-1], h, h[0]], [.25, .5, .25], mode='valid')
+    return np.interp(np.arctan2(v[:, 2] - center[1], v[:, 0] - center[0]), ang, h, period=2 * np.pi)
+
+
 def cut(v, f, s, attrs):
     """Cuts the mesh at the line s = 0 and keeps the side s > 0. attrs: per-vertex arrays interpolated at the cut."""
     v = list(map(np.asarray, v)); attrs = [list(a) for a in attrs]; s = list(s)
@@ -331,11 +350,14 @@ def export(path, V, F, N, UV, img, double_sided=False):
 def generate(kind, pid, path, dense_path, low_path, out, trace=None):
     """Writes OUT/shell-NNN.glb and returns its report."""
     os.makedirs(out + '/env', exist_ok=True)
-    mb = L.recorded(); waistband = R.lines(mb)['waistband']
+    mb = L.recorded(); waistband, hem_max = R.lines(mb)['waistband'], R.lines(mb)['top_hem_max']
     dense = load_body(dense_path)
     low = trimesh.load(low_path).to_geometry(); low = trimesh.Trimesh(low.vertices, low.faces, process=False)
     kd_dense = cKDTree(dense.vertices); v, n = np.asarray(low.vertices), np.asarray(low.vertex_normals); adj = low.vertex_neighbors
     clear, clear_limb = ceiling(pid); lab = L.limb(v)
+    # the mannequin's torso is one part: a wide hip is still torso, not the arm hanging beside it
+    for c in trimesh.graph.connected_components(low.edges, nodes=np.arange(len(v))):
+        if ((np.abs(v[c, 0]) < .05) & (np.abs(v[c, 1] - 1.2) < .1)).any(): lab[c] = 0
     top = np.where(lab > 0, clear_limb, clear); top = np.maximum(smooth(top, adj, 2), MIN_CLEAR)
     piece = Piece(path); reach = clear + 0.05
     cov = coverage(piece, dense, 0.12, kind)
@@ -344,9 +366,21 @@ def generate(kind, pid, path, dense_path, low_path, out, trace=None):
     _, i = kd_dense.query(v); cov_low = cov[i]
     s = np.where(cov_low, kd_n.query(v)[0], -kd_c.query(v)[0])
     s = np.where(v[:, 1] > 1.30, smooth(s, adj, 4), s)
-    if kind == 'bottom':                                  # engine rule: waistband on the line, straight
+    # engine rule: the waistband sits on the line and the hem where the registration left it, each with the curve
+    # the garment has around the body (a waistband that dips in front, a shirt tail); a level cut reads as another garment
+    S = L.sample(path, 60000)
+    if kind == 'bottom':
         tr = (lab == 0) & (v[:, 1] > mb['crotch'] + WAIST_FROM)
-        s = np.where(tr, waistband - v[:, 1], s); cov_low = np.where(tr, v[:, 1] < waistband + .03, cov_low)
+        line = edge(S, L.waist_center(S), 98, v); line = np.minimum(line - line[tr].min() + waistband - WAIST_DIP, mb['waist'] - WAIST_TOP)
+        s = np.where(tr, line - v[:, 1], s); cov_low = np.where(tr, v[:, 1] < line + .03, cov_low)
+        hip = (lab == 0) & ~tr; s = np.where(hip, np.maximum(s, .02), s); cov_low |= hip   # every bottom wears the hip: no pinhole where the leg's part meets the torso's
+    else:
+        torso = S[~np.isin(L.limb(dense.vertices)[kd_dense.query(S)[1]], (1, 2)) & (S[:, 1] < mb['armpit'])]
+        tr = (lab == 0) & (v[:, 1] < HEM_TO)
+        if len(torso) > 2000 and np.percentile(torso[:, 1], 2) < HEM_TO - .05:
+            line = np.minimum(edge(torso, torso[:, [0, 2]].mean(0), 2, v, sides=False), HEM_TO - .03)
+            if np.median(line[tr]) < hem_max + HEM_RISE: line = np.minimum(line, hem_max + HEM_RISE)   # a top that reaches its line keeps the waistband covered all around
+            s = np.where(tr, v[:, 1] - line, s); cov_low = np.where(tr, v[:, 1] > line - .03, cov_low)
     d, _, _ = probe(piece, kd_dense, dense.vertices, v, n, reach)
     measured = ~np.isnan(d) & cov_low; raw = d.copy()
     d = np.where(measured, np.clip(d, MIN_CLEAR, top), np.nan)
@@ -370,11 +404,25 @@ def generate(kind, pid, path, dense_path, low_path, out, trace=None):
         ok = ~np.isnan(med); med = np.interp(bands, bands[ok], med[ok])
         med = np.convolve(np.pad(med, 2, mode='edge'), np.ones(5) / 5, mode='valid')
         d[sm] = np.clip(np.interp(ys, bands + 0.015, med), MIN_CLEAR, top[sm])
-    if kind == 'bottom': np.save(f'{out}/env/{pid}.npy', np.where(s > -.03, d, 0.0))
+    if kind == 'bottom':                                  # the envelope reaches two rings past the edge: a top's hem is cut between rings
+        on = s > -.03
+        for _ in range(2): on = np.array([on[i] or on[a].any() for i, a in enumerate(adj)])
+        np.save(f'{out}/env/{pid}.npy', np.where(on, d, 0.0))
     else:                                                 # engine rule: outside every bottom
         envs = [np.load(f) for f in sorted(glob.glob(f'{out}/env/*.npy'))]
-        if envs: env = np.max(envs, axis=0); d = np.where(env > 0, np.maximum(d, env + RISE), d)
-    P = v + n * d[:, None]
+        if envs:
+            env = np.max(envs, axis=0); d = np.where(env > 0, np.maximum(d, env + RISE), d)
+            # the mannequin is built in parts: at the hip a bottom wears the leg's part too, which runs outside the
+            # torso's. The top goes outside the bottoms' surface on any part near each of its vertices
+            on = np.flatnonzero(env > 0); E = v[on] + n[on] * env[on, None]
+            for i, near in enumerate(cKDTree(v[on]).query_ball_point(v, NEAR_PART)):
+                j = on[near]; j = j[n[j] @ n[i] > .5]
+                if len(j): d[i] = max(d[i], float(((v[j] + n[j] * env[j, None] - v[i]) @ n[i]).max()) + PART_RISE)
+    # on the open rim of a part (the top of a leg, inside the hip) the normal leans along the limb: the shell goes
+    # straight out, or the rim of the mannequin shows over the rim of the shell
+    out_dir = n.copy(); e = np.sort(low.edges, axis=1); u, c = np.unique(e, axis=0, return_counts=True); rim = np.unique(u[c == 1])
+    out_dir[rim, 1] = 0; out_dir[rim] /= np.linalg.norm(out_dir[rim], axis=1)[:, None] + 1e-9
+    P = v + out_dir * d[:, None]
     Pc, Fc, (Nc, Bc) = cut(P, low.faces, s, [n, v])
     used = np.unique(Fc); remap = -np.ones(len(Pc), int); remap[used] = np.arange(len(used))
     Pc, Nc, Bc, Fc = Pc[used], Nc[used], Bc[used], remap[Fc]
