@@ -2,7 +2,7 @@
 import { checkSentLook, INBOX_PATH, type SentLook } from './look-inbox';
 
 /** SHA-256 of the key that reads the inbox. The key itself stays with the team, outside the repository. */
-export const INBOX_KEY_SHA256 = '269fb8188c76335566614c455f1e01424b60d03dacb096f9ddcf509c8cad55bc';
+export const INBOX_KEY_SHA256 = '269fb8188c76335566614c455f1e01424b60d03dacb096f9ddcf509c8cad55bc'; // gitleaks:allow (a hash: the key cannot be read back from it)
 /** A sent look is a few short fields; anything larger is not from the form. */
 const MAX_BODY_BYTES = 4096;
 /** Looks kept at most; past this the inbox refuses new ones until the team empties it. */

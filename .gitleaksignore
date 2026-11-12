@@ -1,0 +1,3 @@
+# Findings that are not secrets, by fingerprint (commit:file:rule:line).
+# SHA-256 of the key that reads the inbox of sent looks: a hash, published on purpose; the line now carries gitleaks:allow.
+b0c0030d0bd07705a1818998364e079654f322ba:site/inbox-server.ts:generic-api-key:5
