@@ -10,7 +10,8 @@ long sleeves stays one. What the caps leave undone stays undone: a cropped top s
   than both) and is not made straight. The whole garment slides until the lowest point of that drawing is
   WAISTBAND_DROP under the WAISTBAND LINE, itself BELOW_WAIST under the waist (the narrowest cut of the torso): legs
   and skirt keep their length, and the drawing rises from the line instead of opening the belly. The slide stops
-  WAISTBAND_LIFT above the line, and a deeper drawing is scaled down to fit. Only what is not that drawing, the wrinkles of the generated cloth, is evened out, stretching from the crotch up
+  WAISTBAND_LIFT above the line (FULL_LENGTH_LIFT for full-length bottoms: their hem stays at the ankle), and a
+  deeper drawing is scaled down to fit. Only what is not that drawing, the wrinkles of the generated cloth, is evened out, stretching from the crotch up
   and up to the cap. waistband() gives that drawing on the line to whoever cuts the garment (shell.py);
 - top: the hem should not stay above the waistband line minus OVERLAP, so the top covers the waistband: a shorter
   top is scaled in height from the shoulder down, up to the cap. The sleeve is scaled along the arm by the same
@@ -38,6 +39,7 @@ MAX_STRETCH = 1.06     # largest stretch in one direction: a print distorted bey
 PROPORTION = 1.03      # largest change of the sleeve against the body of the top
 WAISTBAND_DROP = .01   # m: lowest point of a waistband's drawing under the waistband line
 WAISTBAND_LIFT = .025  # m: highest the mean height of a waistband goes above the line to keep its drawing
+FULL_LENGTH_LIFT = .01 # m: the same for a full-length bottom, whose hem would leave the ankle
 # --check: how far a registered garment may be from its line, and the error of reading a length (the sleeve end is read in 2 cm slices)
 WAIST_TOL, HEM_TOL, SLEEVE_TOL, LENGTH_TOL, SHAPE_TOL = .01, .006, .02, .012, .012
 
@@ -47,20 +49,26 @@ def lines(mb):
     return {'waistband': w, 'top_hem_max': round(w - OVERLAP, 3), 'long_sleeve_end': round(mb['wrist'] - BELOW_WRIST, 3)}
 
 
-def drawing(shape, mb):
+def drawing(shape, mb, full=False):
     """The waistband's drawing as it goes on the body: its lowest point WAISTBAND_DROP under the waistband line and the
     rest above it, so no drawing opens the belly under a top that a straight waistband would close. For that the
-    waistband's mean height goes up to WAISTBAND_LIFT above the line; a drawing deeper than that is scaled down to it.
+    waistband's mean height goes up to WAISTBAND_LIFT above the line (FULL_LENGTH_LIFT on a full-length bottom, so
+    its hem stays at the ankle); a drawing deeper than that is scaled down to it.
     Returns the shape, with its mean height where it goes, and the scale."""
     c, a0, tilt, sides = shape; a = np.linspace(-np.pi, np.pi, 73); deep = -(tilt * np.sin(a) + sides * np.cos(2 * a)).min()
-    k = min(1., (WAISTBAND_LIFT + WAISTBAND_DROP) / max(deep, 1e-9))
+    k = min(1., ((FULL_LENGTH_LIFT if full else WAISTBAND_LIFT) + WAISTBAND_DROP) / max(deep, 1e-9))
     return (c, float(lines(mb)['waistband'] - WAISTBAND_DROP + k * deep), tilt * k, sides * k), float(k)
 
 
 def waistband(path, mb=None):
     """The waistband of the registered bottom at `path`, as a function: points -> height of the waistband at their angle."""
-    shape, _ = drawing(L.waistband_shape(L.sample(path)), mb or L.recorded())
+    mb = mb or L.recorded(); S = L.sample(path); pid = piece_id(path)
+    shape, _ = drawing(L.waistband_shape(S), mb, full_length(pid, L.garment(pid, S, mb, None), mb))
     return lambda points: L.waistband_height(np.asarray(points), shape)
+
+
+def full_length(pid, g, mb):
+    return L.proportions(pid, g, mb, lines(mb)['waistband'])['length_class'] == L.BOTTOM_CLASSES[-1][1]
 
 
 def register(pid, src, dst, mb, axis, b):
@@ -68,7 +76,7 @@ def register(pid, src, dst, mb, axis, b):
     g = Garment(src); P = g.vertices(); S = L.sample(src); before = L.garment(pid, S, mb, axis)
     ln = lines(mb); Q = P.copy(); y = P[:, 1]
     if int(pid) <= 15:
-        own = L.waistband_shape(S); shape, drawn = drawing(own, mb); c = shape[0]; ang, top = L.sectors(S, c, 16, 98)
+        own = L.waistband_shape(S); shape, drawn = drawing(own, mb, full_length(pid, before, mb)); c = shape[0]; ang, top = L.sectors(S, c, 16, 98)
         top = np.convolve(np.r_[top[-1], top, top[0]], [.25, .5, .25], mode='valid')
         top = np.interp(np.arctan2(P[:, 2] - c[1], P[:, 0] - c[0]), np.r_[ang[-1] - 2 * np.pi, ang, ang[0] + 2 * np.pi], np.r_[top[-1], top, top[0]])
         base = before.get('crotch') or own[1] - .18
@@ -112,7 +120,7 @@ def misses(pid, before, after, how, ln):
     if int(pid) <= 15:
         low = after['waistband_mean'] - abs(after['waistband_front_drop']) / 2 - abs(after['waistband_side_rise']) / 2
         if abs(after['waistband_mean'] - how['waistband_at']) > WAIST_TOL: bad.append(f'waistband at {after["waistband_mean"]} on average, should be at {how["waistband_at"]}')
-        if low < ln['waistband'] - WAISTBAND_DROP - WAIST_TOL: bad.append(f'waistband goes down to {round(low, 3)}, at most {WAISTBAND_DROP} m under the line {ln["waistband"]}')
+        if low < ln['waistband'] - WAISTBAND_DROP - WAIST_TOL and how['level'] < MAX_STRETCH - .002: bad.append(f'waistband goes down to {round(low, 3)}, at most {WAISTBAND_DROP} m under the line {ln["waistband"]}')
         if abs(p1['length_m'] - p0['length_m']) > LENGTH_TOL: bad.append(f'length was {p0["length_m"]} m, is {p1["length_m"]}: a bottom slides whole')
         for k in ('waistband_front_drop', 'waistband_side_rise'):   # between the drawing as published and as it goes on the line
             lo, hi = sorted((before[k], before[k] * how['waistband_drawing']))
