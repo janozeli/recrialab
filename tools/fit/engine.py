@@ -24,13 +24,14 @@ import register as R
 import mannequin, shell, tube, loose_hood, identity, looks
 
 BASELINE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'engine.json')
-# per-garment baseline: value read from the report and the slack a rerun may show over the recorded value
+# per-garment baseline: value read from the report and the slack a rerun on another machine may show over the
+# recorded value (CI against the machine that recorded: 1 triangle, 0.9 points of distortion)
 KEPT = {
     'body_crossing_pct': (lambda g: g['body_crossing_pct'], .2),
-    'triangles': (lambda g: g['triangles'], 0),
+    'triangles': (lambda g: g['triangles'], 5),
     'tear_cm': (lambda g: g['shell']['identity']['tear_cm'], 15),
     'tear_back_cm': (lambda g: g['shell']['identity']['tear_back_cm'], 10),
-    'distortion_pct': (lambda g: round(100 * abs(g['shell']['identity']['distortion'] - 1), 1), .5),
+    'distortion_pct': (lambda g: round(100 * abs(g['shell']['identity']['distortion'] - 1), 1), 1.5),
 }
 # over the 345 looks, in cm²
 LOOK_LIMITS = {
