@@ -20,7 +20,7 @@ import { addGarmentLights, matteFabric } from './fabric';
 import { addPs1Lights, addRimLights, PS1, ps1Material } from './ps1';
 import { FILTERS, wardrobeOrder } from './catalog-tags';
 import { ENGINE_BODY_URLS, ENGINE_PARTS } from './engine-garments';
-import { engineLook } from './engine-look';
+import { ENGINE_ON, engineLook } from './engine-look';
 import { ENGINE_HOLD } from './engine-hold';
 
 import garment001 from './assets/garments/001.glb';
@@ -459,8 +459,8 @@ export function initDressUp(): void {
   if (['localhost', '127.0.0.1'].includes(location.hostname) && params.has('qa')) {
     Object.assign(window, { __qa: { THREE, scene, camera, controls, renderer, worn, mannequin, followCamera, bodyGeometry, qaSleeve } });
   }
-  // read by tools/verify-site/drive.mjs: a look with a garment on hold is expected as published
-  Object.assign(window, { __engineHold: Object.keys(ENGINE_HOLD) });
+  // read by tools/verify-site/drive.mjs: which version this address asks for, and the garments that stay as published
+  Object.assign(window, { __engineHold: Object.keys(ENGINE_HOLD), __engineOn: ENGINE_ON });
   const bodyRoots = new Map<BodyPose, THREE.Object3D>();
   const engineBodyRoots = new Map<BodyPose, THREE.Object3D>();
   function updateGarmentLayering(): void {

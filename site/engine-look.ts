@@ -5,12 +5,13 @@
 import { ENGINE_PARTS } from './engine-garments';
 import { ENGINE_HOLD } from './engine-hold';
 
-/** Whether the fitting room opens with the engine's garments. Off until the look of the whole is approved. */
-export const ENGINE_DEFAULT = false;
+/** Whether the fitting room opens with the engine's garments: the one switch, with `?classico` as the way back. */
+export const ENGINE_DEFAULT = true;
 /** `?engine` turns the engine's garments on and `?classico` shows the whole fitting room as published, whatever the default. */
 export function engineOn(search: string, byDefault: boolean = ENGINE_DEFAULT): boolean {
   const params = new URLSearchParams(search);
-  return params.has('engine') || (byDefault && !params.has('classico'));
+  if (params.has('classico')) return false;
+  return params.has('engine') || byDefault;
 }
 export const ENGINE_ON = typeof location !== 'undefined' && engineOn(location.search);
 

@@ -1,5 +1,5 @@
-// PS1/PS2 look of the stage, behind `?ps1` while the art direction is being decided. Kept apart from fabric.ts,
-// which the selector thumbnails are rendered with: the default stage and the thumbnails stay as they are.
+// PS1/PS2 look of the stage: the default, with `?classico` as the way back to the light before it. Kept apart from
+// fabric.ts, which the selector thumbnails are rendered with: the thumbnails stay as they are.
 import * as THREE from 'three';
 
 /**
@@ -8,7 +8,14 @@ import * as THREE from 'three';
  * near-white rim lights that follow the camera and film grain over the stage. Full resolution: no pixelation and no aliasing.
  * Values calibrated on the 38 garments so the colour stays near today's (median ΔE 3.9; study of 10/11/2026).
  */
-export const PS1 = typeof location !== 'undefined' && new URLSearchParams(location.search).has('ps1');
+/** The one switch of the look: true draws it unless the address says `?classico`; false only under `?ps1`. */
+export const PS1_DEFAULT = true;
+export function ps1On(search: string, byDefault: boolean = PS1_DEFAULT): boolean {
+  const params = new URLSearchParams(search);
+  if (params.has('classico')) return false;
+  return params.has('ps1') || byDefault;
+}
+export const PS1 = typeof location !== 'undefined' && ps1On(location.search);
 export const PS1_LOOK = {
   ambient: 1.9, sky: '#ffffff', ground: '#8a8fb5',
   key: '#fff3e0', keyIntensity: 2.2,
