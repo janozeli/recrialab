@@ -1,0 +1,8 @@
+{
+ "030": {"triangles": 0, "edge_cm": 0.0, "dark_cm2": 0.0, "off_cm2": 0.0, "lost_cm2": 713.8},
+ "033": {"triangles": 258, "edge_cm": 89.1, "dark_cm2": 0.0, "off_cm2": 30.2, "lost_cm2": 277.5},
+ "034": {"triangles": 258, "edge_cm": 175.1, "dark_cm2": 18.5, "off_cm2": 495.0, "lost_cm2": 113.8},
+ "035": {"triangles": 254, "edge_cm": 247.3, "dark_cm2": 2.5, "off_cm2": 586.5, "lost_cm2": 416.8},
+ "036": {"triangles": 255, "edge_cm": 100.9, "dark_cm2": 98.0, "off_cm2": 114.8, "lost_cm2": 134.5},
+ "037": {"triangles": 255, "edge_cm": 201.0, "dark_cm2": 8.0, "off_cm2": 294.5, "lost_cm2": 156.0}
+}

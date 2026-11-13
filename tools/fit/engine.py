@@ -40,9 +40,11 @@ KEPT = {
 }
 # where the CI machine read a garment further from the machine that recorded than the slack above, and by how much
 # it may: 021 read 762.4 cm of tear against 738.1. The cause is not known (the same machine repeats to the last
-# digit, with one thread or four), so the slack is of this garment only
+# digit, with one thread or four), so the slack is of this garment only. 025, with the registration that keeps the
+# waistbands' drawing: the CI machine read 6.0 % of distortion against 4.5 on the machine that recorded
 MACHINE = {
     '021': {'tear_cm': 30},
+    '025': {'distortion_pct': 1.6},
 }
 # the lines that make a garment itself, for a bottom and for a top: the waistband or the hem, and the silhouette. A
 # line made straight shows here (a level cut on a waistband that dips 5 cm in front loses 1.7 cm). Over CONTOUR_LIMIT

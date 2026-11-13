@@ -2,20 +2,24 @@
 
 Every fit rule so far carries its own numbers for where the waist, the wrist or the hem is. This reads them once:
 - mannequin, from horizontal cuts of the body every centimeter: crotch (highest cut where the legs are still two
-  loops), armpit (highest cut where the arm is still a loop apart from the torso), hip, waist and chest (largest,
-  smallest and largest torso perimeter between them), neck, shoulder, wrist (smallest arm perimeter above the hand),
+  loops), armpit (highest cut where the arm is still a loop apart from the torso), waist (smallest torso perimeter
+  between them, and not at either end of that stretch), neck, shoulder, wrist (smallest arm perimeter above the hand),
   elbow, ankle and knee;
-- bottom: waistband (top of the cloth around the body, and how uneven it is), crotch of the garment (highest cloth
-  in the middle of the body, away from front and back) and hem;
+- bottom: waistband (top of the cloth around the body, how uneven it is, and its shape: how much lower the front
+  is than the back and how much higher the sides are than both), crotch of the garment (highest cloth in the middle
+  of the body, away from front and back) and hem;
 - top: collar, hem at the middle of the front and of the back, and sleeve end (walking down the arm from the armpit,
   the last slice with cloth on the outer side of the arm axis; None on a sleeveless top).
+proportions() turns a garment's landmarks into its lengths as fractions of the body they cover (a top's length from
+the shoulder to the crotch, its sleeve from the shoulder to the wrist, a bottom's from the waistband line to the
+ankle) and into a length class, so "cropped", "3/4 sleeve" or "above the knee" say the same on any mannequin.
 The mannequin's landmarks are recorded in landmarks.json with the hash of the body they were read from.
 usage: python3 tools/fit/landmarks.py            (prints the landmarks of the body and of the 38 garments)
        python3 tools/fit/landmarks.py --write    (records the mannequin's landmarks)
        python3 tools/fit/landmarks.py --check    (fails if the body changed or its landmarks moved from the recorded ones)"""
 import sys, os, json, hashlib, numpy as np, trimesh
 from garment import Garment
-from metric import body, POSE_C
+from metric import body
 from paths import GARMENTS, BODY
 
 STEP = .01             # m between body cuts
@@ -23,6 +27,10 @@ SKIRTS = (
     '009',
     '010',
 )
+# length classes: (fraction from which the class holds, name); the fractions are those of proportions()
+TOP_CLASSES = ((0, 'cropped'), (None, 'regular'), (1., 'long'))          # regular from the waistband line on; long below the crotch
+SLEEVE_CLASSES = ((0, 'short'), (.70, 'three-quarter'), (.90, 'long'))
+BOTTOM_CLASSES = ((0, 'above the knee'), (None, 'below the knee'), (.90, 'full'))   # below the knee from the knee on
 RECORD = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'landmarks.json')
 ARM_X, ARM_TOP, LEG_TOP = .165, 1.30, .80   # m: arm beyond this |x| below this height (hand included); legs below this
 
@@ -56,10 +64,8 @@ def mannequin(b):
     ig = max(i for i, l in enumerate(L) if two_legs(l) and ys[i] < 1.1); m['crotch'] = float(ys[ig] + STEP)
     ia = max(i for i, l in enumerate(L) if len(l) >= 3 and i > ig); m['armpit'] = float(ys[ia] + STEP)
     torso = {i: max(L[i], key=lambda x: x[1]) for i in range(ig + 1, ia + 1)}
-    pick = lambda i0, i1, f: f(range(i0, i1), key=lambda i: torso[i][1])
-    ih = pick(ig + 1, min(ig + 23, ia), max); m['hip'] = float(ys[ih])
-    iw = pick(ih + 1, ia - 8, min); m['waist'] = float(ys[iw])
-    m['chest'] = float(ys[pick(iw + 1, ia + 1, max)])
+    iw = min(range(ig + 2, ia - 8), key=lambda i: torso[i][1]); m['waist'] = float(ys[iw])
+    assert ig + 2 < iw < ia - 9, 'the waist was read at the edge of where it is searched: not a waist'
     top = [i for i in range(ia + 1, len(ys)) if L[i]]
     width = {i: max(x[2] for x in L[i]) for i in top}
     ineck = min((i for i in top if ys[i] < m['armpit'] + .22), key=lambda i: width[i]); m['neck'] = float(ys[ineck])
@@ -105,12 +111,28 @@ def waist_center(P):
     return P[P[:, 1] > np.percentile(P[:, 1], 80)][:, [0, 2]].mean(0)
 
 
+def waistband_shape(P):
+    """The waistband's own drawing, as the garment has it: (center, mean height, tilt, sides), with the height around
+    the body = mean + tilt * sin(a) + sides * cos(2a), a = 0 at the +x side and 90 degrees at the front. Only what is
+    the same on the left and on the right counts: the rest is how the generated cloth happens to wrinkle."""
+    c = waist_center(P); ang, top = sectors(P, c, 16, 98)
+    a = np.linalg.lstsq(np.c_[np.ones(len(ang)), np.sin(ang), np.cos(2 * ang)], top, rcond=None)[0]
+    return c, float(a[0]), float(a[1]), float(a[2])
+
+
+def waistband_height(points, shape, mean=None):
+    """Height of the waistband of that shape at the angle of each point, with its mean at `mean` (default: its own)."""
+    c, a0, tilt, sides = shape; a = np.arctan2(points[:, 2] - c[1], points[:, 0] - c[0])
+    return (a0 if mean is None else mean) + tilt * np.sin(a) + sides * np.cos(2 * a)
+
+
 def garment(pid, P, mb, axis):
     """Landmarks of a dressed garment from points P sampled on its surface."""
     r = {}
     if int(pid) <= 15:
         _, top = sectors(P, waist_center(P), 16, 98)
         r['waistband'] = float(np.median(top)); r['waistband_uneven'] = float(np.ptp(top))
+        _, r['waistband_mean'], tilt, sides = waistband_shape(P); r['waistband_front_drop'] = -2 * tilt; r['waistband_side_rise'] = 2 * sides
         r['hem'] = float(np.mean([np.percentile(P[P[:, 0] * side > .02, 1], 2) for side in (1, -1)]))
         if pid not in SKIRTS:
             r['crotch'] = None
@@ -134,6 +156,30 @@ def garment(pid, P, mb, axis):
                 end = y
             ends.append(end)
         r['sleeve'] = float(np.mean(ends)) if None not in ends else None
+    return {k: (round(x, 3) if isinstance(x, float) else x) for k, x in r.items()}
+
+
+def length_class(pid, fraction, mb, waistband, sleeve=False):
+    """Class of a length given as proportions() gives it: a fraction of the body."""
+    if sleeve: table, mark = SLEEVE_CLASSES, None
+    elif int(pid) <= 15: table, mark = BOTTOM_CLASSES, (waistband - mb['knee']) / (waistband - mb['ankle'])
+    else: table, mark = TOP_CLASSES, (mb['shoulder'] - waistband) / (mb['shoulder'] - mb['crotch'])
+    return [name for lo, name in table if fraction >= (mark if lo is None else lo)][-1]
+
+
+def proportions(pid, g, mb, waistband):
+    """Lengths of a garment (its landmarks g) in meters, as fractions of the body, and their classes.
+    waistband: height of the waistband line, where every bottom's waistband sits and a top stops being cropped."""
+    r = {}
+    if int(pid) <= 15:
+        r['length_m'] = g['waistband'] - g['hem']; r['length'] = r['length_m'] / (waistband - mb['ankle'])
+    else:
+        sh = mb['shoulder']
+        r['length_m'] = sh - g['hem']; r['length'] = r['length_m'] / (sh - mb['crotch']); r['sleeve_class'] = 'none'
+        if g['sleeve'] is not None:
+            r['sleeve_m'] = sh - g['sleeve']; r['sleeve'] = r['sleeve_m'] / (sh - mb['wrist'])
+            r['sleeve_over_length'] = r['sleeve_m'] / r['length_m']; r['sleeve_class'] = length_class(pid, r['sleeve'], mb, waistband, sleeve=True)
+    r['length_class'] = length_class(pid, r['length'], mb, waistband)
     return {k: (round(x, 3) if isinstance(x, float) else x) for k, x in r.items()}
 
 
