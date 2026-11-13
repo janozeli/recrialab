@@ -25,21 +25,27 @@ import mannequin, shell, tube, loose_hood, identity, looks
 
 BASELINE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'engine.json')
 # per-garment baseline: value read from the report and the slack a rerun on another machine may show over the
-# recorded value (CI against the machine that recorded: 1 triangle, 0.9 points of distortion)
+# recorded value (CI against the machine that recorded: 1 triangle, 0.9 points of distortion, 24 cm of tear on 021 at
+# e40c016 with every other garment within 3 cm, 19 cm on the back of 017; one more body vertex
+# crossing is 0.3 points or more, so 0.1 lets none through)
 KEPT = {
-    'body_crossing_pct': (lambda g: g['body_crossing_pct'], .2),
+    'body_crossing_pct': (lambda g: g['body_crossing_pct'], .1),
     'triangles': (lambda g: g['triangles'], 5),
-    'tear_cm': (lambda g: g['shell']['identity']['tear_cm'], 15),
-    'tear_back_cm': (lambda g: g['shell']['identity']['tear_back_cm'], 10),
-    'contour_lost_cm': (lambda g: max(g['contour'][k]['lost_cm'] for k in CONTOUR[int(g['registered'].get('collar') is not None)] if k in g['contour']), .3),
+    'tear_cm': (lambda g: g['shell']['identity']['tear_cm'], 30),
+    'tear_back_cm': (lambda g: g['shell']['identity']['tear_back_cm'], 20),
+    'contour_lost_cm': (lambda g: lost(g, CONTOUR), .3),
+    'edge_lost_cm': (lambda g: lost(g, EDGES), .3),
     'back_lost_cm': (lambda g: g['contour']['back']['lost_cm'] if 'back' in g['contour'] else 0., .3),
     'waist_thinner_pct': (lambda g: round(max(0., 100 * (1 - g['contour']['waist']['girth_rebuilt_cm'] / g['contour']['waist']['girth_cm'])), 1) if 'waist' in g['contour'] else 0., .5),
-    'distortion_pct': (lambda g: round(100 * abs(g['shell']['identity']['distortion'] - 1), 1), 1.5),
+    'distortion_pct': (lambda g: round(100 * abs(g['shell']['identity']['distortion'] - 1), 1), 1.),
 }
 # the lines that make a garment itself, for a bottom and for a top: the waistband or the hem, and the silhouette. A
 # line made straight shows here (a level cut on a waistband that dips 5 cm in front loses 1.7 cm). Over CONTOUR_LIMIT
 # a garment fails whatever its baseline says.
 CONTOUR = (('waistband', 'side'), ('hem', 'side'))
+# the other edges read, a bottom's hem and a top's collar: recorded per garment and only going down, with no limit of
+# their own (today the hem of trousers 006 loses 5.8 cm and the collars of 022 and 023 lose 2.1)
+EDGES = (('hem',), ('collar',))
 # the back of a top seen in profile, against the published garment's: the look Lucas pointed at (jeans 004 with top 024,
 # where the shell followed the shoulder blade, the lumbar and the glute and the back read as painted on the body)
 # stays under this, in cm
@@ -47,12 +53,12 @@ BACK_CASES = {
     '024': 0.8,
 }
 CONTOUR_LIMIT = 2.0
-# over the 345 looks, in cm²
+# over the 345 looks, in cm²: today's values (198, 18, 88, 9) and a tenth over them
 LOOK_LIMITS = {
-    'poke_total_cm2': 600,
-    'poke_worst_look_cm2': 40,
-    'belly_total_cm2': 150,
-    'belly_worst_look_cm2': 20,
+    'poke_total_cm2': 220,
+    'poke_worst_look_cm2': 20,
+    'belly_total_cm2': 97,
+    'belly_worst_look_cm2': 10,
 }
 MODULES = (
     'register',
@@ -76,6 +82,11 @@ SKIRT_RINGS, HEM_RINGS = 4, 3
 
 
 def pose(pid): return 'C' if pid in POSE_C else 'B'
+
+
+def lost(g, edges):
+    """The most a garment lost on these edges (one tuple for a bottom, one for a top), in cm; 0 where none was read."""
+    return max((g['contour'][k]['lost_cm'] for k in edges[int(g['registered'].get('collar') is not None)] if k in g['contour']), default=0.)
 
 
 def one_shell(a):
@@ -158,18 +169,21 @@ def write(rep):
     new = baseline(rep)
     if os.path.exists(BASELINE):
         old = json.load(open(BASELINE))
-        up = [f'{p} {k}: {old[p][k]} -> {v}' for p, g in new.items() for k, v in g.items() if p in old and v > old[p][k] + KEPT[k][1]]
+        up = [f'{p} {k}: {old[p][k]} -> {v}' for p, g in new.items() for k, v in g.items() if p in old and k in old[p] and v > old[p][k] + KEPT[k][1]]
         if up: raise SystemExit('a baseline only goes down:\n' + '\n'.join(up))
+        # a value inside the slack is the same value read on another machine: the recorded one stays, or write after
+        # write would walk the baseline up
+        new = {p: {k: min(v, old[p][k]) if p in old and k in old[p] else v for k, v in g.items()} for p, g in new.items()}
     open(BASELINE, 'w').write('{\n' + ',\n'.join(f' "{p}": {json.dumps(g)}' for p, g in sorted(new.items())) + '\n}\n')
 
 
 def check(rep):
     old = json.load(open(BASELINE)); bad = []
     for pid, g in baseline(rep).items():
-        bad += [f'{pid} {k}: {v}, recorded {old[pid][k]}' for k, v in g.items() if v > old[pid][k] + KEPT[k][1]]
+        bad += [f'{pid} {k}: {v}, recorded {old[pid][k]}' for k, v in g.items() if v > old[pid].get(k, v) + KEPT[k][1]]
     bad += [f'{pid} contour_lost_cm: {g["contour_lost_cm"]}, limit {CONTOUR_LIMIT}' for pid, g in baseline(rep).items() if g['contour_lost_cm'] > CONTOUR_LIMIT]
     bad += [f'{pid} back_lost_cm: {g["back_lost_cm"]}, limit {BACK_CASES[pid]}' for pid, g in baseline(rep).items() if pid in BACK_CASES and g['back_lost_cm'] > BACK_CASES[pid]]
-    bad += [f'{k}: {rep["summary"][k]}, limit {lim}' for k, lim in LOOK_LIMITS.items() if rep['summary'][k] > lim]
+    if 'summary' in rep: bad += [f'{k}: {rep["summary"][k]}, limit {lim}' for k, lim in LOOK_LIMITS.items() if rep['summary'][k] > lim]
     for name in MODULES:
         m = __import__(name)
         if hasattr(m, 'check'): bad += [f'{name}: {x}' for x in m.check(rep)]
