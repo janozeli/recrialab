@@ -62,11 +62,11 @@ BACK_CASES = {
 }
 FOLD = .01             # m: a body vertex this close behind another part of the body, below the neck, is in a fold and is left out of body crossing
 CONTOUR_LIMIT = 2.0
-# over the 345 looks, in cm²: today's values (36, 18, 0, 0) and a little over them, never over what they were
-# (220, 20, 97, 10). The worst look is skirt 010 under 022
+# over the 345 looks, in cm²: today's values (19, 8, 0, 0) and a little over them for what another machine reads,
+# never over what they were (220, 20, 97, 10). The worst look is skirt 007 under 034
 LOOK_LIMITS = {
-    'poke_total_cm2': 40,
-    'poke_worst_look_cm2': 20,
+    'poke_total_cm2': 24,
+    'poke_worst_look_cm2': 10,
     'belly_total_cm2': 2,
     'belly_worst_look_cm2': 2,
 }
