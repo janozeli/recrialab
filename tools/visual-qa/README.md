@@ -43,4 +43,4 @@ sumiu também: tire-o da lista na mesma mudança que o resolveu.
 `tone.py` compara o brilho de cada peça no palco com a foto e grava o ajuste de cor de cada peça em
 `site/garment-tones.ts` (`--fit`). Usa as fotos de `visual-qa.mjs --beauty` com as 38 peças.
 
-`python3 tools/visual-qa/cases.py` holds a measure to saved pictures in `cases/`: today the walls of the fit engine's shells seen edge-on from below, which `loose` must not read as pieces in the air (and must still read once made flat in depth).
+`python3 tools/visual-qa/cases.py` holds a measure to saved pictures in `cases/`: today the far wall of the fit engine's single-sided shells seen from below, which `loose` must not read as pieces in the air (and must still read once the cloth that joins them is taken out, and for a thread planted in the air at any angle).
