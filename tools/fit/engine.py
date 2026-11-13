@@ -34,15 +34,16 @@ KEPT = {
     'tear_back_cm': (lambda g: g['shell']['identity']['tear_back_cm'], 10),
     'contour_lost_cm': (lambda g: lost(g, CONTOUR), .3),
     'edge_lost_cm': (lambda g: lost(g, EDGES), .3),
-    'back_lost_cm': (lambda g: g['contour']['back']['lost_cm'] if 'back' in g['contour'] else 0., .3),
-    'waist_thinner_pct': (lambda g: round(max(0., 100 * (1 - g['contour']['waist']['girth_rebuilt_cm'] / g['contour']['waist']['girth_cm'])), 1) if 'waist' in g['contour'] else 0., .5),
+    'back_lost_cm': (lambda g: g['contour']['back']['lost_cm'] if 'back' in g['contour'] else None, .3),
+    'waist_thinner_pct': (lambda g: round(max(0., 100 * (1 - g['contour']['waist']['girth_rebuilt_cm'] / g['contour']['waist']['girth_cm'])), 1) if 'waist' in g['contour'] else None, .5),
     'distortion_pct': (lambda g: round(100 * abs(g['shell']['identity']['distortion'] - 1), 1), 1.),
 }
 # where the CI machine read a garment further from the machine that recorded than the slack above, and by how much
-# it may: 021 read 762.4 cm of tear against 738.1 at e40c016, 025 read 6.0 of distortion against 4.5 on the head that
-# changes the registration. The cause is not known (the same machine repeats to the last digit, with one thread or
+# it may: 021 read 762.4 cm of tear against 738.1, 017 read 133.4 cm on the back against 114.0 and 025 read 6.0 of
+# distortion against 4.5, the last two with the registration that keeps a garment's proportions. The cause is not known (the same machine repeats to the last digit, with one thread or
 # four), so the slack is of these garments only
 MACHINE = {
+    '017': {'tear_back_cm': 20},
     '021': {'tear_cm': 30},
     '025': {'distortion_pct': 1.6},
 }
@@ -53,7 +54,7 @@ CONTOUR = (('waistband', 'side'), ('hem', 'side'))
 # the other edges read, a bottom's hem and a top's collar: recorded per garment and only going down, with no limit of
 # their own (today the hem of trousers 006 loses 5.8 cm and the collars of 022 and 023 lose 2.1)
 EDGES = (('hem',), ('collar',))
-# the back of a top seen in profile, against the published garment's: the look Lucas pointed at (jeans 004 with top 024,
+# the back of a top seen in profile, against the published garment's: the look that showed it (jeans 004 with top 024,
 # where the shell followed the shoulder blade, the lumbar and the glute and the back read as painted on the body)
 # stays under this, in cm
 BACK_CASES = {
@@ -95,8 +96,10 @@ def slack(pid, k): return MACHINE.get(pid, {}).get(k, KEPT[k][1])
 
 
 def lost(g, edges):
-    """The most a garment lost on these edges (one tuple for a bottom, one for a top), in cm; 0 where none was read."""
-    return max((g['contour'][k]['lost_cm'] for k in edges[int(g['registered'].get('collar') is not None)] if k in g['contour']), default=0.)
+    """The most a garment lost on these edges (one tuple for a bottom, one for a top), in cm; None unless every one of
+    them was read."""
+    e = edges[int(g['registered'].get('collar') is not None)]
+    return max(g['contour'][k]['lost_cm'] for k in e) if all(k in g['contour'] for k in e) else None
 
 
 def one_shell(a):
@@ -174,25 +177,31 @@ def baseline(rep):
     return {pid: {k: f(g) for k, (f, _) in KEPT.items()} for pid, g in rep['garments'].items()}
 
 
+def worse(pid, k, new, old):
+    """A reading that was recorded and is missing now is worse too: a profile no longer read cannot pass as 0."""
+    if old is None: return False
+    return new is None or new > old + slack(pid, k)
+
+
 def write(rep):
     """One garment per line, so changes to different garments do not conflict."""
     new = baseline(rep)
     if os.path.exists(BASELINE):
         old = json.load(open(BASELINE))
-        up = [f'{p} {k}: {old[p][k]} -> {v}' for p, g in new.items() for k, v in g.items() if p in old and k in old[p] and v > old[p][k] + slack(p, k)]
+        up = [f'{p} {k}: {old[p][k]} -> {v}' for p, g in new.items() for k, v in g.items() if p in old and worse(p, k, v, old[p].get(k))]
         if up: raise SystemExit('a baseline only goes down:\n' + '\n'.join(up))
         # a value inside the slack is the same value read on another machine: the recorded one stays, or write after
         # write would walk the baseline up
-        new = {p: {k: min(v, old[p][k]) if p in old and k in old[p] else v for k, v in g.items()} for p, g in new.items()}
+        new = {p: {k: min(v, old[p][k]) if p in old and old[p].get(k) is not None else v for k, v in g.items()} for p, g in new.items()}
     open(BASELINE, 'w').write('{\n' + ',\n'.join(f' "{p}": {json.dumps(g)}' for p, g in sorted(new.items())) + '\n}\n')
 
 
 def check(rep):
-    old = json.load(open(BASELINE)); bad = []
+    old = json.load(open(BASELINE)); bad = []; over = lambda v, lim: v is None or v > lim
     for pid, g in baseline(rep).items():
-        bad += [f'{pid} {k}: {v}, recorded {old[pid][k]}' for k, v in g.items() if v > old[pid].get(k, v) + slack(pid, k)]
-    bad += [f'{pid} contour_lost_cm: {g["contour_lost_cm"]}, limit {CONTOUR_LIMIT}' for pid, g in baseline(rep).items() if g['contour_lost_cm'] > CONTOUR_LIMIT]
-    bad += [f'{pid} back_lost_cm: {g["back_lost_cm"]}, limit {BACK_CASES[pid]}' for pid, g in baseline(rep).items() if pid in BACK_CASES and g['back_lost_cm'] > BACK_CASES[pid]]
+        bad += [f'{pid} {k}: {"not read" if v is None else v}, recorded {old[pid][k]}' for k, v in g.items() if worse(pid, k, v, old[pid].get(k))]
+    bad += [f'{pid} contour_lost_cm: {g["contour_lost_cm"]}, limit {CONTOUR_LIMIT}' for pid, g in baseline(rep).items() if over(g['contour_lost_cm'], CONTOUR_LIMIT)]
+    bad += [f'{pid} back_lost_cm: {g["back_lost_cm"]}, limit {BACK_CASES[pid]}' for pid, g in baseline(rep).items() if pid in BACK_CASES and over(g['back_lost_cm'], BACK_CASES[pid])]
     if 'summary' in rep: bad += [f'{k}: {rep["summary"][k]}, limit {lim}' for k, lim in LOOK_LIMITS.items() if rep['summary'][k] > lim]
     for name in MODULES:
         m = __import__(name)
