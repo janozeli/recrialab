@@ -48,6 +48,7 @@ ISLAND = 8             # vertices: a bare patch of the mannequin up to this size
 BURIED = .03           # m: a vertex of the mannequin this far from the body's skin is the middle of a lid
 SHOULDER_HOLDS = 1.34  # m: above this the mannequin's shoulder is one of the points a top hangs from
 SHOULDER_OUT, SHOULDER_TOP = .18, 1.52   # m: beyond this |x| and below this height the mannequin's shoulder is its arm, bent over it
+ARMHOLE = 0.10         # m: under the armpit, the height over which a top's side goes from hanging off the armpit to hanging off the shoulder
 SLIVER = 0.02          # m: a top's hem that ends less than this far over the waistband line comes down to just under it
 HEM_RISE = 0.02        # m: the hem of a top that reaches its line rises at most this far over it (WAIST_DIP + HEM_RISE < register.OVERLAP)
 DRAPE_TO, DRAPE_COLUMNS = 1.43, 12   # a top hangs from this height down; columns around the torso (the mannequin's torso has 12 sides)
@@ -472,6 +473,16 @@ def generate(kind, pid, path, dense_path, low_path, out, trace=None):
             for j in adj[k]:
                 if bare[j] and not seen[j]: seen[j] = True; isle.append(j)
         if len(isle) <= ISLAND: s[isle] = MIN_CLEAR; cov_low[isle] = True
+    # and the other way round, on the arm: cloth on a few of its vertices with bare body all around them (the end of a
+    # sleeve that touches a ring at two or three vertices) is a scrap hanging by the garment, and wears nothing
+    worn = s > 0; seen = np.zeros(len(v), bool)
+    for i in np.flatnonzero(worn):
+        if seen[i]: continue
+        isle = [i]; seen[i] = True
+        for k in isle:
+            for j in adj[k]:
+                if worn[j] and not seen[j]: seen[j] = True; isle.append(j)
+        if len(isle) <= ISLAND and np.isin(lab[isle], (1, 2)).all(): s[isle] = -1.; cov_low[isle] = False
     d, _, _ = probe(piece, kd_dense, dense.vertices, v, n, reach)
     measured = ~np.isnan(d) & cov_low; raw = d.copy()
     d = np.where(measured, np.clip(d, MIN_CLEAR, top), np.nan)
@@ -518,9 +529,15 @@ def generate(kind, pid, path, dense_path, low_path, out, trace=None):
     # the shoulder holds the cloth out too: the side of a top hangs from it, not from the armpit
     # the shoulder holds the string and stays where it is: pushed out with the torso, the top of the sleeve sheared
     # sideways off the arm under it and the body showed at the armpit
-    holds = up & (v[:, 1] > SHOULDER_HOLDS)
-    holds |= (lab == 0) & (np.abs(v[:, 0]) > .1) & (n[:, 0] * v[:, 0] < 0)   # nor does the socket of the arm, which faces inward
-    if kind == 'top': P = drape(P, v, n, raw, measured, (lab == 0) | holds, s, adj, holds)
+    socket = (lab == 0) & (np.abs(v[:, 0]) > .1) & (n[:, 0] * v[:, 0] < 0)   # nor does the socket of the arm, which faces inward
+    holds = (up & (v[:, 1] > SHOULDER_HOLDS)) | socket
+    if kind == 'top':
+        # a shoulder left bare (a sleeveless top, a cap sleeve) holds nothing around the armhole: the string ran from it
+        # across the opening and the cloth beside the armpit stood off the body like a wing. From the armpit down the
+        # side of the top keeps the width the shoulder gives it
+        worn = (holds & (s > 0)) | socket
+        hung, P = drape(P, v, n, raw, measured, (lab == 0) | holds, s, adj, holds), drape(P, v, n, raw, measured, (lab == 0) | worn, s, adj, worn)
+        w = np.clip((mb['armpit'] - v[:, 1]) / ARMHOLE, 0, 1)[:, None]; P = P + w * (hung - P)
     P = out_of_fold(P, v, low, adj, v[:, 1] > mb['waist'])
     Pc, Fc, (Nc, Bc) = cut(P, low.faces, s, [n, v])
     used = np.unique(Fc); remap = -np.ones(len(Pc), int); remap[used] = np.arange(len(used))
