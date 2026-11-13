@@ -10,7 +10,7 @@ The tube's shape is read from the garment itself (Profile): rays from the tube's
 at each angle and height, so each angle has the garment's own width and the garment's own hem. Where the garment
 ends earlier at one angle than at the others, the tube ends there too; it never borrows the width of another angle
 (a sleeve beside the hip, a frayed tip). At SEAM the tube has the shell's radius; the difference to the garment's
-fades over BLEND, so there is no step at the weld and the hem has the garment's width. The tube is never smaller
+shrinks by TAPER down the tube, so the cloth hangs from the weld with no step and no kink. The tube is never smaller
 than the body plus CLEAR and, for a top, never inside the set of all the bottoms plus RISE (a long hem passes
 outside every bottom); body and bottoms are looked for at each side's own angle, and where they need room on one
 side the ring first moves as a whole and only then widens, so its girth stays the garment's.
@@ -39,7 +39,8 @@ SEAM = .90             # m: height of the weld between a top's shell and its tub
 CLEAR = .006           # m: the tube is never closer than this to the body
 ARM_GAP = .004         # m: the tube stays this far inside the arm
 ARMPIT = 1.28          # m: below this height a sleeve is a part of the shell not connected to the middle of the torso
-BLEND = .15            # m below the top ring over which the tube goes from the shell's radius to the garment's
+BLEND = .15            # m below SEAM over which a ring gains the freedom to move as a whole and the texture rays turn from the shell's to the tube's
+TAPER = .15            # m per m: how fast the tube goes from the shell's radius at SEAM to the garment's (a cloth that hangs, no kink)
 # Profile: the garment read from the tube's axis
 ANGLES, ROW = 72, .01  # rays per turn; m between rows of rays
 FLOOR = .40            # m: lowest row
@@ -48,9 +49,10 @@ JUMP = .02             # m per row: a wall this far from the one right above is 
 HOLE = .04             # m: a gap of the wall up to this height is a hole of the cloth, not its end
 NOTCH = 3              # angles to each side: a notch of the hem narrower than this many is a rip
 MIN_TUBE = .02         # m: shortest tube at any angle
-SKIRT_SIDES = 31       # sides of a skirt's tube
+SKIRT_SIDES = 30       # sides of a skirt's tube
 WAIST_OVER = .05       # m over SEAM: a waistband's edge is above this
-SKIRT_TOP_RINGS = 2    # rings of a skirt from the waistband line down to SEAM
+SKIRT_TOP_RINGS = 2    # rings of a skirt from the waistband down to SEAM
+WAIST_RING = .03       # m under the waistband: the first of them
 # check
 SEAM_BAND = .06        # m below the weld where the kink is measured
 RECORD = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tube.json')
@@ -79,27 +81,34 @@ def sleeves(V, F):
 
 
 def cut_shell(src, dst):
-    """Keeps the shell above SEAM (sleeves whole) and returns the points of the cut edge."""
+    """Keeps the shell above SEAM (sleeves whole) and returns the points of the cut edge and the shell's normals there."""
     m = trimesh.load(src, process=False).to_geometry(); V = np.asarray(m.vertices); F = np.asarray(m.faces)
     s = np.where(sleeves(V, F), 1.0, V[:, 1] - SEAM)
     P, F2, (N, UV) = S.cut(V, F, s, [np.asarray(m.vertex_normals), np.asarray(m.visual.uv)])
     u = np.unique(F2); r = -np.ones(len(P), int); r[u] = np.arange(len(u)); P, N, UV, F2 = P[u], N[u], UV[u], r[F2]
     S.export(dst, P, F2, N / (np.linalg.norm(N, axis=1)[:, None] + 1e-9), UV, m.visual.material.baseColorTexture)
-    edge = P[(np.abs(P[:, 1] - SEAM) < 2e-3) & ~sleeves(P, F2)]
-    return np.unique(np.round(edge, 4), axis=0)
+    on = (np.abs(P[:, 1] - SEAM) < 2e-3) & ~sleeves(P, F2)
+    edge, i = np.unique(np.round(P[on], 4), axis=0, return_index=True)
+    return edge, N[on][i]
 
 
 def waistband_edge(src):
-    """A bottom shell's upper edge as a ring of SKIRT_SIDES points: the waistband, with the curve the shell gave it."""
+    """A bottom shell's upper edge as a ring of SKIRT_SIDES of its own points: the waistband, with the curve and the
+    corners the shell gave it. The points dropped are the ones that change the outline least (a ring at equal angles
+    cuts the corners of the hip and the waist reads thinner)."""
     m = trimesh.load(src, process=False).to_geometry(); V = np.asarray(m.vertices)
     _, inv = np.unique(np.round(V, 4), axis=0, return_inverse=True); F = inv.ravel()[np.asarray(m.faces)]
     e = np.sort(np.vstack([F[:, [0, 1]], F[:, [1, 2]], F[:, [2, 0]]]), axis=1); u, c = np.unique(e, axis=0, return_counts=True)
     P = np.zeros((inv.max() + 1, 3)); P[inv.ravel()] = V
     B = P[np.unique(u[c == 1])]; B = B[B[:, 1] > SEAM + WAIST_OVER]         # open edge at the top, not the rims of the legs
-    cen = B[:, [0, 2]].mean(0); a = np.arctan2(B[:, 2] - cen[1], B[:, 0] - cen[0]); o = np.argsort(a)
-    t = -np.pi + np.arange(SKIRT_SIDES) * 2 * np.pi / SKIRT_SIDES
-    r = np.interp(t, a[o], np.hypot(B[:, 0] - cen[0], B[:, 2] - cen[1])[o], period=2 * np.pi)
-    return np.c_[cen[0] + r * np.cos(t), np.interp(t, a[o], B[o, 1], period=2 * np.pi), cen[1] + r * np.sin(t)]
+    cen = B[:, [0, 2]].mean(0); B = list(B[np.argsort(np.arctan2(B[:, 2] - cen[1], B[:, 0] - cen[0]))])
+    while len(B) > SKIRT_SIDES:
+        Q = np.array(B)[:, [0, 2]]; a, b = np.roll(Q, 1, 0) - Q, np.roll(Q, -1, 0) - Q
+        B.pop(int(np.argmin(np.abs(a[:, 0] * b[:, 1] - a[:, 1] * b[:, 0]))))
+    while len(B) < SKIRT_SIDES:                             # a coarse shell: the longest side is split
+        Q = np.array(B); i = int(np.argmax(np.linalg.norm(np.roll(Q, -1, 0) - Q, axis=1)))
+        B.insert(i + 1, (Q[i] + Q[(i + 1) % len(Q)]) / 2)
+    return np.array(B)
 
 
 def around(a, t):
@@ -190,14 +199,15 @@ def build(dense_path, shell_path, garment_path, shell_out, tube_out, n, envelope
     if skirt:                                             # one tube from the waistband down: no shell is kept
         edge = waistband_edge(shell_path); sm = trimesh.load(shell_path, process=False).to_geometry()
         if os.path.exists(shell_out): os.remove(shell_out)
-    else: edge = cut_shell(shell_path, shell_out)
+    else: edge, weld = cut_shell(shell_path, shell_out)
     top = float(np.median(edge[:, 1]))
     cen = edge[:, [0, 2]].mean(0); ang = np.arctan2(edge[:, 2] - cen[1], edge[:, 0] - cen[0]); o = np.argsort(ang); edge, ang = edge[o], ang[o]
+    if not skirt: weld = weld[o] / (np.linalg.norm(weld[o], axis=1)[:, None] + 1e-9)
     k = len(ang); u = np.c_[np.cos(ang), np.sin(ang)]
     piece = S.Piece(garment_path); prof = Profile(piece, cen, top)
     hem = np.minimum(prof.hem(ang), SEAM - MIN_TUBE)
     # heights: a skirt follows its shell down to SEAM (every top was built outside that shell), then hangs like a hem
-    ys = [edge[:, 1] - (edge[:, 1] - SEAM) * j / SKIRT_TOP_RINGS for j in range(1, SKIRT_TOP_RINGS + 1)] if skirt else []
+    ys = [np.maximum(edge[:, 1] - WAIST_RING, SEAM + MIN_TUBE), np.full(k, SEAM)] if skirt else []   # one ring right under the waistband, where the waist is read, and one at SEAM
     ys = ys + [SEAM - (SEAM - hem) * j / n for j in range(1, n + 1)]
     if skirt:
         def on_shell(y):
@@ -215,7 +225,7 @@ def build(dense_path, shell_path, garment_path, shell_out, tube_out, n, envelope
         if skirt and j < SKIRT_TOP_RINGS:
             r = on_shell(y); rings.append(np.c_[cen[0] + r * u[:, 0], y, cen[1] + r * u[:, 1]]); continue
         x = np.clip((SEAM - y) / BLEND, 0, 1); fade = x * x * (3 - 2 * x)
-        r = prof.at(ang, y) + off * (1 - fade)
+        r = prof.at(ang, y) + np.sign(off) * np.maximum(np.abs(off) - TAPER * (SEAM - y), 0)
         up = np.abs(ys[j - 1] - y) if j else SEAM - y; down = np.abs(ys[j + 1] - y) if j + 1 < len(ys) else np.zeros(k)
         floor = np.zeros(k); reach = np.full(k, np.inf)
         for i, t in enumerate(ang):
@@ -239,6 +249,8 @@ def build(dense_path, shell_path, garment_path, shell_out, tube_out, n, envelope
     F = np.array(F)
     if trimesh.Trimesh(V, F, process=False).volume < 0: F = F[:, ::-1]
     N = np.asarray(trimesh.Trimesh(V, F, process=False).vertex_normals)
+    if not skirt:                                        # at the weld the texture rays are the shell's own, so the print runs on across it; they turn to the tube's little by little
+        x = np.clip((SEAM - V[:, 1]) / BLEND, 0, 1)[:, None]; N = np.tile(weld, (n + 1, 1)) * (1 - x) + N * x; N /= np.linalg.norm(N, axis=1)[:, None] + 1e-9
     base = V - N * .03                                   # the texture rays leave 3 cm inside the tube
     dense, _ = trimesh.sample.sample_surface(trimesh.Trimesh(base, F, process=False), 40000, seed=1)
     trace = {}
