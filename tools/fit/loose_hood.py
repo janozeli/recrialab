@@ -18,6 +18,9 @@ measure() compares the result with the garment as generated, from cameras around
 - off_cm2: the loose part in view with nothing of the garment within NEAR behind or in front of it (a sliver);
 - edge_cm: length of the loose part's border where the garment goes on past it and no shell takes over (a ragged
   cut, a notch); the garment's own rim and the seam on the shell are not counted;
+- border_cm: length of the whole border (saw teeth, also on the shell, where edge_cm does not look). A loose part
+  that keeps a rim the last one had worn down has more border: its line is recorded with it, and from then on only
+  goes down;
 - lost_cm2: the garment's cloth around the neck and on the upper back in view where the rebuilt garment (shell and
   loose part) shows nothing: against the background (the hood or the collar lost its outline), or in front of the
   body where the low-poly mannequin is now bare (bare_cm2, a part of lost_cm2).
@@ -46,7 +49,6 @@ import shell as S
 
 NECK, BASE, SHOULDERS = 1.47, 1.20, .19   # m: neck line; lowest height; half width kept
 FAR = .03              # m: cloth this far from the body is hood or collar, not back or shoulder
-BORDER = 1             # times: in the collapse, leaving the border weighs this much more than leaving the surface
 SEED = .012            # m: cloth this far outside the shell is not held by it
 CLOSE, SMOOTH = 2, 3   # edges of the garment: holes of the choice closed; passes that smooth its border
 SLOPE = .15            # m per m: below the neck a garment hangs looser, and a hood has to stand further out to be one
@@ -68,7 +70,7 @@ DARK = 45              # of 255: darker than the garment by this much, a hole
 RAY = .005             # m: side of the area one ray stands for
 PUBLISHED = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'site', 'assets', 'engine')
 BASELINE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'loose_hood.json')
-SLACK = {'edge_cm': 5, 'dark_cm2': 5, 'off_cm2': 10, 'lost_cm2': 10}   # cm, cm² summed over the cameras: below this, noise of the rays
+SLACK = {'edge_cm': 5, 'border_cm': 5, 'dark_cm2': 5, 'off_cm2': 10, 'lost_cm2': 10}   # cm, cm² summed over the cameras: below this, noise of the rays
 # what the CI machine read over the machine that recorded, where it passed the slack: the slack of that reading alone,
 # with the two numbers
 MACHINE = {
@@ -148,10 +150,10 @@ def seen(c, piece, body):
 
 def collapse(V, F, target):
     """Edges collapsed one at a time, the cheapest first, down to target triangles. The cost of a place for a vertex
-    is its squared distance to the planes of the triangles it stands for, and, on the border, to planes that stand
-    on the border's edges (BORDER times heavier): the outline of a hood or the rim of a collar is held while the
-    folds inside are spent. A collapse that would fold a triangle over, pinch the surface or leave a needle is not
-    made."""
+    is its squared distance to the planes of the triangles it stands for. A border vertex never leaves the border:
+    an edge from the border into the cloth collapses onto its border end, so the outline of a hood or the rim of a
+    collar is held while the folds inside are spent. A collapse that would fold a triangle over, pinch the surface
+    or join two borders across the cloth is not made."""
     V = V.copy(); F = F.copy(); n = len(V); alive = np.ones(len(F), bool)
     tri = V[F]; N = np.cross(tri[:, 1] - tri[:, 0], tri[:, 2] - tri[:, 0]); area = np.linalg.norm(N, axis=1) / 2; N /= np.maximum(2 * area, 1e-20)[:, None]
     Q = np.zeros((n, 4, 4))
@@ -159,11 +161,8 @@ def collapse(V, F, target):
     for f in range(len(F)):
         K = plane(N[f], V[F[f, 0]], area[f])
         for v in F[f]: Q[v] += K
-    e = np.sort(np.concatenate([F[:, [0, 1]], F[:, [1, 2]], F[:, [2, 0]]]), axis=1); fe = np.tile(np.arange(len(F)), 3)
+    e = np.sort(np.concatenate([F[:, [0, 1]], F[:, [1, 2]], F[:, [2, 0]]]), axis=1)
     u, inv, cnt = np.unique(e, axis=0, return_inverse=True, return_counts=True); inv = inv.ravel()
-    for k in np.flatnonzero(cnt[inv] == 1):
-        a, b = e[k]; d = V[b] - V[a]; L2 = d @ d; nrm = np.cross(d, N[fe[k]]); nrm /= max(np.linalg.norm(nrm), 1e-20)
-        K = plane(nrm, V[a], BORDER * L2); Q[a] += K; Q[b] += K
     border = np.zeros(n, bool); border[e[cnt[inv] == 1].ravel()] = True
     faces = [set() for _ in range(n)]
     for f, t in enumerate(F):
@@ -341,8 +340,9 @@ def build(dense_path, src, dst, shell_path=None):
     low = S.load_body(low_path(dense_path))
     cloth = loose(piece, body, sh)
     if cloth is None: return {**measure(dense_path, src, [shell_path], dst), 'in_neck_cm2': 0.0, **published(dense_path, src)}
-    V0, F0, faces = cloth; V0 = lift(V0, sh); pid = os.path.basename(src)[:3]; most = ceiling(pid); made = {}
-    for border in (True, False):                               # the collapse that holds the border, and the one that does not
+    V0, F0, faces = cloth; V0 = lift(V0, sh); pid = os.path.basename(src)[:3]; most = ceiling(pid); made = {}; refused = {}
+    line = json.load(open(BASELINE)).get(pid) or {}
+    for border in (True, False):                               # the collapse that holds the border and, if a line refuses it, the one that does not
         target = fits = most if border else TARGET             # the plain collapse as it has always been made: the recorded loose parts come from it
         while True:                                            # the cut on the mannequin adds triangles: simplify further until it fits
             V, F = simplify(V0, F0, target, border)
@@ -357,14 +357,16 @@ def build(dense_path, src, dst, shell_path=None):
         made[border] = {**measure(dense_path, src, [shell_path], path), 'triangles_before': int(len(F0)),
                         'pieces': len(m.split(only_watertight=False)), 'area_cm2': int(m.area * 1e4),
                         'in_neck_cm2': in_neck(m, low), 'border_held': border}
-    # holding the border is kept where no recorded line pays for it: a collapse is a different mesh for each way of
-    # making it, on some garments the held border is a longer ragged one, and a line only goes down
-    plain = dst + '.plain.glb'; line = json.load(open(BASELINE)).get(pid) or {}
-    if False in made and (True not in made or any(made[True][k] > line.get(k, np.inf) + s for k, s in SLACK.items())): os.replace(plain, dst); out = made[False]
-    else:
-        if os.path.exists(plain): os.remove(plain)
-        out = made.get(True) or {**measure(dense_path, src, [shell_path], dst), 'in_neck_cm2': 0.0}
-    return {**out, **published(dense_path, src)}
+        # holding the border is kept where no recorded line pays for it: a collapse is a different mesh for each way
+        # of making it, on some garments the held border is a longer ragged one, and a line only goes down. What
+        # refused it goes in the report, reading by reading, with the line: [read, recorded].
+        if border: refused = {k: [made[True][k], line[k]] for k, s in SLACK.items() if k in line and made[True][k] > line[k] + s}
+        if border and not refused: break
+    plain = dst + '.plain.glb'
+    if False in made: os.replace(plain, dst)
+    elif refused and os.path.exists(dst): os.remove(dst)       # refused, and the plain collapse left nothing: no loose part
+    out = made.get(False) or ({} if refused else made.get(True)) or {**measure(dense_path, src, [shell_path], dst), 'in_neck_cm2': 0.0}
+    return {**out, **({'border_refused': refused} if refused else {}), **published(dense_path, src)}
 
 
 def in_neck(m, low_body):
@@ -385,16 +387,25 @@ def published(dense_path, src):
 
 
 def ceiling(pid):
-    """The most triangles the loose part of a garment may have: what its recorded one has, never over TARGET. A
-    garment's triangles are a line of the engine's baseline, which only goes down."""
-    was = json.load(open(BASELINE)).get(pid, {}).get('triangles', 0)
-    return min(was, TARGET) if was else TARGET
+    """The most triangles the loose part of a garment may have: the 'ceiling' recorded for it, never over TARGET. A
+    garment's triangles are a line of the engine's baseline, which only goes down. The ceiling is a number of its
+    own, which write() carries over: taken from the triangles last built, it would come down a few triangles at
+    every recording (the reduction stops under it), until the loose part no longer fitted its lines."""
+    return min(json.load(open(BASELINE)).get(pid, {}).get('ceiling') or TARGET, TARGET)
 
 
 def low_path(dense_path):
     """The low-poly mannequin the engine wrote next to the dense one."""
     low = dense_path.replace('dense-', 'low-'); assert low != dense_path and os.path.exists(low), f'no low-poly mannequin for {dense_path}'
     return low
+
+
+def border(mesh):
+    """Length of the border of a surface (m), all of it: a saw-toothed border is longer than a clean one, also where
+    it lies on the shell and open_edge() does not count it."""
+    m = trimesh.Trimesh(mesh.vertices, mesh.faces, process=False); m.merge_vertices(digits_vertex=5)
+    e = np.sort(m.edges, axis=1); u, n = np.unique(e, axis=0, return_counts=True)
+    return float(np.linalg.norm(m.vertices[u[n == 1, 0]] - m.vertices[u[n == 1, 1]], axis=1).sum())
 
 
 def open_edge(mesh, garment, shell):
@@ -444,7 +455,8 @@ def measure(dense_path, src, shell_paths, hood_path):
     has = os.path.exists(hood_path); new = Look(list(shell_paths) + ([hood_path] if has else []))
     hood_from = new.off[-2] if has else len(new.mesh.faces)
     hm = new.pieces[-1].mesh if has else None
-    out = {'triangles': int(len(hm.faces)) if has else 0, 'edge_cm': round(100 * open_edge(hm, old.mesh, trimesh.util.concatenate([p.mesh for p in new.pieces[:-1]])), 1) if has else 0.0, 'dark_cm2': 0.0, 'off_cm2': 0.0, 'lost_cm2': 0.0, 'bare_cm2': 0.0}
+    out = {'triangles': int(len(hm.faces)) if has else 0, 'edge_cm': round(100 * open_edge(hm, old.mesh, trimesh.util.concatenate([p.mesh for p in new.pieces[:-1]])), 1) if has else 0.0,
+           'border_cm': round(100 * border(hm), 1) if has else 0.0, 'dark_cm2': 0.0, 'off_cm2': 0.0, 'lost_cm2': 0.0, 'bare_cm2': 0.0}
     cm2 = RAY * RAY * 1e4
     for d in directions():
         r = np.cross([0, 1, 0], d); r /= np.linalg.norm(r); u = np.cross(d, r)
@@ -476,9 +488,9 @@ def check(report):
         for name, r in (('built', now), ('published', now.get('published'))):
             if r is None: continue
             if r['in_neck_cm2'] > IN_NECK: fails.append(f"{pid}: {r['in_neck_cm2']} cm² of the {name} loose part cross the mannequin's neck")
-            if r['triangles'] > TARGET: fails.append(f"{pid}: {r['triangles']} triangles in the {name} loose part, above {TARGET}")
+            if r['triangles'] > ceiling(pid): fails.append(f"{pid}: {r['triangles']} triangles in the {name} loose part, above {ceiling(pid)}")
         read = held(now)
-        fails += [f'{pid}: {k} {read[k]} above the baseline {was[k]}' for k, slack in SLACK.items() if read[k] > was[k] + MACHINE.get((pid, k), slack)]
+        fails += [f'{pid}: {k} {read[k]} above the baseline {was[k]}' for k, slack in SLACK.items() if k in was and read[k] > was[k] + MACHINE.get((pid, k), slack)]   # a reading with no line yet gets one at the next recording
     return fails
 
 
@@ -490,10 +502,10 @@ def held(hood):
 
 def write(report):
     base = json.load(open(BASELINE))
-    new = {p: {k: held(report['garments'][p]['hood'])[k] for k in ('triangles', *SLACK)} for p in base}
+    new = {p: {'ceiling': base[p]['ceiling'], **{k: held(report['garments'][p]['hood'])[k] for k in ('triangles', *SLACK)}} for p in base}
     for p, g in new.items():
         for k in SLACK:
-            if not base[p]: continue
+            if k not in base[p]: continue
             assert g[k] <= base[p][k] + MACHINE.get((p, k), SLACK[k]), f'{p}: {k} would go up'
             g[k] = min(g[k], base[p][k])                       # within the slack the recorded value stays: it never creeps up
     open(BASELINE, 'w').write('{\n' + ',\n'.join(f' "{p}": {json.dumps(g)}' for p, g in sorted(new.items())) + '\n}\n')
