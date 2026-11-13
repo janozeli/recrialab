@@ -9,6 +9,8 @@ Two rules of the fit engine sit on top (engine.py):
 - bottom: the upper cut follows the garment's own waistband around the body (edge), with its lowest point on the
   waistband line of register.py; a top's hem follows the garment's hem the same way. A level cut fits and no longer
   looks like the garment;
+- top: it hangs (drape): cloth runs straight between the points that hold it out and does not follow the body
+  into the lumbar or the waist;
 - top: it stays outside the set of ALL the bottoms (the envelope) plus RISE, not outside one of them, so any top
   layers over any bottom without a table per pair.
 What hangs loose (skirt below the hip, hem below it, hood) is not shell: tube.py and loose_hood.py.
@@ -36,14 +38,16 @@ EDGE_SECTORS = 24      # sectors around the body in which a waistband's or a hem
 WAIST_DIP = 0.0        # m: the lowest point of a waistband's curve sits this far under the waistband line; the curve rises from there
 WAIST_TOP = 0.01       # m: ... up to this far under the waist
 HEM_RISE = 0.02        # m: the hem of a top that reaches its line rises at most this far over it (WAIST_DIP + HEM_RISE < register.OVERLAP)
+DRAPE_TO, DRAPE_COLUMNS = 1.43, 12   # a top hangs from this height down; columns around the torso (the mannequin's torso has 12 sides)
 HEM_TO = 1.25          # m: a top's hem is looked for on the torso below this height
 WAIST_FROM = 0.06      # m above the crotch from where a bottom's torso is cut at the waistband line
 
 
 def ceiling(pid):
-    """Maximum clearance (torso, limb) in meters: bottoms hug the hip, knits are loose, jackets looser."""
+    """Maximum clearance (torso, limb) in meters: bottoms hug the hip, knits are loose, jackets looser. A safety
+    bound, not the fit: under it the shell takes the clearance the garment has."""
     n = int(pid)
-    return (.015, .03) if n <= 15 else (.04, .025) if n <= 32 else (.08, .03)
+    return (.03, .03) if n <= 15 else (.12, .06) if n <= 32 else (.14, .08)
 
 
 def load_body(path):
@@ -254,6 +258,41 @@ def edge(S, center, q, v, sides=True):
     return np.interp(np.arctan2(v[:, 2] - center[1], v[:, 0] - center[0]), ang, h, period=2 * np.pi)
 
 
+def hull(y, r):
+    """Upper convex hull of r over y, read at each y: a string pulled tight over the points."""
+    o = np.argsort(y); k = []
+    for i in o:
+        while len(k) > 1 and (r[k[-1]] - r[k[-2]]) * (y[i] - y[k[-2]]) <= (r[i] - r[k[-2]]) * (y[k[-1]] - y[k[-2]]): k.pop()
+        k.append(i)
+    return np.interp(y, y[k], r[k])
+
+
+def drape(P, v, n, raw, measured, torso, s, adj):
+    """A top hangs: cloth runs straight between the points that hold it out (shoulder blade and glute, chest and
+    belly, armpit and hip) and does not follow the body into the lumbar or the waist. A shell that does reads as the
+    print painted on the body, the torso narrowing from the shoulders to the hem. Per column of the torso (an angle
+    around its axis), the shell goes out to the string pulled tight over it, less what the garment itself goes in
+    (a fitted waist stays fitted)."""
+    P = P.copy(); on = torso & (s > -.03) & (v[:, 1] < DRAPE_TO)
+    if on.sum() < 8: return P
+    c = v[on][:, [0, 2]].mean(0); ang = np.arctan2(v[:, 2] - c[1], v[:, 0] - c[0]); col = np.round(ang / (2 * np.pi / DRAPE_COLUMNS)).astype(int) % DRAPE_COLUMNS
+    radius = lambda Q: np.hypot(Q[:, 0] - c[0], Q[:, 2] - c[1])
+    move = np.zeros(len(v)); r = radius(P); G = v + n * np.where(measured, raw, 0)[:, None]; rg = np.where(measured, radius(G), np.nan)
+    for j in range(DRAPE_COLUMNS):
+        i = np.flatnonzero(on & (col == j))
+        if len(i) < 3: continue
+        own = np.zeros(len(i)); m = ~np.isnan(rg[i])
+        if m.sum() > 2: own[m] = hull(v[i][m, 1], rg[i][m]) - rg[i][m]          # how far the garment itself goes in
+        move[i] = np.maximum(hull(v[i, 1], r[i]) - own, r[i]) - r[i]
+    # one column pushed out and its neighbor not would kink a stripe: the push is evened out around the torso
+    idx = np.flatnonzero(on); pos = {k: a for a, k in enumerate(idx)}; near = [[pos[k] for k in adj[i] if k in pos] for i in idx]
+    out = move[idx]
+    for _ in range(3): out = np.array([(out[i] + out[a].sum()) / (1 + len(a)) for i, a in enumerate(near)])
+    d = np.c_[P[idx, 0] - c[0], P[idx, 2] - c[1]]; d /= np.linalg.norm(d, axis=1)[:, None] + 1e-9
+    P[idx, 0] += d[:, 0] * out; P[idx, 2] += d[:, 1] * out
+    return P
+
+
 def cut(v, f, s, attrs):
     """Cuts the mesh at the line s = 0 and keeps the side s > 0. attrs: per-vertex arrays interpolated at the cut."""
     v = list(map(np.asarray, v)); attrs = [list(a) for a in attrs]; s = list(s)
@@ -423,6 +462,7 @@ def generate(kind, pid, path, dense_path, low_path, out, trace=None):
     out_dir = n.copy(); e = np.sort(low.edges, axis=1); u, c = np.unique(e, axis=0, return_counts=True); rim = np.unique(u[c == 1])
     out_dir[rim, 1] = 0; out_dir[rim] /= np.linalg.norm(out_dir[rim], axis=1)[:, None] + 1e-9
     P = v + out_dir * d[:, None]
+    if kind == 'top': P = drape(P, v, n, raw, measured, lab == 0, s, adj)
     Pc, Fc, (Nc, Bc) = cut(P, low.faces, s, [n, v])
     used = np.unique(Fc); remap = -np.ones(len(Pc), int); remap[used] = np.arange(len(used))
     Pc, Nc, Bc, Fc = Pc[used], Nc[used], Bc[used], remap[Fc]
