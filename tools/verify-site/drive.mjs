@@ -80,7 +80,7 @@ await page.addInitScript(() => {
 const errors = [];
 page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
 page.on('pageerror', e => errors.push(String(e)));
-page.on('requestfailed', r => errors.push(`failed ${r.url()}`));
+page.on('requestfailed', r => errors.push(`failed ${r.method()} ${r.url()}: ${r.failure()?.errorText ?? 'no reason given'}`));
 page.on('response', r => { if (r.status() >= 400) errors.push(`${r.status()} ${r.url()}`); });
 
 try {
