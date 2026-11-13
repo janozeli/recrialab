@@ -9,10 +9,11 @@ criado na disciplina de TCC em Narrativas Digitais da Unicamp. Em parceria com b
 roupas reais viraram modelos 3D num provador inspirado nos jogos de vestir.
 
 O provador foi feito para oficinas com alunos de escolas públicas: cada um monta looks com uma peça de
-cima e uma de baixo, gira o manequim, salva o look como imagem, e a turma conversa sobre identidade,
-consumo e criatividade. Ele roda no navegador, pensado para o celular, sem cadastro e sem guardar dados
-de quem usa (há só uma contagem anônima de visitas): o look fica no próprio link
-(`recrialab.com/?look=015.021`) e na imagem salva.
+cima e uma de baixo, gira o manequim, salva o look como imagem ou envia para a equipe, e a turma conversa
+sobre identidade, consumo e criatividade. Ele roda no navegador, pensado para o celular e sem cadastro: o
+look fica no próprio link (`recrialab.com/?look=015.021`) e na imagem salva. O site só guarda o que a
+pessoa escolhe enviar pelo botão Enviar (o look, um apelido, a turma e uma frase), além de uma contagem
+anônima de visitas.
 
 ## Como as roupas viraram 3D
 

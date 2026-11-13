@@ -6,7 +6,8 @@ For anyone working in this repository, people and coding agents alike.
 
 ReCriaLab is a mobile-first 3D fitting room for thrift-store clothes, live at https://recrialab.com. The
 site (`site/`) is TypeScript and three.js with no framework, built with Bun and served as static assets
-by a Cloudflare Worker (`site/wrangler.jsonc`). The garments are GLB models generated from photos and
+by a Cloudflare Worker (`site/wrangler.jsonc`), which also receives the looks sent from the fitting room
+(`site/worker.ts`). The garments are GLB models generated from photos and
 fitted to a neutral mannequin by the Python tools in `tools/fit/`.
 
 | Path | Contents |
@@ -74,6 +75,7 @@ node tools/verify-site/drive.mjs --profile budget-android   # the site on an emu
 | Visual QA | defects measured in 14 views around the mannequin, each garment worn with one from the other group (top or bottom), among them the arm in view over its short sleeve, with the site's own sleeve line and band | `tools/visual-qa/measure.py` |
 | Interface | the fitting room fits one screen; touch targets of at least 44 px and text of at least 13 px; nothing cut off or covered, from a small phone to desktop; the stage toolbar never covers the mannequin, also on the enlarged stage, which is taller than the normal one and keeps at least 3 pieces in view that dress on a tap | `tools/verify-site/layout.mjs` |
 | Phones | a look opens from its link, swapping a garment works, the About page opens, colour stays close to the photo, no console errors, within time and data budgets on a low-end Android, a Pixel and an iPhone | `tools/verify-site/drive.mjs` |
+| Sending a look | the Send button posts the look worn, with a nickname, straight to the team and confirms, on every emulated phone and screen; the server keeps a valid look once, refuses what is not from the form and lets only the team key read; only `/api/*` runs code, so the pages stay static | `site/look-inbox.test.ts`, `tools/verify-site/layout.mjs`, `tools/verify-site/drive.mjs` |
 | Text and accessibility | short garment names, no obvious instructions on screen, AA contrast | `site/ux.test.ts`, `site/a11y.test.ts` |
 | Secrets | no committed keys | gitleaks in `.github/workflows/site-ci.yml` |
 | CI | every action on a Node 24 release and every job on a pinned Ubuntu image, so runs carry no deprecation warnings | `site/workflows.test.ts` |

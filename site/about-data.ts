@@ -1,7 +1,8 @@
 /**
  * Record of the project: events, curated looks, editorial and team. The `/sobre` page is built
  * from it. Only real records go in: a section without entries is not shown.
- * To turn the images saved by students into looks: `bun about-look.ts images/*.png`.
+ * Looks sent from the fitting room come ready from `bun inbox.ts`; for images saved by students,
+ * `bun about-look.ts images/*.png`.
  */
 
 export type Workshop = {
