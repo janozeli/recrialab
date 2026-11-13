@@ -75,6 +75,10 @@ CASES = {
         'python3 tools/fit/penetration.py',
         'python3 tools/fit/poke_through.py --max-pokes 50 --max-holes 7000 --max-bottom-pokes 30 006',
     ]),
+    'uneven-sleeves-023': ('polo 023 as the fit engine first built it: the side of the top read as a sleeve, so one arm '
+                           'wore a sleeve down to the elbow, 20 cm longer than the other, painted with the lining', [
+        'python3 tools/fit/engine.py --sleeves site/assets/engine/023-shell.glb',
+    ]),
     'cuff-tip-021': ('tip of the left cuff of 021 hanging 4 cm below the rim, a beige V over the arm', [
         'python3 tools/fit/cuff_tip.py --check',
     ]),

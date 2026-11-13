@@ -14,7 +14,8 @@ rule brings its check without another CI step.
 usage: python3 tools/fit/engine.py WORK            (builds everything and writes WORK/report.json)
        python3 tools/fit/engine.py WORK 016 004    (only these garments; no look measures)
        python3 tools/fit/engine.py WORK --check    (fails where a garment is worse than its baseline or a look limit is passed)
-       python3 tools/fit/engine.py WORK --write    (records the baseline; values may only go down against the recorded ones)"""
+       python3 tools/fit/engine.py WORK --write    (records the baseline; values may only go down against the recorded ones)
+       python3 tools/fit/engine.py --sleeves SHELL.glb ...   (only the check of uneven sleeves, on shells already built)"""
 import sys, os, json, glob, shutil, hashlib, numpy as np, trimesh
 from multiprocessing import Pool
 from metric import measure, POSE_C
@@ -242,6 +243,9 @@ def check(rep):
 
 if __name__ == '__main__':
     if len(sys.argv) < 2: sys.exit(__doc__)
+    if sys.argv[1] == '--sleeves':                           # the check of uneven sleeves alone, on shells already built
+        bad = [f'{f} sleeve_uneven_cm: {v}, limit {SLEEVES_UNEVEN}' for f in sys.argv[2:] for v in [sleeves_uneven(f)] if v > SLEEVES_UNEVEN]
+        print('\n'.join(bad) or 'ok'); sys.exit(1 if bad else 0)
     flags = [a for a in sys.argv[2:] if a.startswith('--')]
     work = sys.argv[1]; ids = [a for a in sys.argv[2:] if not a.startswith('--')] or [f'{n:03d}' for n in range(1, 39)]
     rep = run(work, ids)
