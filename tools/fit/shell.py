@@ -31,6 +31,14 @@ NEAR_PART = 0.05       # m: a top clears the bottoms' surface on every part of t
 PART_RISE = 0.012      # m: ... and by this much, since facets of two parts do not line up between their rings
 RISE = 0.004           # m: a top stays this far outside the envelope of the bottoms
 DEEP = 0.08            # m: second try of a texture ray that found nothing, starting this far inside the body
+# the print is read only from faces seen from outside: the inside of a generated garment (lining, the far side of a
+# fold, the wall seen through an opening) is painted one flat colour, and a ray that stopped there left a solid patch
+# (shorts 008: grey shards over a fifth of the garment). FIT_TEXTURE_OUTER=0 bakes as before, to compare
+TEXTURE_OUTER = os.environ.get('FIT_TEXTURE_OUTER', '1') == '1'
+# m: for the print, how far past the first outward face the outer face is looked for on the torso. Jersey 030 carries
+# a grey inner layer facing outward (what was left of the generator's mannequin) 2 to 3 cm behind the cloth: with WALL
+# the ray stopped on it and the front hem came out as a grey patch
+TEXTURE_WALL = 0.035
 LIMB_WALL = 0.04       # m: on a limb the outer face is looked for over folds this deep
 LIMB_BLEND = 0.04      # m: width of the blend between torso rays and limb rays in the texture bake
 EDGE_SECTORS = 24      # sectors around the body in which a waistband's or a hem's height is read
@@ -126,13 +134,14 @@ class Piece:
         return out
 
 
-def probe(piece, body_kd, body_v, p, n, reach):
+def probe(piece, body_kd, body_v, p, n, reach, outer=False):
     """For each body point p with normal n: distance (from the body surface) to the outer face of the garment, and
     the triangle and point hit. nan where the garment does not cover."""
     o = p - n * BACK_OFF
     loc, ir, it = piece.ray.intersects_location(o, n, multiple_hits=True)
     t = np.einsum('ij,ij->i', loc - o[ir], n[ir]) - BACK_OFF
     ok = t < reach
+    if outer: ok &= np.einsum('ij,ij->i', piece.mesh.face_normals[it], n[ir]) > 0   # for the print: only faces seen from outside (TEXTURE_OUTER)
     # the point hit must be cloth that wears THIS part of the body: the body nearest to it is near p
     _, near = body_kd.query(loc)
     ok &= np.linalg.norm(body_v[near] - p[ir], axis=1) < np.maximum(0.03, 1.2 * np.abs(t) + 0.015)
@@ -179,12 +188,13 @@ def probe_blend(piece, ax, base, nor, reach, back_off=BACK_OFF):
         c = np.c_[np.interp(base[i, 1], yk, ck[:, 0]), base[i, 1], np.interp(base[i, 1], yk, ck[:, 2])]
         r = base[i] - c; dist[i] = np.linalg.norm(r, axis=1); rad[i] = r / (dist[i][:, None] + 1e-9)
     d = (1 - w)[:, None] * nor + w[:, None] * rad; d /= np.linalg.norm(d, axis=1)[:, None] + 1e-9
-    back = (1 - w) * back_off + w * dist; wall = (1 - w) * WALL + w * LIMB_WALL
+    back = (1 - w) * back_off + w * dist; wall = (1 - w) * TEXTURE_WALL + w * LIMB_WALL
     o = base - d * back[:, None]
     loc, ir, it = piece.ray.intersects_location(o, d, multiple_hits=True)
     tri = np.full(len(base), -1); pt = np.zeros((len(base), 3))
     if not len(ir): return tri, pt
     t = np.einsum('ij,ij->i', loc - o[ir], d[ir]) - back[ir]; ok = t < reach
+    if TEXTURE_OUTER: ok &= np.einsum('ij,ij->i', piece.mesh.face_normals[it], d[ir]) > 0
     loc, ir, it, t = loc[ok], ir[ok], it[ok], t[ok]
     if not len(ir): return tri, pt
     order = np.lexsort((t, ir)); ir, it, t, loc = ir[order], it[order], t[order], loc[order]
@@ -379,7 +389,7 @@ def bake(piece, kd, body_v, P, B, N, F, reach, limbs=True, trace=None):
         tri, pt = probe_blend(piece, axes(body_v), base, nor, reach)
         f = np.flatnonzero(tri < 0)   # cloth sunk deeper into the body (shoulder, armpit): same ray, starting further in
         if len(f): tri[f], pt[f] = probe_blend(piece, axes(body_v), base[f], nor[f], reach, DEEP)
-    else: _, tri, pt = probe(piece, kd, body_v, base, nor, reach)
+    else: _, tri, pt = probe(piece, kd, body_v, base, nor, reach)   # a tube: tube.outer_face reads its outer face
     ok = tri >= 0
     # where the ray found no garment: nearest sample of the outer face, up to 6 cm
     f = np.flatnonzero(~ok)
