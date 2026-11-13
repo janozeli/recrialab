@@ -34,10 +34,6 @@
   title: "Skirt 010 with its waistband on the hips"
   pieces: ["010"]
 
-- id: stage-tone
-  title: "Front brightness on stage still away from the photo's where the colour gain is at its 2.5 ceiling: the PS1 light is too dark for these dark garments (tone.py on the 38 after the 13/11 fit: 012 -22%, 014 -25%, 019 -21%, 020 -47%, 021 -18%, 032 -31%, 037 -31%). Next: light the dark garments, not a higher gain"
-  pieces: ["012", "014", "019", "020", "021", "032", "037"]
-
 - id: closed-tears
   title: "The fit engine's shell closes the tears the thrift-shop photo has (knee of 003, front of 007, side of 010)"
   pieces: ["003", "007", "010"]

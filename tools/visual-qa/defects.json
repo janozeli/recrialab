@@ -17,36 +17,6 @@
    "up_to": 4.6
   }
  },
- "tone": {
-  "002.032": {
-   "issue": "stage-tone",
-   "up_to": 32.2
-  },
-  "004.019": {
-   "issue": "stage-tone",
-   "up_to": 22.4
-  },
-  "005.020": {
-   "issue": "stage-tone",
-   "up_to": 48.2
-  },
-  "006.021": {
-   "issue": "stage-tone",
-   "up_to": 19.9
-  },
-  "007.037": {
-   "issue": "stage-tone",
-   "up_to": 32.2
-  },
-  "012": {
-   "issue": "stage-tone",
-   "up_to": 23.0
-  },
-  "014": {
-   "issue": "stage-tone",
-   "up_to": 26.1
-  }
- },
  "threads": {
   "004.019": {
    "issue": "spiky-hems",
