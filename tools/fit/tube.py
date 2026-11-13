@@ -27,7 +27,7 @@ usage: python3 tools/fit/tube.py DENSE_BODY.glb SHELL.glb GARMENT.glb SHELL_CUT_
        python3 tools/fit/tube.py --check [WORK]    (WORK: a folder engine.py already built; without it, builds one)
        python3 tools/fit/tube.py --record WORK     (rewrites tube.json from WORK/report.json)"""
 import sys, os, json, tempfile, numpy as np, trimesh
-from scipy.spatial import cKDTree
+from scipy.spatial import cKDTree, ConvexHull
 from scipy.sparse import coo_matrix
 from scipy.sparse.csgraph import connected_components
 from paths import GARMENTS, piece_id
@@ -218,6 +218,16 @@ def build(dense_path, shell_path, garment_path, shell_out, tube_out, n, envelope
             loc, ir, _ = sm.ray.intersects_location(o3, d3, multiple_hits=True); r = np.zeros(k)
             np.maximum.at(r, ir, np.hypot(loc[:, 0] - cen[0], loc[:, 2] - cen[1]))
             return np.where(r > 0, r, np.interp(np.arange(k), np.flatnonzero(r > 0), r[r > 0], period=k))
+        def full(y, r):
+            """r moved out so the ring's girth is the shell's at those heights: corners on the shell make a polygon
+            inside it, and the waist would read thinner than the shell's."""
+            A = np.linspace(-np.pi, np.pi, 360, endpoint=False); yd = np.interp(A, ang, y, period=2 * np.pi)
+            o3 = np.c_[np.full(360, cen[0]), yd, np.full(360, cen[1])]; d3 = np.c_[np.cos(A), np.zeros(360), np.sin(A)]
+            loc, ir, _ = sm.ray.intersects_location(o3, d3, multiple_hits=True); rd = np.zeros(360)
+            np.maximum.at(rd, ir, np.hypot(loc[:, 0] - cen[0], loc[:, 2] - cen[1]))
+            if (rd > 0).sum() < 300: return r
+            dense = ConvexHull((rd[:, None] * d3[:, [0, 2]])[rd > 0]).area; own = ConvexHull(r[:, None] * u).area
+            return r * max(dense / own, 1.)
         r_seam = on_shell(np.full(k, SEAM))
     else: r_seam = np.hypot(edge[:, 0] - cen[0], edge[:, 2] - cen[1])
     off = r_seam - prof.at(ang, np.full(k, SEAM))
@@ -226,7 +236,7 @@ def build(dense_path, shell_path, garment_path, shell_out, tube_out, n, envelope
     rings = [edge]; span = np.gradient(np.unwrap(np.r_[ang, ang[0] + 2 * np.pi]))[:k]
     for j, y in enumerate(ys):
         if skirt and j < SKIRT_TOP_RINGS:
-            r = on_shell(y); rings.append(np.c_[cen[0] + r * u[:, 0], y, cen[1] + r * u[:, 1]]); continue
+            r = full(y, on_shell(y)); rings.append(np.c_[cen[0] + r * u[:, 0], y, cen[1] + r * u[:, 1]]); continue
         x = np.clip((SEAM - y) / BLEND, 0, 1); fade = x * x * (3 - 2 * x)
         r = prof.at(ang, y) + np.sign(off) * np.maximum(np.abs(off) - TAPER * (SEAM - y), 0)
         up = np.abs(ys[j - 1] - y) if j else SEAM - y; down = np.abs(ys[j + 1] - y) if j + 1 < len(ys) else np.zeros(k)
