@@ -100,6 +100,13 @@ jobs:
         run: python3 tools/fit/register.py --check
       - name: Fit engine rebuilds the 38 garments; none worse than its baseline, looks within limits (engine.json)
         run: python3 tools/fit/engine.py "$RUNNER_TEMP/engine" --check
+      - name: Keep what this machine read (the baselines are recorded from it, not from the author's machine)
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: fit-engine-report
+          path: ${{ runner.temp }}/engine/report.json
+          if-no-files-found: ignore
       - name: Each check still fails the saved defect and passes its fix (reference/calibration/)
         run: python3 tools/fit/calibration.py
 
