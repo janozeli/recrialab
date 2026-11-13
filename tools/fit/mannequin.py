@@ -39,7 +39,7 @@ APPROVED = {
     'triangles': 1254,
 }
 
-CROTCH_Y = .78                 # m: the crotch, at the torso's underside
+CROTCH_Y = .745                 # m: the crotch, at the torso's underside
 HIP_RING, LEG_RING = .82, .74   # m: the torso's lowest ring and the leg's ring below the hip, joined in joined_hip()
 
 
