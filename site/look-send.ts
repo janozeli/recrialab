@@ -24,8 +24,41 @@ export async function postLook(look: SentLook, send: typeof fetch = fetch, timeo
   }
 }
 
-/** What the author wrote last time (nickname and class), kept on the phone for the next look. */
-const REMEMBER = 'recrialab-sender';
+/** Where the phone keeps who sent the last look. */
+export const REMEMBER = 'recrialab-sender';
+/**
+ * How long the phone remembers the author after their last look: enough for a workshop and for a second visit the
+ * same day, short enough that a school phone handed to the next class does not sign their looks with this name.
+ */
+export const REMEMBER_MS = 4 * 60 * 60 * 1000;
+
+/** What belongs to the person, not to one look: the only fields that carry over from one look to the next. */
+export interface Sender { credit: string; group: string }
+
+type Store = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
+
+/** Keeps the author of a look that was sent, on this phone only. A phone that keeps nothing (private window) is fine. */
+export function rememberSender(sender: Sender, store: Store = localStorage, now = Date.now()): void {
+  try {
+    store.setItem(REMEMBER, JSON.stringify({ credit: sender.credit, group: sender.group, at: now }));
+  } catch { /* private window */ }
+}
+
+/** The author of the last look sent from this phone, while it is recent; an old or broken record is thrown away. */
+export function recallSender(store: Store = localStorage, now = Date.now()): Sender | null {
+  try {
+    const saved = JSON.parse(store.getItem(REMEMBER) ?? 'null') as { credit?: unknown; group?: unknown; at?: unknown } | null;
+    if (saved === null) return null;
+    const age = typeof saved.at === 'number' ? now - saved.at : Infinity;
+    if (typeof saved.credit !== 'string' || !(age >= 0 && age < REMEMBER_MS)) {
+      store.removeItem(REMEMBER);
+      return null;
+    }
+    return { credit: saved.credit, group: typeof saved.group === 'string' ? saved.group : '' };
+  } catch {
+    return null;
+  }
+}
 
 export interface LookSend {
   /** Whether a whole look is on the mannequin, with the reason shown on the button when it is not. */
@@ -60,11 +93,10 @@ export function initLookSend(current: () => { look: string; names: string }, clo
     look = now.look;
     $('send-names').textContent = now.names;
     $('send-code').textContent = `LOOK ${look.replace('.', ' + ')}`;
-    try {
-      const saved = JSON.parse(localStorage.getItem(REMEMBER) ?? 'null');
-      if (!fields.credit.value) fields.credit.value = String(saved?.credit ?? '');
-      if (!fields.group.value) fields.group.value = String(saved?.group ?? '');
-    } catch { /* private window: nothing remembered */ }
+    // Only into empty fields: what the author is typing now wins over what the phone remembers.
+    const sender = recallSender();
+    if (sender && !fields.credit.value) fields.credit.value = sender.credit;
+    if (sender && !fields.group.value) fields.group.value = sender.group;
     form.hidden = false;
     done.hidden = true;
     error.hidden = true;
@@ -88,9 +120,7 @@ export function initLookSend(current: () => { look: string; names: string }, clo
     error.hidden = true;
     try {
       await postLook(checked.look);
-      try {
-        localStorage.setItem(REMEMBER, JSON.stringify({ credit: checked.look.credit, group: checked.look.group }));
-      } catch { /* private window */ }
+      rememberSender({ credit: checked.look.credit, group: checked.look.group });
       // The next look starts with a clean name and note; nickname and class stay.
       fields.name.value = '';
       fields.note.value = '';
