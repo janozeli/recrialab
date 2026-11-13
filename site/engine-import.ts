@@ -1,5 +1,6 @@
-// Brings the fit engine's garments into the site. Usage (in site/): bun engine-import.ts WORK COMMIT
-// WORK is the folder written by `python3 tools/fit/engine.py WORK` and COMMIT the commit of tools/fit it ran at. Copies WORK/final/NNN-*.glb of every garment
+// Brings the fit engine's garments into the site. Usage (in site/): bun engine-import.ts WORK COMMIT [PATCH]
+// WORK is the folder written by `python3 tools/fit/engine.py WORK` and COMMIT the commit of tools/fit it ran at
+// (PATCH: the sha256 of a patch applied over it, when the run was ahead of the branch). Copies WORK/final/NNN-*.glb of every garment
 // that is not on hold (engine-hold.ts) and the two low-poly bodies into assets/engine/, byte for byte, and writes
 // engine-garments.ts (the imports) and engine.lock.json (the hash of each file and the engine commit they came from).
 import { createHash } from 'node:crypto';
@@ -45,6 +46,9 @@ export const ENGINE_PARTS: Record<string, readonly string[]> = {
 ${Object.entries(parts).map(([id, fs]) => `  '${id}': [${fs.map(name).join(', ')}],`).join('\n')}
 };
 `);
-const commit = execSync(`git rev-parse ${process.argv[3]}`, { cwd: SITE, encoding: 'utf8' }).trim();
-writeFileSync(join(SITE, 'engine.lock.json'), JSON.stringify({ engine: commit, files }, null, 1) + '\n');
+// A 40-character commit is taken as given (it may not be fetched here); a short one is resolved in this repository.
+const commit = /^[0-9a-f]{40}$/.test(process.argv[3]) ? process.argv[3] : execSync(`git rev-parse ${process.argv[3]}`, { cwd: SITE, encoding: 'utf8' }).trim();
+const patch = process.argv[4];
+if (patch && !/^[0-9a-f]{64}$/.test(patch)) throw new Error('PATCH is the sha256 of the patch applied over COMMIT');
+writeFileSync(join(SITE, 'engine.lock.json'), JSON.stringify({ engine: commit, ...(patch ? { patch } : {}), files }, null, 1) + '\n');
 console.log(`${Object.keys(parts).length} garments from the engine (${all.length} parts), ${Object.keys(ENGINE_HOLD).length} on hold as published`);

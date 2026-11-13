@@ -1,11 +1,16 @@
-// The PS1 look stays behind its URL parameter: the default stage and the thumbnails keep today's light.
+// The PS1 look is the stage's default, with `?classico` as the way back; the thumbnails keep their own light.
 import { test, expect } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import * as THREE from 'three';
-import { PS1, PS1_LOOK, ps1Material } from './ps1';
+import { PS1, PS1_LOOK, ps1Material, ps1On } from './ps1';
 
-test('the PS1 look is off unless the page asks for it', () => {
-  expect(PS1).toBe(false);
+test('the PS1 look follows its switch, and `?classico` always turns it off', () => {
+  expect(PS1).toBe(false); // no page here
+  expect(ps1On('?look=004.024', true)).toBe(true);
+  expect(ps1On('?look=004.024&classico', true)).toBe(false);
+  expect(ps1On('?look=004.024&classico&ps1', true)).toBe(false);
+  expect(ps1On('?look=004.024', false)).toBe(false);
+  expect(ps1On('?look=004.024&ps1', false)).toBe(true);
   // fabric.ts renders the selector thumbnails: the look must not leak into it
   expect(readFileSync(new URL('./fabric.ts', import.meta.url), 'utf8')).not.toContain('ps1');
 });
