@@ -97,7 +97,9 @@ export function filter(files: string[], read: (f: string, when: 'before' | 'afte
       continue;
     }
     // Any other file of the site, the body, the tools or the verification workflows: everything.
-    if (a.startsWith('site/assets/')) f.fit = true;
+    // The fit job reads the published garments and the body. site/assets/engine/ is the fit engine's output copied into
+    // the site: no script of tools/fit reads it, and rebuilding the 38 garments for it took the job 11 to 15 minutes.
+    if (a.startsWith('site/assets/') && !a.startsWith('site/assets/engine/')) f.fit = true;
     f.phones = true;
     all = true;
   }
