@@ -29,8 +29,10 @@ const loader = new GLTFLoader();
 const out = document.createElement('canvas');
 out.width = out.height = THUMB_PX;
 
-async function renderThumbnail(id: string, url: string): Promise<string> {
-  const { scene: model } = await loader.loadAsync(url);
+async function renderThumbnail(id: string, urls: string[]): Promise<string> {
+  // the engine's parts (shell, tube, hood) share the body's metres and origin: one group, as on stage
+  const model = new THREE.Group();
+  for (const part of await Promise.all(urls.map(url => loader.loadAsync(url)))) model.add(part.scene);
   matteFabric(model, id);
   if (PS1) model.traverse(node => {
     if (node instanceof THREE.Mesh) for (const m of [node.material].flat()) if (m instanceof THREE.MeshStandardMaterial) ps1Material(m);

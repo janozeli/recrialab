@@ -1,4 +1,5 @@
-// Renders the selector thumbnails from the GLBs themselves, with the light and material of the stage (fabric.ts).
+// Renders the selector thumbnails from the GLBs the stage draws by default (the engine's parts, or the published GLB
+// where the engine is off or holds the piece), with the light and material of the stage (fabric.ts, ps1.ts).
 // Usage (in site/): bun thumbnails.ts          redoes only the stale thumbnails (GLB, tone or renderer changed)
 //                   bun thumbnails.ts --all    redoes all 38
 // thumbnails.lock.json records the GLB, tone and renderer of each thumbnail; thumbnails.test.ts fails a stale one.
@@ -10,22 +11,26 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { CATALOG } from './catalog-data';
 import { TONE } from './garment-tones';
+import { ENGINE_DEFAULT, engineLook } from './engine-look';
+import { ENGINE_PARTS } from './engine-garments';
 
 const SITE = new URL('.', import.meta.url).pathname;
 export const THUMBS = join(SITE, 'assets', 'thumbnails');
 export const LOCK = join(SITE, 'thumbnails.lock.json');
 /** What changes the rendering of every thumbnail. */
-const RENDERER = ['fabric.ts', 'ps1.ts', 'thumbnail-render.ts', 'thumbnail-render.html'];
+const RENDERER = ['fabric.ts', 'garment-tones.ts', 'ps1.ts', 'thumbnail-render.ts', 'thumbnail-render.html'];
 
 export type Lock = { renderer: string; pieces: Record<string, { glb: string; tone: number }> };
 const sha = (bytes: Buffer | string) => createHash('sha256').update(bytes).digest('hex');
 export const glbPath = (id: string) => join(SITE, 'assets', 'garments', `${id}.glb`);
+/** The GLB files the stage draws the piece with when the fitting room opens. */
+export const partsOf = (id: string): string[] => engineLook([id], ENGINE_DEFAULT) ? [...ENGINE_PARTS[id]] : [glbPath(id)];
 export const thumbPath = (id: string) => join(THUMBS, `${id}.webp`);
 
 /** The lock the thumbnails would have if rendered now. */
 export function currentLock(): Lock {
   const pieces: Lock['pieces'] = {};
-  for (const { id } of CATALOG) pieces[id] = { glb: sha(readFileSync(glbPath(id))), tone: TONE[id] ?? 1 };
+  for (const { id } of CATALOG) pieces[id] = { glb: sha(Buffer.concat(partsOf(id).map(f => readFileSync(f)))), tone: TONE[id] ?? 1 };
   return { renderer: sha(RENDERER.map(f => readFileSync(join(SITE, f), 'utf8')).join('\0')), pieces };
 }
 
@@ -47,8 +52,8 @@ if (import.meta.main) {
     port: 0, hostname: '127.0.0.1',
     fetch(req) {
       const path = new URL(req.url).pathname;
-      const glb = path.match(/^\/glb\/(\d{3})$/);
-      if (glb) return new Response(Bun.file(glbPath(glb[1])));
+      const glb = path.match(/^\/glb\/(\d{3})\/(\d+)$/);
+      if (glb) return new Response(Bun.file(partsOf(glb[1])[Number(glb[2])]));
       const file = join(build, path === '/' ? 'thumbnail-render.html' : path);
       return file.startsWith(build) && existsSync(file) ? new Response(Bun.file(file)) : new Response(null, { status: 404 });
     },
@@ -70,8 +75,9 @@ if (import.meta.main) {
     mkdirSync(THUMBS, { recursive: true });
     const lock: Lock = { renderer: now.renderer, pieces: { ...(saved?.renderer === now.renderer ? saved.pieces : {}) } };
     for (const id of ids) {
-      const url: string = await page.evaluate(([id, url]: string[]) =>
-        (window as unknown as { renderThumbnail: (id: string, url: string) => Promise<string> }).renderThumbnail(id, url), [id, `/glb/${id}`]);
+      const urls = partsOf(id).map((_, k) => `/glb/${id}/${k}`);
+      const url: string = await page.evaluate(([id, urls]: [string, string[]]) =>
+        (window as unknown as { renderThumbnail: (id: string, urls: string[]) => Promise<string> }).renderThumbnail(id, urls), [id, urls] as [string, string[]]);
       if (!url.startsWith('data:image/webp;base64,')) throw new Error(`${id}: the browser did not produce WebP`);
       writeFileSync(thumbPath(id), Buffer.from(url.slice(url.indexOf(',') + 1), 'base64'));
       lock.pieces[id] = now.pieces[id];

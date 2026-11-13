@@ -363,8 +363,14 @@ def main():
                 errors.append(f'new defect: {k} on {look} ({table[look]["measures"][k]} > {LIMITS[k]}, '
                               f'view {table[look]["worst_view"][k]})')
     measured = set(table)
+    # tone is only measured on lit pictures (--beauty): without them it reads 0 and every listed look would "go away"
+    lit = any(os.path.exists(os.path.join(p, 'eye-0.jpg')) for p in folders)
     for k, looks in known.items():
         if k.startswith('_'):
+            continue
+        if k == 'tone' and not lit:
+            if looks:
+                errors.append('tone is listed but the pictures were taken without --beauty: run visual-qa.mjs with --beauty')
             continue
         for key in looks:
             target = [l for l in measured if l == key]
