@@ -223,22 +223,25 @@ try {
   check(measures.orange015.pixels > 1000 && measures.orange015.saturation >= .68,
     `orange of 015 washed out on stage: saturation ${measures.orange015.saturation} over ${measures.orange015.pixels} px (minimum 0.68)`);
 
-  // 6. The fit engine's garments (`?engine`): the look dresses on the engine's body, and without the parameter (or
-  // with a garment that has no engine version) the fitting room is the published one.
-  const stageEngine = async url => {
-    await page.goto(url);
+  // 6. The fit engine's garments: a look is drawn with them when the address asks for the engine (`?engine`, or the
+  // default without `?classico`) and no garment in it is on hold; otherwise the fitting room is the published one.
+  const stageEngine = async query => {
+    await page.goto(`${base}/?look=${look}${query}`);
     await page.waitForFunction(() => document.querySelector('#stage')?.getAttribute('aria-busy') === 'false', null,
       { timeout: profile.limits.loadMs + 30_000 });
     await page.waitForFunction(() => document.querySelectorAll('#clothes-grid [data-piece].loading').length === 0);
     await page.waitForLoadState('networkidle', { timeout: profile.limits.loadMs }).catch(() => {});
-    return page.locator('#stage').getAttribute('data-engine');
+    const { on, held } = await page.evaluate(() => ({ on: window.__engineOn, held: window.__engineHold }));
+    return { drawn: await page.locator('#stage').getAttribute('data-engine'), on, expected: String(on && !look.split('.').some(id => held.includes(id))) };
   };
-  check(await stageEngine(`${base}/?look=${look}`) === 'false', `?look=${look} without ?engine drew the engine's garments`);
-  const engineStage = await stageEngine(`${base}/?look=${look}&engine`);
-  const held = await page.evaluate(() => window.__engineHold ?? []);
-  const expected = String(!look.split('.').some(id => held.includes(id)));
-  check(engineStage === expected, `?look=${look}&engine: engine look is ${engineStage}, expected ${expected}`);
-  await page.screenshot({ path: join(out, '6-engine.png') });
+  for (const [query, on] of [['&engine', true], ['&classico', false]]) {
+    const stage = await stageEngine(query);
+    check(stage.on === on, `?look=${look}${query}: engine asked is ${stage.on}, expected ${on}`);
+    check(stage.drawn === stage.expected, `?look=${look}${query}: engine look is ${stage.drawn}, expected ${stage.expected}`);
+    if (on) await page.screenshot({ path: join(out, '6-engine.png') });
+  }
+  const plain = await stageEngine('');
+  check(plain.drawn === plain.expected, `?look=${look}: engine look is ${plain.drawn}, expected ${plain.expected}`);
 
   check(errors.length === 0, `console/network errors:\n  ${errors.join('\n  ')}`);
 } catch (error) {
