@@ -227,13 +227,17 @@ def rounded(m, passes):
 
 def shape_mm(v, pose):
     """Furthest a vertex of the body lies from the recorded body's vertices, or a recorded vertex from the body's, in mm."""
-    r = np.array(json.load(open(RECORD))[pose]) / 1e4
+    r = np.array(json.load(open(RECORD))[pose]['v'])
     return round(1e3 * float(max(cKDTree(r).query(v)[0].max(), cKDTree(v).query(r)[0].max())), 2)
 
 
 def record(work):
-    """Rewrites mannequin.json from WORK/low-B.glb and low-C.glb: vertices in tenths of a millimetre, one pose per line."""
-    out = {p: np.round(np.asarray(trimesh.load(f'{work}/low-{p}.glb', force='mesh', process=False).vertices) * 1e4).astype(int).tolist() for p in 'BC'}
+    """Rewrites mannequin.json from WORK/low-B.glb and low-C.glb: per pose, the vertices as the GLB holds them (32-bit
+    floats, written so that they read back the same) and the faces, one pose per line."""
+    out = {}
+    for p in 'BC':
+        m = trimesh.load(f'{work}/low-{p}.glb', force='mesh', process=False)
+        out[p] = {'v': [[float(str(x)) for x in row] for row in np.asarray(m.vertices, np.float32)], 'f': np.asarray(m.faces).tolist()}
     open(RECORD, 'w').write('{\n' + ',\n'.join(f' "{p}": {json.dumps(v, separators=(",", ":"))}' for p, v in out.items()) + '\n}\n')
 
 
@@ -270,11 +274,20 @@ def differs(m):
 
 
 def build(pose, dense_path, low_path):
+    """Writes the dense and the low-poly body of a pose. Returns the low-poly body's triangles and how far it was
+    built from the recorded one, in mm. Two processors do not round alike, and a low-poly body a hundredth of a
+    millimetre apart gave every garment another mesh on the other machine (the loose hoods past their baselines): a body
+    built within SHAPE of the recorded one, with its faces, is written with the recorded vertices, the same on every
+    machine. One built further, or with other faces, is written as built, and check() fails it."""
     d = curved(pose); d.export(dense_path)
-    low = rounded(joined(d, in_parts(d)), ROUND); low.export(low_path)
-    return len(low.faces)
+    low = rounded(joined(d, in_parts(d)), ROUND); built = shape_mm(np.asarray(low.vertices), pose)
+    r = json.load(open(RECORD))[pose]
+    if built <= SHAPE and np.array_equal(np.asarray(low.faces), np.array(r['f'])): low.vertices = np.array(r['v'])
+    else: built = max(built, 2 * SHAPE)                      # other faces: not the recorded body, however close
+    low.export(low_path)
+    return len(low.faces), built
 
 
 if __name__ == '__main__':
     if sys.argv[1] == '--record': record(sys.argv[2])
-    else: print('low-poly triangles:', build(*sys.argv[1:4]))
+    else: print('low-poly triangles, mm from the recorded shape:', *build(*sys.argv[1:4]))

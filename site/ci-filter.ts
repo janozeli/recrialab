@@ -20,6 +20,9 @@ export type Filter = {
   pieces: string;
 };
 
+/** The garments whose loose part (hood, collar) the fit job holds a baseline for. */
+const HOODS: Record<string, unknown> = JSON.parse(readFileSync(new URL('../tools/fit/loose_hood.json', import.meta.url), 'utf8'));
+
 export const EVERYTHING: Filter = { fit: true, phones: true, visualQa: 'all', pieces: '' };
 
 /** Files that reach no heavy job: text, site tests (they run in validate) and repository settings. */
@@ -98,8 +101,10 @@ export function filter(files: string[], read: (f: string, when: 'before' | 'afte
     }
     // Any other file of the site, the body, the tools or the verification workflows: everything.
     // The fit job reads the published garments and the body. site/assets/engine/ is the fit engine's output copied into
-    // the site: no script of tools/fit reads it, and rebuilding the 38 garments for it took the job 11 to 15 minutes.
-    if (a.startsWith('site/assets/') && !a.startsWith('site/assets/engine/')) f.fit = true;
+    // the site, and rebuilding the 38 garments for it took the job 11 to 15 minutes: of it the job reads only the loose
+    // parts it holds a baseline for and the shells under them (tools/fit/loose_hood.py measures the published hood).
+    const hood = a.match(/^site\/assets\/engine\/(\d{3})-(?:shell|hood)\.glb$/);
+    if (a.startsWith('site/assets/') && (!a.startsWith('site/assets/engine/') || (hood && hood[1] in HOODS))) f.fit = true;
     f.phones = true;
     all = true;
   }
