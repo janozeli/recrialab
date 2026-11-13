@@ -1,8 +1,10 @@
-// Draws one garment the way the stage does (fabric.ts), alone and from the front, for the selector thumbnail.
+// Draws one garment the way the stage does (fabric.ts, with the PS1 light and material of ps1.ts unless the stage
+// default is the classic light), alone and from the front, for the selector thumbnail.
 // Driven by thumbnails.ts in headless Chromium; never shipped.
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { addGarmentLights, matteFabric } from './fabric';
+import { addPs1Lights, addRimLights, PS1, ps1Material } from './ps1';
 
 const THUMB_PX = 320;
 /** Margin around the piece, as a fraction of the side. */
@@ -15,9 +17,14 @@ renderer.setSize(THUMB_PX * SUPERSAMPLE, THUMB_PX * SUPERSAMPLE);
 renderer.setClearColor(0x000000, 0);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 const scene = new THREE.Scene();
-addGarmentLights(scene, renderer);
 // Same field of view as the stage: the thumbnail perspective is that of the mannequin seen from the front.
 const camera = new THREE.PerspectiveCamera(30, 1, 0.1, 30);
+// The stage's light: the colour gains of garment-tones.ts are fitted under it, so a thumbnail under another light
+// comes out too bright or too dark.
+if (PS1) {
+  addPs1Lights(scene, renderer);
+  addRimLights(scene, camera);
+} else addGarmentLights(scene, renderer);
 const loader = new GLTFLoader();
 const out = document.createElement('canvas');
 out.width = out.height = THUMB_PX;
@@ -25,6 +32,9 @@ out.width = out.height = THUMB_PX;
 async function renderThumbnail(id: string, url: string): Promise<string> {
   const { scene: model } = await loader.loadAsync(url);
   matteFabric(model, id);
+  if (PS1) model.traverse(node => {
+    if (node instanceof THREE.Mesh) for (const m of [node.material].flat()) if (m instanceof THREE.MeshStandardMaterial) ps1Material(m);
+  });
   scene.add(model);
   const box = new THREE.Box3().setFromObject(model);
   const center = box.getCenter(new THREE.Vector3());

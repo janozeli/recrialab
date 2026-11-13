@@ -1,5 +1,5 @@
 // PS1/PS2 look of the stage: the default, with `?classico` as the way back to the light before it. Kept apart from
-// fabric.ts, which the selector thumbnails are rendered with: the thumbnails stay as they are.
+// fabric.ts; the selector thumbnails are rendered with the stage's default look (thumbnail-render.ts).
 import * as THREE from 'three';
 
 /**

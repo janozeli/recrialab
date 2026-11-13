@@ -18,85 +18,33 @@
   }
  },
  "tone": {
-  "001": {
-   "issue": "stage-tone",
-   "up_to": 36.2
-  },
-  "001.031": {
-   "issue": "stage-tone",
-   "up_to": 30.3
-  },
-  "002": {
-   "issue": "stage-tone",
-   "up_to": 22.4
-  },
   "002.032": {
    "issue": "stage-tone",
-   "up_to": 41.1
-  },
-  "003.018": {
-   "issue": "stage-tone",
-   "up_to": 30.0
+   "up_to": 32.2
   },
   "004.019": {
    "issue": "stage-tone",
-   "up_to": 41.6
-  },
-  "004.034": {
-   "issue": "stage-tone",
-   "up_to": 17.1
-  },
-  "005": {
-   "issue": "stage-tone",
-   "up_to": 21.7
+   "up_to": 22.4
   },
   "005.020": {
    "issue": "stage-tone",
-   "up_to": 62.1
-  },
-  "005.035": {
-   "issue": "stage-tone",
-   "up_to": 24.4
+   "up_to": 48.2
   },
   "006.021": {
    "issue": "stage-tone",
-   "up_to": 45.2
-  },
-  "007.022": {
-   "issue": "stage-tone",
-   "up_to": 32.6
+   "up_to": 19.9
   },
   "007.037": {
    "issue": "stage-tone",
-   "up_to": 37.9
-  },
-  "008.038": {
-   "issue": "stage-tone",
-   "up_to": 26.6
-  },
-  "009.024": {
-   "issue": "stage-tone",
-   "up_to": 30.6
-  },
-  "010": {
-   "issue": "stage-tone",
-   "up_to": 23.8
-  },
-  "011": {
-   "issue": "stage-tone",
-   "up_to": 38.6
+   "up_to": 32.2
   },
   "012": {
    "issue": "stage-tone",
-   "up_to": 49.5
+   "up_to": 23.0
   },
   "014": {
    "issue": "stage-tone",
-   "up_to": 46.9
-  },
-  "014.029": {
-   "issue": "stage-tone",
-   "up_to": 27.3
+   "up_to": 26.1
   }
  },
  "threads": {
