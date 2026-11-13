@@ -31,7 +31,7 @@
  "030": {"body_crossing_pct": 1.9, "triangles": 914, "tear_cm": 644.7, "tear_back_cm": 38.2, "contour_lost_cm": 0.8, "edge_lost_cm": 1.1, "back_lost_cm": 0.5, "waist_thinner_pct": 0.0, "distortion_pct": 4.2},
  "031": {"body_crossing_pct": 5.6, "triangles": 574, "tear_cm": 669.9, "tear_back_cm": 22.5, "contour_lost_cm": 0.6, "edge_lost_cm": 0.7, "back_lost_cm": 0.6, "waist_thinner_pct": 0.0, "distortion_pct": 6.4},
  "032": {"body_crossing_pct": 0.6, "triangles": 649, "tear_cm": 747.7, "tear_back_cm": 134.4, "contour_lost_cm": 0.6, "edge_lost_cm": 0.7, "back_lost_cm": 0.7, "waist_thinner_pct": 0.5, "distortion_pct": 5.2},
- "033": {"body_crossing_pct": 0.2, "triangles": 865, "tear_cm": 1262.3, "tear_back_cm": 336.1, "contour_lost_cm": 0.5, "edge_lost_cm": 1.4, "back_lost_cm": 0.9, "waist_thinner_pct": 0.0, "distortion_pct": 4.6},
+ "033": {"body_crossing_pct": 0.2, "triangles": 865, "tear_cm": 1262.3, "tear_back_cm": 336.1, "contour_lost_cm": 0.5, "edge_lost_cm": 1.9, "back_lost_cm": 0.9, "waist_thinner_pct": 0.0, "distortion_pct": 4.6},
  "034": {"body_crossing_pct": 0.6, "triangles": 1029, "tear_cm": 1712.1, "tear_back_cm": 294.6, "contour_lost_cm": 1.6, "edge_lost_cm": 1.9, "back_lost_cm": 0.7, "waist_thinner_pct": 2.5, "distortion_pct": 0.3},
  "035": {"body_crossing_pct": 0.3, "triangles": 1002, "tear_cm": 1393.9, "tear_back_cm": 180.3, "contour_lost_cm": 1.7, "edge_lost_cm": 1.5, "back_lost_cm": 0.3, "waist_thinner_pct": 2.3, "distortion_pct": 3.8},
  "036": {"body_crossing_pct": 0.8, "triangles": 864, "tear_cm": 850.4, "tear_back_cm": 106.1, "contour_lost_cm": 1.4, "edge_lost_cm": 1.6, "back_lost_cm": 0.2, "waist_thinner_pct": 0.0, "distortion_pct": 5.8},
