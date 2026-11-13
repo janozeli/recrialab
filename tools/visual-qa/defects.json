@@ -96,7 +96,13 @@
   },
   "014.029": {
    "issue": "stage-tone",
-   "up_to": 24.6
+   "up_to": 27.3
+  }
+ },
+ "threads": {
+  "004.019": {
+   "issue": "spiky-hems",
+   "up_to": 13.5
   }
  }
 }
