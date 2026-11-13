@@ -21,7 +21,7 @@ export type Workshop = {
 export type CuratedLook = {
   /** Same code as `?look=` and the PNG (`004.024`). */
   look: string;
-  /** Credit without personal data: class, nickname or initials. */
+  /** Credit without personal data: class, first name or nickname. */
   credit: string;
   /** Workshop it came from, by its `date`. */
   workshop?: string;

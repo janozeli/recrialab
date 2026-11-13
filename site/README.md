@@ -74,7 +74,7 @@ O look viaja de duas formas, e nenhuma delas passa por servidor:
 ## Enviar o look para a equipe
 
 O botão Enviar manda o look vestido direto para a equipe, sem salvar imagem: abre um formulário curto
-(apelido ou iniciais, turma, nome do look e uma frase) e grava só isso, o código do look e a hora. Não
+(nome ou apelido, turma, nome do look e uma frase) e grava só isso, o código do look e a hora. Não
 vai imagem, nome completo nem endereço de rede; a imagem se refaz pelo código.
 
 É a única parte do site com servidor. O Worker (`worker.ts`, `inbox-server.ts`) atende só `/api/looks`
