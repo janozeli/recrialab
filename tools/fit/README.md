@@ -109,7 +109,7 @@ Uma regra só para as 38 peças, no lugar de um conserto por peça. `python3 too
 | `tube.py` | saia e barra abaixo do quadril viram tubo soldado na casca |
 | `loose_hood.py` | capuz e gola soltos em poucos polígonos |
 | `identity.py` | identidade da estampa contra a peça publicada: centímetros de rasgo (no total e nas costas) e distorção |
-| `engine.py` | roda tudo e mede: corpo atravessando, triângulos, identidade e, nos 345 looks, peça de baixo na frente da de cima e barriga à vista |
+| `engine.py` | roda tudo e mede: corpo atravessando, triângulos, identidade (estampa e contorno: cós, barra, gola e lateral contra a peça publicada) e, nos 345 looks, peça de baixo na frente da de cima e barriga à vista |
 
 ## Medidas que rodam no CI
 
@@ -127,8 +127,7 @@ Uma regra só para as 38 peças, no lugar de um conserto por peça. `python3 too
 | `penetration.py` | roupa mais folgada ou mais enfiada no corpo que o valor registrado em `penetration.json`, que só pode baixar |
 | `stretch.py` | estampa esticada em relação ao modelo original, região por região |
 | `landmarks.py --check` | corpo diferente do que deu os marcos gravados (`landmarks.json`), ou cintura, gancho, axila e punho do manequim fora do valor gravado |
-| `register.py --check` | registra as 38 peças em memória pela mesma regra e falha se alguma não chega nas linhas: cós a mais de 1 cm da linha do cós (cintura menos 7 cm), peça esticada além do teto de 6%, ou peça de cima que não chega na linha (barra até a linha do cós menos 5 cm, manga longa até 2 cm abaixo do punho) sem ter usado o teto inteiro: curta continua curta |
-| `engine.py PASTA --check` | refaz as 38 peças pela engine e falha se alguma fica pior que a linha de base de `engine.json` (corpo atravessando, triângulos, rasgo da estampa no total e nas costas, distorção), que só pode baixar, ou se os 345 looks passam dos limites de barriga à vista e de peça de baixo na frente da de cima; chama também o `check(report)` de cada módulo da engine que tiver um |
+| `engine.py PASTA --check` | refaz as 38 peças pela engine e falha se alguma fica pior que a linha de base de `engine.json` (corpo atravessando, triângulos, rasgo da estampa no total e nas costas, distorção, cintura mais fina que a da peça original, perfil das costas perdido, contorno perdido: quanto a curva do cós, da barra e da lateral da peça original foi deixada reta, e o mesmo para a barra das peças de baixo e a gola, que não têm limite próprio), que só pode baixar, se o contorno perdido passa de 2 cm, ou se os 345 looks passam dos limites de barriga à vista e de peça de baixo na frente da de cima; chama também o `check(report)` de cada módulo da engine que tiver um |
 | `hood.py --check` | capuz ou gola achatados além do limite em relação ao modelo original; gola da 035 esticada além do limite ou mais de 3 cm por dentro do pescoço, ou máscara da 035 abaixo de 1,40 m diferente da guardada |
 | `back_inside.py` | avesso da peça de cima à vista pelas costas (dobra da axila atravessando as costas), além do valor registrado |
 | `calibration.py` | medida que deixou de reprovar o antes ou de aprovar o depois de um defeito guardado em `reference/calibration/` |
