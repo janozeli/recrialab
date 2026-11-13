@@ -170,12 +170,20 @@ def run(work, ids):
 
 
 def machine(work):
-    """The processor that ran and a digest of every file the run wrote, stage by stage. Two machines that read a garment
-    differently are told apart here, and so is the first stage at which they part (the bodies, the registration, the
-    bottoms' envelopes, the built garments)."""
+    """The processor that ran and a digest of what the run wrote, stage by stage: the bodies, the registration, the
+    bottoms' envelopes and the built garments, each as its shape (vertices and faces) and its texture (pixels, not the
+    file's bytes, which change with the PNG's compression alone). Two machines that read a garment differently are
+    told apart here, and so is the first stage at which they part."""
     cpu = next((l.split(':', 1)[1].strip() for l in open('/proc/cpuinfo') if l.startswith('model name')), '') if os.path.exists('/proc/cpuinfo') else ''
-    files = sorted(glob.glob(f'{work}/*.glb') + glob.glob(f'{work}/reg/*.glb') + glob.glob(f'{work}/shell/env/*.npy') + glob.glob(f'{work}/final/*.glb'))
-    return {'cpu': cpu, 'digest': {os.path.relpath(f, work): hashlib.sha1(open(f, 'rb').read()).hexdigest()[:12] for f in files}}
+    sha = lambda *a: hashlib.sha1(b''.join(np.ascontiguousarray(x).tobytes() for x in a)).hexdigest()[:10]
+    out = {}
+    for f in sorted(glob.glob(f'{work}/*.glb') + glob.glob(f'{work}/reg/*.glb') + glob.glob(f'{work}/final/*.glb')):
+        try: m = shell.load_glb(f).to_geometry()
+        except Exception: out[os.path.relpath(f, work)] = 'bytes ' + sha(np.frombuffer(open(f, 'rb').read(), np.uint8)); continue   # an empty part: no mesh to read
+        img = getattr(getattr(m.visual, 'material', None), 'baseColorTexture', None)
+        out[os.path.relpath(f, work)] = sha(m.vertices.astype(np.float32), m.faces.astype(np.int32)) + ('' if img is None else ' ' + sha(np.asarray(img)))
+    for f in sorted(glob.glob(f'{work}/shell/env/*.npy')): out[os.path.relpath(f, work)] = sha(np.load(f).astype(np.float32))
+    return {'cpu': cpu, 'digest': out}
 
 
 def baseline(rep):
