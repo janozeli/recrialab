@@ -18,11 +18,12 @@ measure() compares the result with the garment as generated, from cameras around
 - lost_cm2: the garment's cloth around the neck and on the upper back in view where the rebuilt garment (shell and
   loose part) shows nothing: against the background (the hood or the collar lost its outline), or in front of the
   body where the low-poly mannequin is now bare (bare_cm2, a part of lost_cm2).
-build() returns them, engine.py keeps them in its report, and check(report) fails on what rose above loose_hood.json.
+build() returns them with in_neck_cm2, the area of the loose part that crosses the mannequin's neck; engine.py keeps
+them in its report, and check(report) fails on what rose above loose_hood.json and on a loose part through the neck.
 usage: python3 tools/fit/loose_hood.py DENSE_BODY.glb GARMENT.glb OUT.glb [SHELL.glb]
-       python3 tools/fit/loose_hood.py --check [WORK]     (no WORK: runs the engine on the hooded garments first)
+       python3 tools/fit/loose_hood.py --check WORK       (checks WORK/report.json, written by a run of engine.py)
        python3 tools/fit/loose_hood.py --write WORK       (records the measures of WORK/report.json as the baseline)"""
-import sys, os, json, tempfile, numpy as np, trimesh, xatlas, fast_simplification
+import sys, os, json, numpy as np, trimesh, xatlas, fast_simplification
 from scipy.spatial import cKDTree
 from scipy.sparse import coo_matrix
 from scipy import ndimage
@@ -41,6 +42,7 @@ OVER_BODY = .003       # m: the loose part stays this far over the low-poly mann
 IN_BODY = .002         # m: cloth this deep in the low-poly mannequin is inside it
 MIN_AREA = .004        # m²: a kept piece smaller than this is a sliver
 MIN_LOOSE = .025       # m²: less cloth than this outside the shell is no hood: the shell alone holds the garment
+IN_NECK = 1            # cm²: more of the loose part than this through the mannequin's neck fails
 TARGET = 260           # triangles
 TEX = 256              # px: side of the baked texture
 NEAR = .05             # m: two surfaces this close along a ray are the same cloth (the shell may move it this much)
@@ -73,7 +75,7 @@ def merged(piece):
 def around_neck(body, P):
     """Per point: it is where a hood or a collar lives (above the neck line, or behind the back above BASE, between
     the shoulders), and its distance to the body."""
-    bp, bf = trimesh.sample.sample_surface_even(body, 200000, seed=1); d, j = cKDTree(bp).query(P)
+    bp, _ = trimesh.sample.sample_surface_even(body, 200000, seed=1); d, j = cKDTree(bp).query(P)
     return ((P[:, 1] > NECK) | ((bp[j, 2] - P[:, 2] > .01) & (P[:, 1] > BASE))) & (np.abs(P[:, 0]) < SHOULDERS), d
 
 
@@ -166,6 +168,14 @@ def split(V, F, hit):
     return np.array(V), np.array(out, int)
 
 
+def through_neck(V, F, low_body):
+    """Per triangle: it crosses the neck of the low-poly mannequin (a point of it IN_BODY deep, above the neck line)."""
+    P = V[F]; hit = np.zeros(len(F), bool)
+    for w in ((1, 1, 1), (2, 1, 0), (0, 2, 1), (1, 0, 2), (1, 2, 0), (0, 1, 2), (2, 0, 1)):
+        hit |= nearest(low_body, np.einsum('k,ikj->ij', np.array(w) / 3, P))[0] <= -IN_BODY
+    return hit & (P[:, :, 1].min(1) > NECK)
+
+
 def outside(V, F, low_body):
     """The loose part without what cuts through the neck of the low-poly mannequin, which is what the garment is
     worn on and where it counts as body crossing the garment (below the neck line the loose part lies on the shell,
@@ -176,16 +186,11 @@ def outside(V, F, low_body):
         sd, q, n = nearest(low_body, V); deep = (sd < 0) & np.isin(np.arange(len(V)), F)
         V = V.copy(); V[deep] = q[deep] + n[deep] * OVER_BODY
         return V
-    def inside(V, F):
-        P = V[F]; hit = np.zeros(len(F), bool)
-        for w in ((1, 1, 1), (2, 1, 0), (0, 2, 1), (1, 0, 2), (1, 2, 0), (0, 1, 2), (2, 0, 1)):
-            hit |= nearest(low_body, np.einsum('k,ikj->ij', np.array(w) / 3, P))[0] <= -IN_BODY
-        return hit & (P[:, :, 1].min(1) > NECK)
-    hit = inside(V, F)
+    hit = through_neck(V, F, low_body)
     if not hit.any(): return V, F
-    V = out_of_body(V, F[hit]); hit = inside(V, F)
+    V = out_of_body(V, F[hit]); hit = through_neck(V, F, low_body)
     if hit.any():
-        V, F = split(V, F, hit); V = out_of_body(V, F); F = F[~inside(V, F)]
+        V, F = split(V, F, hit); V = out_of_body(V, F); F = F[~through_neck(V, F, low_body)]
     return V, F
 
 
@@ -240,7 +245,8 @@ def build(dense_path, src, dst, shell_path=None):
     V2, N2, UV, F2, img = bake(piece, faces, np.asarray(m.vertices), np.asarray(m.faces))
     S.export(dst, V2, F2, N2, UV, img, double_sided=True)
     return {**measure(dense_path, src, [shell_path], dst), 'triangles_before': int(before),
-            'pieces': len(m.split(only_watertight=False)), 'area_cm2': int(m.area * 1e4)}
+            'pieces': len(m.split(only_watertight=False)), 'area_cm2': int(m.area * 1e4),
+            'in_neck_cm2': round(float(m.area_faces[through_neck(np.asarray(m.vertices), np.asarray(m.faces), low)].sum() * 1e4), 1)}
 
 
 def low_path(dense_path):
@@ -315,6 +321,7 @@ def check(report):
         if pid not in report['garments']: continue             # a run of other garments
         now = report['garments'][pid].get('hood')
         if now is None: fails.append(f'{pid}: has a baseline and the engine built no loose part for it'); continue
+        if now.get('in_neck_cm2', 0) > IN_NECK: fails.append(f"{pid}: {now['in_neck_cm2']} cm² of the loose part cross the mannequin's neck")
         if now['triangles'] > TARGET: fails.append(f"{pid}: {now['triangles']} triangles in the loose part, above {TARGET}")
         fails += [f'{pid}: {k} {now[k]} above the baseline {was[k]}' for k, slack in SLACK.items() if now[k] > was[k] + slack]
     return fails
@@ -333,10 +340,8 @@ def write(report):
 
 if __name__ == '__main__':
     if sys.argv[1] in ('--check', '--write'):
-        if len(sys.argv) > 2: report = json.load(open(sys.argv[2] + '/report.json'))
-        else:
-            import engine
-            report = engine.run(tempfile.mkdtemp(), sorted(json.load(open(BASELINE))))
+        if len(sys.argv) < 3: sys.exit(__doc__)
+        report = json.load(open(sys.argv[2] + '/report.json'))
         if sys.argv[1] == '--write': write(report)
         fails = check(report); print('\n'.join(fails) or 'ok'); sys.exit(1 if fails else 0)
     else: print(build(*sys.argv[1:5]))
