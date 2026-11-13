@@ -1,5 +1,28 @@
 // Sends the look on the mannequin to the team, straight from the fitting room: no image to save and pass on.
-import { checkSentLook, INBOX_LIMITS, INBOX_PATH } from './look-inbox';
+import { checkSentLook, INBOX_LIMITS, INBOX_PATH, type SentLook } from './look-inbox';
+
+/**
+ * Posts the look and resolves only when the server's whole answer has arrived and says the look was kept.
+ * Stopping at the status line would confirm on the headers alone and leave the rest of the answer unread: the
+ * request then ends by itself or is dropped with the page, whichever comes first (seen as an intermittent
+ * "failed /api/looks" on the emulated Pixel). A connection that hangs ends in an error, not in a wait for ever.
+ */
+export async function postLook(look: SentLook, send: typeof fetch = fetch, timeoutMs = 20_000): Promise<void> {
+  const abort = new AbortController();
+  const timer = setTimeout(() => abort.abort(), timeoutMs);
+  try {
+    const response = await send(INBOX_PATH, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(look),
+      signal: abort.signal,
+    });
+    const answer = await response.json() as { ok?: boolean };
+    if (!response.ok || answer?.ok !== true) throw new Error(`HTTP ${response.status}`);
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 /** What the author wrote last time (nickname and class), kept on the phone for the next look. */
 const REMEMBER = 'recrialab-sender';
@@ -63,17 +86,8 @@ export function initLookSend(current: () => { look: string; names: string }, clo
     submit.disabled = true;
     submit.setAttribute('aria-busy', 'true');
     error.hidden = true;
-    // A connection that hangs ends in the error notice, not in a button busy for ever.
-    const abort = new AbortController();
-    const timer = setTimeout(() => abort.abort(), 20_000);
     try {
-      const response = await fetch(INBOX_PATH, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(checked.look),
-        signal: abort.signal,
-      });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      await postLook(checked.look);
       try {
         localStorage.setItem(REMEMBER, JSON.stringify({ credit: checked.look.credit, group: checked.look.group }));
       } catch { /* private window */ }
@@ -86,7 +100,6 @@ export function initLookSend(current: () => { look: string; names: string }, clo
     } catch {
       error.hidden = false;
     } finally {
-      clearTimeout(timer);
       sending = false;
       submit.disabled = false;
       submit.setAttribute('aria-busy', 'false');
