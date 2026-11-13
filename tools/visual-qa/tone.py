@@ -27,7 +27,9 @@ def lab(rgb):
 
 
 def chroma(rgb):
-    return float(np.hypot(*np.median(lab(rgb), 0)[1:]))
+    """Chroma of the garment's median colour, and the 95th percentile of its pixels' chroma (the strongest accents)."""
+    L = lab(rgb)
+    return float(np.hypot(*np.median(L, 0)[1:])), float(np.percentile(np.hypot(L[:, 1], L[:, 2]), 95))
 
 
 def on_site(folder, pid):
@@ -73,9 +75,12 @@ if __name__ == '__main__':
         f, fc = photo_brightness(pid), photo_chroma(pid)
         gain, k = g.get(pid, 1.0), sat.get(pid, 1.0)
         new = float(np.clip(gain * (f / s) ** GAMMA, *GAIN))
+        (c, c95), (fc, fc95) = c, fc
         newk = float(np.clip(k * fc / c, *SATURATION)) if max(c, fc) >= CHROMA_MIN and c > 0 else k
+        # the strongest accents never end below the photo's: a navy body must not drain the orange pocket of 021
+        if c95 > 0 and newk < 1: newk = float(np.clip(max(newk, k * fc95 / c95), SATURATION[0], 1))
         print(f'{pid} photo {f:5.1f} site {s:5.1f} {100 * (s / f - 1):+4.0f}%  gain {gain:.3f} → {new:.3f}'
-              f'  chroma {fc:5.1f} site {c:5.1f}  saturation {k:.3f} → {newk:.3f}')
+              f'  chroma {fc:5.1f} site {c:5.1f} accents {fc95:5.1f} site {c95:5.1f}  saturation {k:.3f} → {newk:.3f}')
         g[pid], sat[pid] = new, newk
     if '--fit' in sys.argv:
         save({k: v for k, v in g.items() if abs(v - 1) > .005}, {k: v for k, v in sat.items() if abs(v - 1) > .005})
