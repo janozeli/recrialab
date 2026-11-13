@@ -85,6 +85,8 @@ test('the workflows follow the filter and cancel the old run of the same PR', ()
   expect(e2e).toContain("needs.changes.outputs.visual_qa != ''");
   expect(e2e).toContain('--changed');
   expect(ci).toContain("needs.validate.outputs.fit == 'true'");
+  // the fit job keeps what the CI machine read, red or green: baselines are recorded from that file
+  expect(ci).toMatch(/if: always\(\)\n\s+uses: actions\/upload-artifact@v\d+\n\s+with:\n\s+name: fit-engine-report/);
   for (const w of [e2e, ci]) {
     expect(w).toContain('cancel-in-progress: ${{ github.event_name == \'pull_request\' }}');
     expect(w).toMatch(/fetch-depth: [02]\b/);  // HEAD^1 (the base) must be in the checkout
