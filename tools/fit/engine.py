@@ -54,7 +54,7 @@ BACK_CASES = {
 }
 FOLD = .01             # m: a body vertex this close behind another part of the body, below the neck, is in a fold and is left out of body crossing
 CONTOUR_LIMIT = 2.0
-SLEEVES_UNEVEN = 8.0   # cm: the two sleeves of a top end within this of each other (the most today is 5.6, on 030, and a ring of the arm is 2 cm; a polo read 22.5)
+SLEEVES_UNEVEN = 8.0   # cm: the two sleeves of a top end within this of each other (the most today is 5.6, on 030, and a ring of the arm is 2 cm; a polo read 20.5)
 SLEEVE_AREA = .002     # m²: a piece of a shell smaller than this is no sleeve
 # over the 345 looks, in cm²: today's values (19, 8, 0, 0) and a little over them for what another machine reads,
 # never over what they were (220, 20, 97, 10). The worst look is skirt 007 under 034
