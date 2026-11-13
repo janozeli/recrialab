@@ -55,6 +55,8 @@ SKIRT_TOP_RINGS = 2    # rings of a skirt from the waistband down to SEAM
 WAIST_RING = .03       # m under the waistband: the first of them
 # check
 SEAM_BAND = .06        # m below the weld where the kink is measured
+SHELL_REACH = .15      # m: how far a shell's texture ray looks for the garment from the body (shell.py: its clearance and 5 cm)
+MAX_SHIFT = .04        # m: the most a column's texture rays move to meet the shell's at the weld
 RECORD = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tube.json')
 TOLERANCE = {          # what a measure may sit above its recorded value before the check fails: every tube of a top
     'wider_cm': .25,   # moves a little when any bottom changes (it passes outside all of them)
@@ -80,16 +82,38 @@ def sleeves(V, F):
     return out
 
 
-def cut_shell(src, dst):
-    """Keeps the shell above SEAM (sleeves whole) and returns the points of the cut edge and the shell's normals there."""
-    m = trimesh.load(src, process=False).to_geometry(); V = np.asarray(m.vertices); F = np.asarray(m.faces)
+def shell_rays(m, low_path):
+    """Where the print of a shell was read from: per vertex, the body point its texture ray leaves from. shell.py bakes
+    each texel along the body's normal from the body's own vertex, and stores that normal; the vertex is found back
+    by it. A vertex made by a cut has no body vertex of its own: it takes its neighbours' offset."""
+    V, N = np.asarray(m.vertices), np.asarray(m.vertex_normals)
+    low = trimesh.load(low_path).to_geometry(); low = trimesh.Trimesh(low.vertices, low.faces, process=False)
+    d, i = cKDTree(np.asarray(low.vertex_normals)).query(N)
+    off = np.where((d < 2e-3)[:, None], np.asarray(low.vertices)[i] - V, np.nan)
+    adj = m.vertex_neighbors
+    for _ in range(8):
+        lacks = np.flatnonzero(np.isnan(off[:, 0]))
+        if not len(lacks): break
+        new = off.copy()
+        for a in lacks:
+            near = [b for b in adj[a] if not np.isnan(off[b, 0])]
+            if near: new[a] = off[near].mean(0)
+        off = new
+    return V + np.nan_to_num(off, nan=0.) - np.where(np.isnan(off[:, :1]), N * .03, 0.)
+
+
+def cut_shell(src, dst, low_path):
+    """Keeps the shell above SEAM (sleeves whole) and returns the points of the cut edge, the shell's texture rays'
+    normals there and the points those rays leave from."""
+    g = trimesh.load(src, process=False); m = list(g.geometry.values())[0] if isinstance(g, trimesh.Scene) else g   # as stored: to_geometry() drops the normals the shell was baked along
+    V = np.asarray(m.vertices); F = np.asarray(m.faces)
     s = np.where(sleeves(V, F), 1.0, V[:, 1] - SEAM)
-    P, F2, (N, UV) = S.cut(V, F, s, [np.asarray(m.vertex_normals), np.asarray(m.visual.uv)])
-    u = np.unique(F2); r = -np.ones(len(P), int); r[u] = np.arange(len(u)); P, N, UV, F2 = P[u], N[u], UV[u], r[F2]
+    P, F2, (N, UV, B) = S.cut(V, F, s, [np.asarray(m.vertex_normals), np.asarray(m.visual.uv), shell_rays(m, low_path)])
+    u = np.unique(F2); r = -np.ones(len(P), int); r[u] = np.arange(len(u)); P, N, UV, B, F2 = P[u], N[u], UV[u], B[u], r[F2]
     S.export(dst, P, F2, N / (np.linalg.norm(N, axis=1)[:, None] + 1e-9), UV, m.visual.material.baseColorTexture)
     on = (np.abs(P[:, 1] - SEAM) < 2e-3) & ~sleeves(P, F2)
     edge, i = np.unique(np.round(P[on], 4), axis=0, return_index=True)
-    return edge, N[on][i]
+    return edge, N[on][i], B[on][i]
 
 
 def waistband_edge(src):
@@ -202,10 +226,10 @@ def build(dense_path, shell_path, garment_path, shell_out, tube_out, n, envelope
     if skirt:                                             # one tube from the waistband down: no shell is kept
         edge = waistband_edge(shell_path); sm = trimesh.load(shell_path, process=False).to_geometry()
         if os.path.exists(shell_out): os.remove(shell_out)
-    else: edge, weld = cut_shell(shell_path, shell_out)
+    else: edge, weld, weld_from = cut_shell(shell_path, shell_out, low)
     top = float(np.median(edge[:, 1]))
     cen = edge[:, [0, 2]].mean(0); ang = np.arctan2(edge[:, 2] - cen[1], edge[:, 0] - cen[0]); o = np.argsort(ang); edge, ang = edge[o], ang[o]
-    if not skirt: weld = weld[o] / (np.linalg.norm(weld[o], axis=1)[:, None] + 1e-9)
+    if not skirt: weld = weld[o] / (np.linalg.norm(weld[o], axis=1)[:, None] + 1e-9); weld_from = weld_from[o]
     k = len(ang); u = np.c_[np.cos(ang), np.sin(ang)]
     piece = S.Piece(garment_path); prof = Profile(piece, cen, top)
     hem = np.minimum(prof.hem(ang), SEAM - MIN_TUBE)
@@ -261,14 +285,33 @@ def build(dense_path, shell_path, garment_path, shell_out, tube_out, n, envelope
             p, q = i * k + j, i * k + (j + 1) % k; F += [(p, q, p + k), (q, q + k, p + k)]
     F = np.array(F)
     if trimesh.Trimesh(V, F, process=False).volume < 0: F = F[:, ::-1]
-    N = np.asarray(trimesh.Trimesh(V, F, process=False).vertex_normals)
-    if not skirt:                                        # at the weld the texture rays are the shell's own, so the print runs on across it; they turn to the tube's little by little
-        x = np.clip((SEAM - V[:, 1]) / BLEND, 0, 1)[:, None]; N = np.tile(weld, (n + 1, 1)) * (1 - x) + N * x; N /= np.linalg.norm(N, axis=1)[:, None] + 1e-9
+    N = np.asarray(trimesh.Trimesh(V, F, process=False).vertex_normals); lit = N
+    if not skirt:
+        # lit as the shell at the weld, turning to the tube's own normals little by little: no step of tone across it
+        x = np.clip((SEAM - V[:, 1]) / BLEND, 0, 1)[:, None]; lit = np.tile(weld, (n + 1, 1)) * (1 - x) + N * x; lit /= np.linalg.norm(lit, axis=1)[:, None] + 1e-9
+        # the texture rays of a hem leave the tube's axis: one smooth turn around the ring. Along the tube's own normals,
+        # or the shell's, each side leans its own way where the ring zigzags (the back of a top that hangs), and a
+        # stripe comes out as a chevron per side
+        va = polar(V, cen)[0]; N = np.c_[np.cos(va), np.zeros(len(V)), np.sin(va)]
     base = V - N * .03                                   # the texture rays leave 3 cm inside the tube
     dense, _ = trimesh.sample.sample_surface(trimesh.Trimesh(base, F, process=False), 40000, seed=1)
+    if not skirt:
+        # at the weld the tube shows the same cloth as the shell: the shell read its print from the body along the
+        # body's normal, so a ray of the tube beside it reads another stripe. Each column of the tube is moved by
+        # the difference between the two points of the garment at the weld, fading out over BLEND
+        t0, p0 = S.probe_blend(piece, S.axes(np.asarray(b.vertices)), weld_from, weld, SHELL_REACH)
+        _, t1, p1 = S.probe(piece, cKDTree(dense), dense, base[:k], N[:k], .10)
+        both = (t0 >= 0) & (t1 >= 0); shift = np.where(both[:, None], p0 - p1, 0.)
+        ok = np.flatnonzero(both & (np.linalg.norm(shift, axis=1) < MAX_SHIFT))   # further than that is another wall of the garment, not the same cloth a little to the side
+        # a column whose ray found no cloth moves with its neighbours, and the shift is one smooth turn around the ring
+        shift = np.array([np.interp(np.arange(k), ok, shift[ok, c], period=k) for c in range(3)]).T if len(ok) > 2 else np.zeros((k, 3))
+        shift = (np.roll(shift, 1, 0) + 2 * shift + np.roll(shift, -1, 0)) / 4
+        x = np.clip((SEAM - V[:, 1]) / BLEND, 0, 1)[:, None]
+        base = base + np.tile(shift, (n + 1, 1)) * (1 - x)
+        dense, _ = trimesh.sample.sample_surface(trimesh.Trimesh(base, F, process=False), 40000, seed=1)
     trace = {}
     V2, N2, UV, F2, img, missing = S.bake(piece, cKDTree(dense), dense, V, base, N, F, .10, limbs=False, trace=trace)
-    S.export(tube_out, V2, F2, N2, UV, img)
+    S.export(tube_out, V2, F2, lit[cKDTree(V).query(V2)[1]], UV, img)   # N2 are the texture rays, not the light's normals
     ident = identity.measure(trace, piece, S.Piece(GARMENTS + f'{pid}.glb'))
     return {'triangles': int(len(F2)), 'sides': k, 'rings': n, 'top': round(top, 3), 'hem': [round(float(hem.min()), 2), round(float(hem.max()), 2)],
             'texture_without_source_pct': round(100 * missing, 1), **measure(prof, ang, r_seam, V), 'tear_cm': ident['tear_cm'], 'distortion': round(abs(ident['distortion'] - 1), 3)}
