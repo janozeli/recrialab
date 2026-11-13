@@ -41,6 +41,7 @@ LIFT = .004            # m: the loose part stays this far over the shell
 OVER_BODY = .003       # m: the loose part stays this far over the low-poly mannequin
 IN_BODY = .002         # m: cloth this deep in the low-poly mannequin is inside it
 MIN_AREA = .004        # m²: a kept piece smaller than this is a sliver
+AT_NECK = .10          # m: a kept piece comes this close to the middle of the neck, to the side; one that does not lies on a shoulder alone, cut off from the hood
 MIN_LOOSE = .025       # m²: less cloth than this outside the shell is no hood: the shell alone holds the garment
 IN_NECK = 1            # cm²: more of the loose part than this through the mannequin's neck fails
 TARGET = 260           # triangles
@@ -235,6 +236,16 @@ def bake(piece, faces, V, F):
     return V2, N2, UV, F2, Image.fromarray(np.clip(img[idx[0], idx[1]], 0, 255).astype(np.uint8))
 
 
+def whole(V, F):
+    """Per triangle: its piece is kept. The simplification and the cut on the neck break the loose part again: a
+    shard is a sliver, and a piece left alone on a shoulder floats over the shell as a flap (035: 82 cm² in 7
+    triangles). The triangles kept stay as they are, in their order: through_neck() reads points along their edges."""
+    m = trimesh.Trimesh(V, F, process=False)
+    piece = trimesh.graph.connected_component_labels(m.face_adjacency, node_count=len(F))   # pieces by shared edge: two that touch at a point are two
+    area = np.bincount(piece, m.area_faces); side = np.full(piece.max() + 1, np.inf); np.minimum.at(side, piece, np.abs(V[F][:, :, 0]).min(1))
+    return (area[piece] > MIN_AREA) & (side[piece] < AT_NECK)
+
+
 def build(dense_path, src, dst, shell_path=None):
     """Writes the loose part of the garment src to dst, or nothing when the shell holds the whole garment.
     shell_path: the garment's shell as built; by default the one the engine wrote next to dst."""
@@ -251,6 +262,8 @@ def build(dense_path, src, dst, shell_path=None):
         V, F = outside(lift(V, sh), F, low)
         if len(F) <= TARGET or target < 60: break
         target -= len(F) - TARGET + 4
+    F = F[whole(V, F)]
+    if not len(F): return {**measure(dense_path, src, [shell_path], dst), 'in_neck_cm2': 0.0}
     m = trimesh.Trimesh(V, F, process=False); m.remove_unreferenced_vertices()
     V2, N2, UV, F2, img = bake(piece, faces, np.asarray(m.vertices), np.asarray(m.faces))
     S.export(dst, V2, F2, N2, UV, img, double_sided=True)
