@@ -40,8 +40,12 @@ def masked_vertices(piece, b):
 LEG_Y, LEG_X = .78, .01   # below the crotch of the neutral body (0.83 m), outside the 1 cm gap in the middle
 
 
-def measure(garment, b, hidden=None, out_max=.15, in_max=.06, legs=False):
-    """legs: below LEG_Y a ray that crosses the gap and hits the garment's other leg does not count (it is not gap)."""
+def measure(garment, b, hidden=None, out_max=.15, in_max=.06, legs=False, fold=0):
+    """legs: below LEG_Y a ray that crosses the gap and hits the garment's other leg does not count (it is not gap).
+    fold: (distance, height), in m. A vertex below that height with another part of the body itself less than that
+    distance in front of it sits in a fold of the body (armpit, crotch), out of view: it is left out of the reading,
+    of the area that crosses and of the covered area alike. Above the height (the neck, in view over a collar) every
+    vertex counts."""
     ri = RayMeshIntersector(garment)
     n = b.vertex_normals
     o = b.vertices + n * 1e-4
@@ -61,6 +65,11 @@ def measure(garment, b, hidden=None, out_max=.15, in_max=.06, legs=False):
     fwd = first(n, o, out_max)
     bwd = first(-n, o, in_max)
     covered = np.isfinite(fwd) | np.isfinite(bwd)
+    if fold:
+        loc, idx_ray, _ = RayMeshIntersector(b).intersects_location(o, n, multiple_hits=True)
+        dist = np.einsum('ij,ij->i', loc - o[idx_ray], n[idx_ray]); folded = np.zeros(len(o), bool)
+        folded[idx_ray[(dist > 1e-3) & (dist < fold[0])]] = True
+        covered &= ~(folded & (b.vertices[:, 1] < fold[1]))
     signed = np.where(np.isfinite(fwd), fwd, -bwd)
     # area per vertex (1/3 of the adjacent faces)
     area = np.zeros(len(b.vertices))

@@ -31,11 +31,24 @@ NEAR_PART = 0.05       # m: a top clears the bottoms' surface on every part of t
 PART_RISE = 0.012      # m: ... and by this much, since facets of two parts do not line up between their rings
 RISE = 0.004           # m: a top stays this far outside the envelope of the bottoms
 DEEP = 0.08            # m: second try of a texture ray that found nothing, starting this far inside the body
+# the print is read only from faces seen from outside: the inside of a generated garment (lining, the far side of a
+# fold, the wall seen through an opening) is painted one flat colour, and a ray that stopped there left a solid patch
+# (shorts 008: grey shards over a fifth of the garment). FIT_TEXTURE_OUTER=0 bakes as before, to compare
+TEXTURE_OUTER = os.environ.get('FIT_TEXTURE_OUTER', '1') == '1'
+# m: for the print, how far past the first outward face the outer face is looked for on the torso. Jersey 030 carries
+# a grey inner layer facing outward (what was left of the generator's mannequin) 2 to 3 cm behind the cloth: with WALL
+# the ray stopped on it and the front hem came out as a grey patch
+TEXTURE_WALL = 0.035
 LIMB_WALL = 0.04       # m: on a limb the outer face is looked for over folds this deep
 LIMB_BLEND = 0.04      # m: width of the blend between torso rays and limb rays in the texture bake
 EDGE_SECTORS = 24      # sectors around the body in which a waistband's or a hem's height is read
 WAIST_DIP = 0.0        # m: the lowest point of a waistband's curve sits this far under the waistband line; the curve rises from there
 WAIST_TOP = 0.01       # m: ... up to this far under the waist
+ISLAND = 8             # vertices: a bare patch of the mannequin up to this size, with cloth all around, is covered
+BURIED = .03           # m: a vertex of the mannequin this far from the body's skin is the middle of a lid
+SHOULDER_HOLDS = 1.34  # m: above this the mannequin's shoulder is one of the points a top hangs from
+SHOULDER_OUT, SHOULDER_TOP = .18, 1.52   # m: beyond this |x| and below this height the mannequin's shoulder is its arm, bent over it
+SLIVER = 0.02          # m: a top's hem that ends less than this far over the waistband line comes down to just under it
 HEM_RISE = 0.02        # m: the hem of a top that reaches its line rises at most this far over it (WAIST_DIP + HEM_RISE < register.OVERLAP)
 DRAPE_TO, DRAPE_COLUMNS = 1.43, 12   # a top hangs from this height down; columns around the torso (the mannequin's torso has 12 sides)
 HEM_TO = 1.25          # m: a top's hem is looked for on the torso below this height
@@ -54,6 +67,11 @@ def load_body(path):
     m = trimesh.Trimesh(m.vertices, m.faces, process=False)
     m.merge_vertices(digits_vertex=5)
     return m
+
+
+def Low(path):
+    m = trimesh.load(path, process=False).to_geometry()
+    return trimesh.Trimesh(m.vertices, m.faces, process=False)
 
 
 def load_glb(path):
@@ -116,13 +134,14 @@ class Piece:
         return out
 
 
-def probe(piece, body_kd, body_v, p, n, reach):
+def probe(piece, body_kd, body_v, p, n, reach, outer=False):
     """For each body point p with normal n: distance (from the body surface) to the outer face of the garment, and
     the triangle and point hit. nan where the garment does not cover."""
     o = p - n * BACK_OFF
     loc, ir, it = piece.ray.intersects_location(o, n, multiple_hits=True)
     t = np.einsum('ij,ij->i', loc - o[ir], n[ir]) - BACK_OFF
     ok = t < reach
+    if outer: ok &= np.einsum('ij,ij->i', piece.mesh.face_normals[it], n[ir]) > 0   # for the print: only faces seen from outside (TEXTURE_OUTER)
     # the point hit must be cloth that wears THIS part of the body: the body nearest to it is near p
     _, near = body_kd.query(loc)
     ok &= np.linalg.norm(body_v[near] - p[ir], axis=1) < np.maximum(0.03, 1.2 * np.abs(t) + 0.015)
@@ -169,12 +188,13 @@ def probe_blend(piece, ax, base, nor, reach, back_off=BACK_OFF):
         c = np.c_[np.interp(base[i, 1], yk, ck[:, 0]), base[i, 1], np.interp(base[i, 1], yk, ck[:, 2])]
         r = base[i] - c; dist[i] = np.linalg.norm(r, axis=1); rad[i] = r / (dist[i][:, None] + 1e-9)
     d = (1 - w)[:, None] * nor + w[:, None] * rad; d /= np.linalg.norm(d, axis=1)[:, None] + 1e-9
-    back = (1 - w) * back_off + w * dist; wall = (1 - w) * WALL + w * LIMB_WALL
+    back = (1 - w) * back_off + w * dist; wall = (1 - w) * TEXTURE_WALL + w * LIMB_WALL
     o = base - d * back[:, None]
     loc, ir, it = piece.ray.intersects_location(o, d, multiple_hits=True)
     tri = np.full(len(base), -1); pt = np.zeros((len(base), 3))
     if not len(ir): return tri, pt
     t = np.einsum('ij,ij->i', loc - o[ir], d[ir]) - back[ir]; ok = t < reach
+    if TEXTURE_OUTER: ok &= np.einsum('ij,ij->i', piece.mesh.face_normals[it], d[ir]) > 0
     loc, ir, it, t = loc[ok], ir[ok], it[ok], t[ok]
     if not len(ir): return tri, pt
     order = np.lexsort((t, ir)); ir, it, t, loc = ir[order], it[order], t[order], loc[order]
@@ -266,12 +286,12 @@ def hull(y, r):
     return np.interp(y, y[k], r[k])
 
 
-def drape(P, v, n, raw, measured, torso, s, adj):
+def drape(P, v, n, raw, measured, torso, s, adj, holds):
     """A top hangs: cloth runs straight between the points that hold it out (shoulder blade and glute, chest and
     belly, armpit and hip) and does not follow the body into the lumbar or the waist. A shell that does reads as the
     print painted on the body, the torso narrowing from the shoulders to the hem. Per column of the torso (an angle
     around its axis), the shell goes out to the string pulled tight over it, less what the garment itself goes in
-    (a fitted waist stays fitted)."""
+    (a fitted waist stays fitted). holds: vertices that hold the string and are not moved."""
     P = P.copy(); on = torso & (s > -.03) & (v[:, 1] < DRAPE_TO)
     if on.sum() < 8: return P
     c = v[on][:, [0, 2]].mean(0); ang = np.arctan2(v[:, 2] - c[1], v[:, 0] - c[0]); col = np.round(ang / (2 * np.pi / DRAPE_COLUMNS)).astype(int) % DRAPE_COLUMNS
@@ -288,7 +308,27 @@ def drape(P, v, n, raw, measured, torso, s, adj):
     out = move[idx]
     for _ in range(3): out = np.array([(out[i] + out[a].sum()) / (1 + len(a)) for i, a in enumerate(near)])
     d = np.c_[P[idx, 0] - c[0], P[idx, 2] - c[1]]; d /= np.linalg.norm(d, axis=1)[:, None] + 1e-9
+    out = np.where(holds[idx], 0, out)                   # what only holds the string stays where it is
     P[idx, 0] += d[:, 0] * out; P[idx, 2] += d[:, 1] * out
+    return P
+
+
+def out_of_fold(P, v, low, adj, above):
+    """In a fold of the mannequin (the armpit, where the arm's inner side faces the torso) a vertex's normal points into
+    another part of the body, and the shell went in with it: the body showed through the cloth. Above the waist (mask
+    above; below it the parts that overlap are the hip and the legs, which the clearances already deal with), a shell
+    vertex that ends up inside the mannequin stands off its own vertex of the mannequin the way its neighbors that
+    are outside stand off theirs."""
+    P = P.copy(); parts = [c for c in low.split(only_watertight=False) if c.is_watertight]
+    inside = np.zeros(len(P), bool)
+    for c in parts: inside |= c.contains(P)
+    inside &= above; left = inside.copy()
+    for _ in range(4):
+        done = []
+        for i in np.flatnonzero(left):
+            a = [j for j in adj[i] if not left[j]]
+            if a: P[i] = v[i] + (P[a] - v[a]).mean(0); done.append(i)
+        left[done] = False
     return P
 
 
@@ -349,7 +389,7 @@ def bake(piece, kd, body_v, P, B, N, F, reach, limbs=True, trace=None):
         tri, pt = probe_blend(piece, axes(body_v), base, nor, reach)
         f = np.flatnonzero(tri < 0)   # cloth sunk deeper into the body (shoulder, armpit): same ray, starting further in
         if len(f): tri[f], pt[f] = probe_blend(piece, axes(body_v), base[f], nor[f], reach, DEEP)
-    else: _, tri, pt = probe(piece, kd, body_v, base, nor, reach)
+    else: _, tri, pt = probe(piece, kd, body_v, base, nor, reach)   # a tube: tube.outer_face reads its outer face
     ok = tri >= 0
     # where the ray found no garment: nearest sample of the outer face, up to 6 cm
     f = np.flatnonzero(~ok)
@@ -393,9 +433,8 @@ def generate(kind, pid, path, dense_path, low_path, out, trace=None):
     low = trimesh.load(low_path).to_geometry(); low = trimesh.Trimesh(low.vertices, low.faces, process=False)
     kd_dense = cKDTree(dense.vertices); v, n = np.asarray(low.vertices), np.asarray(low.vertex_normals); adj = low.vertex_neighbors
     clear, clear_limb = ceiling(pid); lab = L.limb(v)
-    # the mannequin's torso is one part: a wide hip is still torso, not the arm hanging beside it
-    for c in trimesh.graph.connected_components(low.edges, nodes=np.arange(len(v))):
-        if ((np.abs(v[c, 0]) < .05) & (np.abs(v[c, 1] - 1.2) < .1)).any(): lab[c] = 0
+    # on the mannequin the arm goes on over the shoulder, in one mesh with the torso: up there it is arm too
+    up = (lab == 0) & (np.abs(v[:, 0]) > SHOULDER_OUT) & (v[:, 1] < SHOULDER_TOP); lab[up] = np.where(v[up, 0] > 0, 1, 2)
     top = np.where(lab > 0, clear_limb, clear); top = np.maximum(smooth(top, adj, 2), MIN_CLEAR)
     piece = Piece(path); reach = clear + 0.05
     cov = coverage(piece, dense, 0.12, kind)
@@ -418,7 +457,21 @@ def generate(kind, pid, path, dense_path, low_path, out, trace=None):
         if len(torso) > 2000 and np.percentile(torso[:, 1], 2) < HEM_TO - .05:
             line = np.minimum(edge(torso, torso[:, [0, 2]].mean(0), 2, v, sides=False), HEM_TO - .03)
             if np.median(line[tr]) < hem_max + HEM_RISE: line = np.minimum(line, hem_max + HEM_RISE)   # a top that reaches its line keeps the waistband covered all around
+            elif np.median(line[tr]) < waistband + SLIVER: line = np.minimum(line, waistband - WAIST_TOP)   # a hem that stops just over the waistband meets it: the strip of body between them read as a tear
             s = np.where(tr, v[:, 1] - line, s); cov_low = np.where(tr, v[:, 1] > line - .03, cov_low)
+    # a leg of the mannequin is closed by a lid inside the hip, and the lid's middle is buried in the body:
+    # it wears nothing, and the ring around it goes straight out like an open rim
+    buried = (kd_dense.query(v)[0] > BURIED) & (v[:, 1] > mb['crotch'] + BURIED); s = np.where(buried, -1., s); cov_low &= ~buried
+    # a few vertices left bare with cloth all around them (the fold of the armpit under a sleeve, where no ray meets the
+    # garment) are a hole the body shows through, not an opening of the garment: they are covered
+    bare = (s <= 0) & ~buried; seen = np.zeros(len(v), bool)
+    for i in np.flatnonzero(bare):
+        if seen[i]: continue
+        isle = [i]; seen[i] = True
+        for k in isle:
+            for j in adj[k]:
+                if bare[j] and not seen[j]: seen[j] = True; isle.append(j)
+        if len(isle) <= ISLAND: s[isle] = MIN_CLEAR; cov_low[isle] = True
     d, _, _ = probe(piece, kd_dense, dense.vertices, v, n, reach)
     measured = ~np.isnan(d) & cov_low; raw = d.copy()
     d = np.where(measured, np.clip(d, MIN_CLEAR, top), np.nan)
@@ -459,9 +512,16 @@ def generate(kind, pid, path, dense_path, low_path, out, trace=None):
     # on the open rim of a part (the top of a leg, inside the hip) the normal leans along the limb: the shell goes
     # straight out, or the rim of the mannequin shows over the rim of the shell
     out_dir = n.copy(); e = np.sort(low.edges, axis=1); u, c = np.unique(e, axis=0, return_counts=True); rim = np.unique(u[c == 1])
+    rim = np.union1d(rim, [j for i in np.flatnonzero(buried) for j in adj[i]]).astype(int)
     out_dir[rim, 1] = 0; out_dir[rim] /= np.linalg.norm(out_dir[rim], axis=1)[:, None] + 1e-9
     P = v + out_dir * d[:, None]
-    if kind == 'top': P = drape(P, v, n, raw, measured, lab == 0, s, adj)
+    # the shoulder holds the cloth out too: the side of a top hangs from it, not from the armpit
+    # the shoulder holds the string and stays where it is: pushed out with the torso, the top of the sleeve sheared
+    # sideways off the arm under it and the body showed at the armpit
+    holds = up & (v[:, 1] > SHOULDER_HOLDS)
+    holds |= (lab == 0) & (np.abs(v[:, 0]) > .1) & (n[:, 0] * v[:, 0] < 0)   # nor does the socket of the arm, which faces inward
+    if kind == 'top': P = drape(P, v, n, raw, measured, (lab == 0) | holds, s, adj, holds)
+    P = out_of_fold(P, v, low, adj, v[:, 1] > mb['waist'])
     Pc, Fc, (Nc, Bc) = cut(P, low.faces, s, [n, v])
     used = np.unique(Fc); remap = -np.ones(len(Pc), int); remap[used] = np.arange(len(used))
     Pc, Nc, Bc, Fc = Pc[used], Nc[used], Bc[used], remap[Fc]
