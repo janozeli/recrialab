@@ -41,6 +41,7 @@ LIFT = .004            # m: the loose part stays this far over the shell
 OVER_BODY = .003       # m: the loose part stays this far over the low-poly mannequin
 IN_BODY = .002         # m: cloth this deep in the low-poly mannequin is inside it
 MIN_AREA = .004        # m²: a kept piece smaller than this is a sliver
+AT_NECK = .10          # m: a kept piece comes this close to the middle of the neck, to the side; one that does not lies on a shoulder alone, cut off from the hood
 MIN_LOOSE = .025       # m²: less cloth than this outside the shell is no hood: the shell alone holds the garment
 IN_NECK = 1            # cm²: more of the loose part than this through the mannequin's neck fails
 TARGET = 260           # triangles
@@ -97,7 +98,7 @@ def loose(piece, body, shell):
     None when the shell holds the whole garment."""
     m = merged(piece); P = np.asarray(m.vertices); F = np.asarray(m.faces); E = m.edges_unique
     zone, d = around_neck(body, P); sd, _, _ = nearest(shell, P)
-    sel = zone & ((d > FAR + SLOPE * np.maximum(0, HANGS - P[:, 1])) | ((P[:, 1] > NECK) & (sd > SEED)))   # a hood's bump, a collar standing over the shell
+    sel = zone & (sd > SEED) & ((d > FAR + SLOPE * np.maximum(0, HANGS - P[:, 1])) | (P[:, 1] > NECK))   # outside the shell, and a hood's bump or a collar
     if m.area_faces[(zone & (sd > SEED))[F].any(1)].sum() < MIN_LOOSE: return None
     sel = spread(spread(sel, E, CLOSE), E, CLOSE, grow=False)      # closes the holes and notches of the choice
     g = sel.astype(float); A = coo_matrix((np.ones(2 * len(E)), (np.r_[E[:, 0], E[:, 1]], np.r_[E[:, 1], E[:, 0]])), shape=(len(P), len(P))).tocsr()
@@ -110,6 +111,7 @@ def loose(piece, body, shell):
     parts = [p for p in c.split(only_watertight=False) if p.area > MIN_AREA and p.vertices[:, 1].max() > HANGS]   # a hood hangs from the neck
     if not parts: return None
     c = trimesh.util.concatenate(parts)
+    if c.area < MIN_LOOSE: return None                         # what is left of a jersey's shoulders is no hood
     return np.asarray(c.vertices), np.asarray(c.faces), cand
 
 
@@ -140,7 +142,7 @@ def simplify(V, F, target=TARGET):
             _, first, inv = np.unique(np.round(V / cell).astype(int), axis=0, return_index=True, return_inverse=True)
             V, F = V[first], inv.ravel()[F]; F = F[(F[:, 0] != F[:, 1]) & (F[:, 1] != F[:, 2]) & (F[:, 0] != F[:, 2])]
             F = F[np.unique(np.sort(F, axis=1), axis=0, return_index=True)[1]]
-        for agg in (3, 7):
+        for agg in (3, 7, 9, 10):                              # a gentler collapse first; a stalled one gets a more aggressive pass
             if len(F) > target: V, F = fast_simplification.simplify(np.asarray(V, np.float32), F, target_count=target - 1, agg=agg)   # the collapse may stop one triangle over
     return np.asarray(V, float), np.asarray(F)
 
@@ -234,6 +236,16 @@ def bake(piece, faces, V, F):
     return V2, N2, UV, F2, Image.fromarray(np.clip(img[idx[0], idx[1]], 0, 255).astype(np.uint8))
 
 
+def whole(V, F):
+    """Per triangle: its piece is kept. The simplification and the cut on the neck break the loose part again: a
+    shard is a sliver, and a piece left alone on a shoulder floats over the shell as a flap (035: 82 cm² in 7
+    triangles). The triangles kept stay as they are, in their order: through_neck() reads points along their edges."""
+    m = trimesh.Trimesh(V, F, process=False)
+    piece = trimesh.graph.connected_component_labels(m.face_adjacency, node_count=len(F))   # pieces by shared edge: two that touch at a point are two
+    area = np.bincount(piece, m.area_faces); side = np.full(piece.max() + 1, np.inf); np.minimum.at(side, piece, np.abs(V[F][:, :, 0]).min(1))
+    return (area[piece] > MIN_AREA) & (side[piece] < AT_NECK)
+
+
 def build(dense_path, src, dst, shell_path=None):
     """Writes the loose part of the garment src to dst, or nothing when the shell holds the whole garment.
     shell_path: the garment's shell as built; by default the one the engine wrote next to dst."""
@@ -250,6 +262,8 @@ def build(dense_path, src, dst, shell_path=None):
         V, F = outside(lift(V, sh), F, low)
         if len(F) <= TARGET or target < 60: break
         target -= len(F) - TARGET + 4
+    F = F[whole(V, F)]
+    if not len(F): return {**measure(dense_path, src, [shell_path], dst), 'in_neck_cm2': 0.0}
     m = trimesh.Trimesh(V, F, process=False); m.remove_unreferenced_vertices()
     V2, N2, UV, F2, img = bake(piece, faces, np.asarray(m.vertices), np.asarray(m.faces))
     S.export(dst, V2, F2, N2, UV, img, double_sided=True)

@@ -1,0 +1,19 @@
+{
+ "007": {"wider_cm": 4.81, "narrower_cm": 0.82, "hem_girth_pct": 6.5, "seam_cm": 2.09, "tear_cm": 93.8, "distortion": 0.004, "texture_without_source_pct": 0.8},
+ "009": {"wider_cm": 3.29, "narrower_cm": 0.31, "hem_girth_pct": 2.8, "seam_cm": 0.0, "tear_cm": 90.6, "distortion": 0.005, "texture_without_source_pct": 0.0},
+ "010": {"wider_cm": 6.33, "narrower_cm": 1.28, "hem_girth_pct": 5.6, "seam_cm": 0.86, "tear_cm": 202.5, "distortion": 0.0, "texture_without_source_pct": 0.9},
+ "017": {"wider_cm": 6.12, "narrower_cm": 0.72, "hem_girth_pct": 11.4, "seam_cm": 0.71, "tear_cm": 66.3, "distortion": 0.048, "texture_without_source_pct": 0.2},
+ "018": {"wider_cm": 5.56, "narrower_cm": 0.23, "hem_girth_pct": 9.2, "seam_cm": 0.75, "tear_cm": 8.5, "distortion": 0.067, "texture_without_source_pct": 0.3},
+ "019": {"wider_cm": 4.54, "narrower_cm": 0.32, "hem_girth_pct": 4.1, "seam_cm": 1.39, "tear_cm": 59.0, "distortion": 0.016, "texture_without_source_pct": 0.1},
+ "022": {"wider_cm": 6.15, "narrower_cm": 0.35, "hem_girth_pct": 10.4, "seam_cm": 0.91, "tear_cm": 54.9, "distortion": 0.067, "texture_without_source_pct": 0.1},
+ "023": {"wider_cm": 4.62, "narrower_cm": 0.82, "hem_girth_pct": 6.7, "seam_cm": 1.04, "tear_cm": 46.0, "distortion": 0.03, "texture_without_source_pct": 0.3},
+ "025": {"wider_cm": 4.75, "narrower_cm": 0.0, "hem_girth_pct": 13.1, "seam_cm": 0.87, "tear_cm": 7.7, "distortion": 0.054, "texture_without_source_pct": 0.0},
+ "026": {"wider_cm": 4.7, "narrower_cm": 0.26, "hem_girth_pct": 10.3, "seam_cm": 0.66, "tear_cm": 34.1, "distortion": 0.045, "texture_without_source_pct": 0.1},
+ "027": {"wider_cm": 5.54, "narrower_cm": 0.0, "hem_girth_pct": 13.7, "seam_cm": 0.6, "tear_cm": 6.4, "distortion": 0.077, "texture_without_source_pct": 0.4},
+ "028": {"wider_cm": 5.73, "narrower_cm": 1.64, "hem_girth_pct": 2.7, "seam_cm": 1.0, "tear_cm": 155.8, "distortion": 0.004, "texture_without_source_pct": 4.9},
+ "029": {"wider_cm": 4.7, "narrower_cm": 0.23, "hem_girth_pct": 4.9, "seam_cm": 0.85, "tear_cm": 65.9, "distortion": 0.003, "texture_without_source_pct": 0.2},
+ "030": {"wider_cm": 3.95, "narrower_cm": 0.4, "hem_girth_pct": 4.6, "seam_cm": 0.45, "tear_cm": 62.8, "distortion": 0.016, "texture_without_source_pct": 0.3},
+ "031": {"wider_cm": 4.65, "narrower_cm": 0.93, "hem_girth_pct": 7.3, "seam_cm": 0.79, "tear_cm": 30.8, "distortion": 0.041, "texture_without_source_pct": 0.1},
+ "032": {"wider_cm": 4.27, "narrower_cm": 0.05, "hem_girth_pct": 3.8, "seam_cm": 0.73, "tear_cm": 26.2, "distortion": 0.016, "texture_without_source_pct": 1.8},
+ "034": {"wider_cm": 3.13, "narrower_cm": 0.64, "hem_girth_pct": 3.5, "seam_cm": 0.85, "tear_cm": 103.9, "distortion": 0.027, "texture_without_source_pct": 0.2}
+}
