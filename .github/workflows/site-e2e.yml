@@ -144,6 +144,8 @@ jobs:
       - name: Each visual calibration case fails as the defect was seen and passes as fixed
         if: env.VISUAL_QA != 'check'
         run: python3 tools/fit/calibration.py --visual
+      - name: Saved pictures still read as the measure was written for (tools/visual-qa/cases/)
+        run: python3 tools/visual-qa/cases.py
       - name: Keep the photos and the measures
         if: always() && env.VISUAL_QA != 'check'
         uses: actions/upload-artifact@v7

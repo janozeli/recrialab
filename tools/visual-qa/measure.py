@@ -95,6 +95,11 @@ def dark_pct(lum, mask, threshold):
     return float(dark.sum() / mask.sum() * 100)
 
 
+# loose piece: a strip up to this wide (px) that runs away from the camera by more than this many times its width is a
+# sheet seen edge-on, not a piece in the air
+LOOSE_EDGE, LOOSE_SLOPE = 3.0, 4.0
+
+
 def luminance(x):
     return .2126 * x[..., 0] + .7152 * x[..., 1] + .0722 * x[..., 2]
 
@@ -171,6 +176,35 @@ def sleeve_lip(c, top, garment, whole):
     return lambda reg, m: top[nd.binary_dilation(reg, disk(2)) & garment].all() and (whole[m] >= 2).mean() > .5 and (reg & reach).any()
 
 
+def loose_area(c, m, depth):
+    """Pixels of the garment m in pieces that float in the air: components, other than the largest, that touch only the
+    background. A strip that is a sheet seen edge-on is not a piece: on average no wider than LOOSE_EDGE px, and
+    running away from the camera by more than LOOSE_SLOPE times that width. It is the front or back wall of a low-poly
+    shell seen from below in profile, hanging under the nearer hem and cut from it in the picture where it gets
+    thinner than a pixel (032, 036 and 021 from the engine). A shard in the air faces the camera: it is wider, or
+    it is flat in depth."""
+    lab, n = nd.label(m)
+    if n < 2:
+        return 0
+    areas = nd.sum(m, lab, range(1, n + 1))
+    largest = 1 + int(np.argmax(areas))
+    loose = 0
+    for i in range(1, n + 1):
+        if i == largest or areas[i - 1] < 6:
+            continue
+        reg = lab == i
+        nb = nd.binary_dilation(reg, disk(1)) & ~reg
+        if not np.all(c[nb] == BACKGROUND):
+            continue
+        ys, xs = np.nonzero(reg)
+        width = areas[i - 1] / max(np.ptp(ys) + 1, np.ptp(xs) + 1)
+        seen = depth[reg][depth[reg] > 0]
+        if width <= LOOSE_EDGE and seen.size and np.ptp(seen) > LOOSE_SLOPE * width * CM2 ** .5:
+            continue
+        loose += areas[i - 1]
+    return loose
+
+
 def measure_view(c, alb, depth, whole, low=False):
     r = {}
     top, bottom = np.isin(c, (TOP, TOP_BACK)), np.isin(c, (BOTTOM, BOTTOM_BACK))
@@ -191,19 +225,7 @@ def measure_view(c, alb, depth, whole, low=False):
     # past the hem, is what a real short sleeve shows: those views are left out in measure_look
     r['arm_over'] = float(nd.binary_opening((c == BODY) & (whole >= 3 + OVER) & (depth > 0), disk(1)).sum() * CM2)
     # loose piece: a garment component that only touches the background
-    loose = 0
-    for m in (top, bottom):
-        lab, n = nd.label(m)
-        if n > 1:
-            areas = nd.sum(m, lab, range(1, n + 1))
-            largest = 1 + int(np.argmax(areas))
-            for i in range(1, n + 1):
-                if i == largest or areas[i - 1] < 6:
-                    continue
-                reg = lab == i
-                nb = nd.binary_dilation(reg, disk(1)) & ~reg
-                if np.all(c[nb] == BACKGROUND):
-                    loose += areas[i - 1]
+    loose = sum(loose_area(c, m, depth) for m in (top, bottom))
     r['loose'] = loose * CM2
     # junction: jagged bottom garment in a 4 cm band below the top's hem
     if top.any() and bottom.any():
