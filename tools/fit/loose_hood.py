@@ -234,7 +234,7 @@ def build(dense_path, src, dst, shell_path=None):
     sh = trimesh.load(shell_path, process=False).to_geometry(); sh = trimesh.Trimesh(sh.vertices, sh.faces, process=False)
     low = S.load_body(low_path(dense_path))
     cloth = loose(piece, body, sh)
-    if cloth is None: return measure(dense_path, src, [shell_path], dst)
+    if cloth is None: return {**measure(dense_path, src, [shell_path], dst), 'in_neck_cm2': 0.0}
     V0, F0, faces = cloth; before = len(F0); V0 = lift(V0, sh); target = TARGET
     while True:                                                # the cut on the mannequin adds triangles: simplify further until it fits
         V, F = simplify(V0, F0, target)
@@ -321,7 +321,7 @@ def check(report):
         if pid not in report['garments']: continue             # a run of other garments
         now = report['garments'][pid].get('hood')
         if now is None: fails.append(f'{pid}: has a baseline and the engine built no loose part for it'); continue
-        if now.get('in_neck_cm2', 0) > IN_NECK: fails.append(f"{pid}: {now['in_neck_cm2']} cm² of the loose part cross the mannequin's neck")
+        if now['in_neck_cm2'] > IN_NECK: fails.append(f"{pid}: {now['in_neck_cm2']} cm² of the loose part cross the mannequin's neck")
         if now['triangles'] > TARGET: fails.append(f"{pid}: {now['triangles']} triangles in the loose part, above {TARGET}")
         fails += [f'{pid}: {k} {now[k]} above the baseline {was[k]}' for k, slack in SLACK.items() if now[k] > was[k] + slack]
     return fails
