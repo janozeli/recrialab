@@ -129,9 +129,9 @@ def contour(pid, m, body):
 def run(work, ids):
     for d in ('reg', 'shell', 'final'): shutil.rmtree(f'{work}/{d}', ignore_errors=True)   # nothing of an earlier run is read
     for d in ('reg', 'shell/env', 'final'): os.makedirs(f'{work}/{d}', exist_ok=True)
-    for p in 'BC': mannequin.build(p, f'{work}/dense-{p}.glb', f'{work}/low-{p}.glb')
+    built = {p: mannequin.build(p, f'{work}/dense-{p}.glb', f'{work}/low-{p}.glb')[1] for p in 'BC'}
     B = {p: shell.load_body(f'{work}/dense-{p}.glb') for p in 'BC'}; mb = L.recorded(); axis = L.arm_axis(B['B'])
-    rep = {'lines': R.lines(mb), 'garments': {}, 'mannequin': {p: mannequin.measures(shell.Low(f'{work}/low-{p}.glb'), B[p], p) for p in 'BC'}}
+    rep = {'lines': R.lines(mb), 'garments': {}, 'mannequin': {p: {**mannequin.measures(shell.Low(f'{work}/low-{p}.glb'), B[p], p), 'shape_mm': built[p]} for p in 'BC'}}   # the shape as built, before the recorded vertices are written
     for pid in ids:
         before, after, how = R.register(pid, GARMENTS + f'{pid}.glb', f'{work}/reg/{pid}.glb', mb, axis, B[pose(pid)])
         rep['garments'][pid] = {'before': before, 'registered': after, **how}

@@ -23,6 +23,10 @@ test('site code, the body or a tool changed: everything runs', () => {
   // the fit engine's garments copied into the site: phones and every look, not the fit job (no tools/fit script reads them)
   expect(filter(['site/assets/engine/007-tube.glb', 'site/engine.lock.json'], none)).toEqual({ fit: false, phones: true, visualQa: 'all', pieces: '' });
   expect(filter(['site/assets/engine/007-tube.glb', 'site/assets/body/pose-b.glb'], none).fit).toBe(true);
+  // ...except the loose parts the fit job holds a baseline for, and the shells they sit on
+  expect(filter(['site/assets/engine/037-hood.glb'], none).fit).toBe(true);
+  expect(filter(['site/assets/engine/033-shell.glb'], none).fit).toBe(true);
+  expect(filter(['site/assets/engine/016-shell.glb'], none).fit).toBe(false);
 });
 
 test('only one piece changed: fit and phones run, visual QA photographs only that piece', () => {

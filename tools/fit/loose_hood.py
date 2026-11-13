@@ -19,10 +19,21 @@ measure() compares the result with the garment as generated, from cameras around
   loose part) shows nothing: against the background (the hood or the collar lost its outline), or in front of the
   body where the low-poly mannequin is now bare (bare_cm2, a part of lost_cm2).
 build() returns them with in_neck_cm2, the area of the loose part that crosses the mannequin's neck; engine.py keeps
-them in its report, and check(report) fails on what rose above loose_hood.json and on a loose part through the neck.
+them in its report.
+
+The baseline (loose_hood.json) holds the loose part the site serves (site/assets/engine/), not the one a run has just
+built. Two processors do not round alike, so the garment, the body and the shell of two runs differ by tenths of a
+millimetre from the first stage on; cutting 750 triangles down to 250 turns that into another mesh (033 on the two
+kinds of CI machine, same code: lost_cm2 407.5 and 427.0; 037: dark_cm2 2.2 and 29.5), and a baseline of one machine's
+mesh fails on the other. The published loose part is one mesh on every machine, and its measures against the garment
+of each run move within SLACK. So build() also measures the published loose part on its published shell
+('published' in what it returns), and check(report) fails on what rose above the baseline there, and on a loose part
+through the neck or over TARGET triangles, published or just built. A published loose part changes on a reimport
+(site/engine-import.ts): that is when its lines are recorded again.
 usage: python3 tools/fit/loose_hood.py DENSE_BODY.glb GARMENT.glb OUT.glb [SHELL.glb]
        python3 tools/fit/loose_hood.py --check WORK       (checks WORK/report.json, written by a run of engine.py)
-       python3 tools/fit/loose_hood.py --write WORK       (records the measures of WORK/report.json as the baseline)"""
+       python3 tools/fit/loose_hood.py --write WORK       (records the measures of WORK/report.json as the baseline)
+       python3 tools/fit/loose_hood.py --published WORK   (measures the published loose parts against the garments of WORK)"""
 import sys, os, json, numpy as np, trimesh, xatlas, fast_simplification
 from scipy.spatial import cKDTree
 from scipy.sparse import coo_matrix
@@ -49,6 +60,7 @@ TEX = 256              # px: side of the baked texture
 NEAR = .05             # m: two surfaces this close along a ray are the same cloth (the shell may move it this much)
 DARK = 45              # of 255: darker than the garment by this much, a hole
 RAY = .005             # m: side of the area one ray stands for
+PUBLISHED = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'site', 'assets', 'engine')
 BASELINE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'loose_hood.json')
 SLACK = {'edge_cm': 5, 'dark_cm2': 5, 'off_cm2': 10, 'lost_cm2': 10}   # cm, cm² summed over the cameras: below this, noise of the rays
 # what the CI machine read over the machine that recorded, where it passed the slack: the slack of that reading alone,
@@ -255,7 +267,7 @@ def build(dense_path, src, dst, shell_path=None):
     sh = trimesh.load(shell_path, process=False).to_geometry(); sh = trimesh.Trimesh(sh.vertices, sh.faces, process=False)
     low = S.load_body(low_path(dense_path))
     cloth = loose(piece, body, sh)
-    if cloth is None: return {**measure(dense_path, src, [shell_path], dst), 'in_neck_cm2': 0.0}
+    if cloth is None: return {**measure(dense_path, src, [shell_path], dst), 'in_neck_cm2': 0.0, **published(dense_path, src)}
     V0, F0, faces = cloth; before = len(F0); V0 = lift(V0, sh); target = TARGET
     while True:                                                # the cut on the mannequin adds triangles: simplify further until it fits
         V, F = simplify(V0, F0, target)
@@ -263,13 +275,30 @@ def build(dense_path, src, dst, shell_path=None):
         if len(F) <= TARGET or target < 60: break
         target -= len(F) - TARGET + 4
     F = F[whole(V, F)]
-    if not len(F): return {**measure(dense_path, src, [shell_path], dst), 'in_neck_cm2': 0.0}
+    if not len(F): return {**measure(dense_path, src, [shell_path], dst), 'in_neck_cm2': 0.0, **published(dense_path, src)}
     m = trimesh.Trimesh(V, F, process=False); m.remove_unreferenced_vertices()
     V2, N2, UV, F2, img = bake(piece, faces, np.asarray(m.vertices), np.asarray(m.faces))
     S.export(dst, V2, F2, N2, UV, img, double_sided=True)
     return {**measure(dense_path, src, [shell_path], dst), 'triangles_before': int(before),
             'pieces': len(m.split(only_watertight=False)), 'area_cm2': int(m.area * 1e4),
-            'in_neck_cm2': round(float(m.area_faces[through_neck(np.asarray(m.vertices), np.asarray(m.faces), low)].sum() * 1e4), 1)}
+            'in_neck_cm2': in_neck(m, low), **published(dense_path, src)}
+
+
+def in_neck(m, low_body):
+    """cm² of a loose part that cross the mannequin's neck."""
+    return round(float(m.area_faces[through_neck(np.asarray(m.vertices), np.asarray(m.faces), low_body)].sum() * 1e4), 1)
+
+
+def published(dense_path, src):
+    """{'published': the measures of the loose part the site serves for the garment src, on the shell it serves,
+    against src}; nothing for a garment the site does not serve from the engine."""
+    pid = os.path.basename(src)[:3]; shell_path = f'{PUBLISHED}/{pid}-shell.glb'; hood_path = f'{PUBLISHED}/{pid}-hood.glb'
+    if not os.path.exists(shell_path): return {}
+    out = {**measure(dense_path, src, [shell_path], hood_path), 'in_neck_cm2': 0.0}
+    if os.path.exists(hood_path):
+        m = S.Piece(hood_path); m = trimesh.Trimesh(m.v, m.f, process=False); m.merge_vertices(digits_vertex=5)
+        out['in_neck_cm2'] = in_neck(m, S.load_body(low_path(dense_path)))
+    return {'published': out}
 
 
 def low_path(dense_path):
@@ -344,15 +373,24 @@ def check(report):
         if pid not in report['garments']: continue             # a run of other garments
         now = report['garments'][pid].get('hood')
         if now is None: fails.append(f'{pid}: has a baseline and the engine built no loose part for it'); continue
-        if now['in_neck_cm2'] > IN_NECK: fails.append(f"{pid}: {now['in_neck_cm2']} cm² of the loose part cross the mannequin's neck")
-        if now['triangles'] > TARGET: fails.append(f"{pid}: {now['triangles']} triangles in the loose part, above {TARGET}")
-        fails += [f'{pid}: {k} {now[k]} above the baseline {was[k]}' for k, slack in SLACK.items() if now[k] > was[k] + MACHINE.get((pid, k), slack)]
+        for name, r in (('built', now), ('published', now.get('published'))):
+            if r is None: continue
+            if r['in_neck_cm2'] > IN_NECK: fails.append(f"{pid}: {r['in_neck_cm2']} cm² of the {name} loose part cross the mannequin's neck")
+            if r['triangles'] > TARGET: fails.append(f"{pid}: {r['triangles']} triangles in the {name} loose part, above {TARGET}")
+        read = held(now)
+        fails += [f'{pid}: {k} {read[k]} above the baseline {was[k]}' for k, slack in SLACK.items() if read[k] > was[k] + MACHINE.get((pid, k), slack)]
     return fails
+
+
+def held(hood):
+    """The reading the baseline holds: the published loose part's; the built one's only for a garment the site does
+    not serve from the engine yet."""
+    return hood.get('published') or hood
 
 
 def write(report):
     base = json.load(open(BASELINE))
-    new = {p: {k: report['garments'][p]['hood'][k] for k in ('triangles', *SLACK)} for p in base}
+    new = {p: {k: held(report['garments'][p]['hood'])[k] for k in ('triangles', *SLACK)} for p in base}
     for p, g in new.items():
         for k in SLACK:
             if not base[p]: continue
@@ -367,4 +405,6 @@ if __name__ == '__main__':
         report = json.load(open(sys.argv[2] + '/report.json'))
         if sys.argv[1] == '--write': write(report)
         fails = check(report); print('\n'.join(fails) or 'ok'); sys.exit(1 if fails else 0)
+    elif sys.argv[1] == '--published':
+        for pid in sorted(json.load(open(BASELINE))): print(pid, published(f'{sys.argv[2]}/dense-B.glb', f'{sys.argv[2]}/reg/{pid}.glb'))
     else: print(build(*sys.argv[1:5]))
