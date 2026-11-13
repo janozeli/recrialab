@@ -194,7 +194,10 @@ def measure(prof, ang, r_seam, V):
 
 def build(dense_path, shell_path, garment_path, shell_out, tube_out, n, envelope=None):
     n = int(n); pid = piece_id(garment_path); skirt = pid in L.SKIRTS
-    b = S.load_body(dense_path); BV = np.asarray(b.vertices); lab = L.limb(BV)
+    b = S.load_body(dense_path); BV = np.asarray(b.vertices)
+    low = dense_path.replace('dense-', 'low-')            # the body that is drawn: where it stands outside the dense one (the bridge between the thighs), the cloth covers it too
+    if low != dense_path and os.path.exists(low): BV = np.vstack([BV, trimesh.sample.sample_surface(S.load_body(low), 30000, seed=1)[0]])
+    lab = L.limb(BV)
     arms = BV[(lab == 1) | (lab == 2)]; BV = BV[(lab != 1) & (lab != 2)]
     if skirt:                                             # one tube from the waistband down: no shell is kept
         edge = waistband_edge(shell_path); sm = trimesh.load(shell_path, process=False).to_geometry()
