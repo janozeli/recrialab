@@ -257,7 +257,7 @@ def measures(low, dense, pose=None):
     c, n = low.triangles_center, low.face_normals; under = (np.abs(c[:, 0]) > 0.15) & (c[:, 1] > 1.25) & (c[:, 1] < 1.50) & (n[:, 1] < -0.6)
     return {'asymmetry_cm': round(100 * float(far.max()), 2), 'point_cm': round(100 * float(((v[zone] - d[j]) * N[j]).sum(1).max()), 2),
             'waist_cm': round(100 * float(ConvexHull(w).area), 1), 'shoulder_width_cm': round(200 * float(np.abs(cut(1.42)[:, 0]).max()), 1),
-            'overhang_cm2': round(1e4 * float(low.area_faces[under].sum())), 'triangles': int(len(low.faces)), 'closed': bool(low.is_watertight),
+            'overhang_cm2': round(1e4 * float(low.area_faces[under].sum())), 'triangles': int(len(low.faces)), 'closed': bool(low.is_watertight and low.is_winding_consistent and all(c.volume > 0 for c in low.split(only_watertight=False))),
             **({'shape_mm': shape_mm(low, pose)} if pose else {})}
 
 
@@ -293,8 +293,8 @@ def joined_hip(low):
     at = lambda c, y: np.flatnonzero((vc == c) & (np.abs(v[:, 1] - y) < .004))
     ring = at(torso, HIP_RING); mid = ring[np.abs(v[ring, 0]) < 1e-4]; assert len(mid) == 2 and len(legs) == 2, 'the hip is not built as joined_hip() reads it'
     gone = np.r_[np.flatnonzero((vc == torso) & (v[:, 1] < HIP_RING - .004) & (np.abs(v[:, 0]) < .05)), np.flatnonzero(np.isin(vc, legs) & (v[:, 1] > LEG_RING + .004))]
-    new = []
-    for c in legs:
+    new = []; tree = cKDTree(v)
+    for c in legs[:1]:
         B = at(c, LEG_RING); ctr = v[B][:, [0, 2]].mean(0); A = np.r_[ring[v[ring, 0] * np.sign(ctr[0]) > 1e-4], mid]
         ang = lambda i: np.arctan2(v[i, 2] - ctr[1], v[i, 0] - ctr[0])
         A, B = A[np.argsort(ang(A))], B[np.argsort(ang(B))]; a, b = np.r_[ang(A), ang(A[0]) + 2 * np.pi], np.r_[ang(B), ang(B[0]) + 2 * np.pi]
@@ -304,7 +304,11 @@ def joined_hip(low):
             else: t = (A[i % len(A)], B[(j + 1) % len(B)], B[j]); j += 1
             n = np.cross(v[t[1]] - v[t[0]], v[t[2]] - v[t[0]]); c3 = v[list(t)].mean(0)
             new.append(t if n[0] * (c3[0] - ctr[0]) + n[2] * (c3[2] - ctr[1]) > 0 else (t[0], t[2], t[1]))   # outward: away from the leg's axis
-    out = trimesh.Trimesh(v, np.vstack([f[~np.isin(f, gone).any(1)], np.array(new)]), process=False); out.remove_unreferenced_vertices(); out.visual = material()
+    # the other leg's band is this one in the mirror, triangle by triangle: two bands each built by its own walk
+    # put the diagonal from the crotch to one thigh only, a facet the bottoms carried on one side
+    far, twin = tree.query(v * [-1, 1, 1]); used = np.unique(new); assert far[used].max() < 1e-4, 'the hip is not the same on both sides'
+    new = np.vstack([np.array(new), twin[np.array(new)][:, ::-1]])
+    out = trimesh.Trimesh(v, np.vstack([f[~np.isin(f, gone).any(1)], new]), process=False); out.remove_unreferenced_vertices(); out.visual = material()
     trimesh.repair.fix_normals(out)                            # every face outward: a band's face under the crotch faces the other leg, not away from its own axis
     assert out.is_winding_consistent and all(p.is_watertight for p in out.split(only_watertight=False)), 'the hip is not closed'
     # between the thighs the torso's ring has no body to stand on and its front vertex sits in the middle of the body:

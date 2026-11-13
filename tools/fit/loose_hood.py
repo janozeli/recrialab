@@ -62,7 +62,8 @@ MIN_AREA = .004        # m²: a kept piece smaller than this is a sliver
 AT_NECK = .10          # m: a kept piece comes this close to the middle of the neck, to the side; one that does not lies on a shoulder alone, cut off from the hood
 MIN_LOOSE = .025       # m²: less cloth than this outside the shell is no hood: the shell alone holds the garment
 IN_NECK = 1            # cm²: more of the loose part than this through the mannequin's neck fails
-PUBLISHED_IN_NECK = {   # cm²: a loose part the site serves that was built while the depth in the neck was read on points sampled from the body, which missed it; it leaves at the next import of the engine's garments, and the entry with it
+PUBLISHED_IN_NECK = {   # cm²: a loose part the site serves that was built while the depth in the neck was read on points sampled from the body or against the whole body at once, which missed it; it leaves at the next import of the engine's garments, and the entry with it
+    '033': 2,
     '035': 9,
 }
 PAST = .015            # m: how far past the border of the loose part the garment is looked for
@@ -271,9 +272,12 @@ def through_neck(V, F, low_body):
     """Per triangle: it crosses the neck of the low-poly mannequin (a point of it IN_BODY deep, above the neck line)."""
     P = V[F]; up = np.flatnonzero(P[:, :, 1].min(1) > NECK); hit = np.zeros(len(F), bool)
     # the depth is read on the body's surface itself: read on points sampled from it, the same loose part crossed a
-    # neck that had not moved when another part of the body changed and the samples fell elsewhere
+    # neck that had not moved when another part of the body changed and the samples fell elsewhere. It is read part by
+    # part of the body, the deepest counting: the torso and the head each end in a lid inside the other, and against
+    # the whole body a point between the two lids had a lid as its nearest face and read as outside
+    parts = [p for p in low_body.split(only_watertight=False) if p.bounds[1][1] > NECK]
     for w in ((1, 1, 1), (2, 1, 0), (0, 2, 1), (1, 0, 2), (1, 2, 0), (0, 1, 2), (2, 0, 1)):
-        if len(up): hit[up] |= trimesh.proximity.signed_distance(low_body, np.einsum('k,ikj->ij', np.array(w) / 3, P[up])) >= IN_BODY
+        if len(up): hit[up] |= np.max([trimesh.proximity.signed_distance(p, np.einsum('k,ikj->ij', np.array(w) / 3, P[up])) for p in parts], 0) >= IN_BODY
     return hit
 
 
