@@ -12,7 +12,7 @@ long sleeves stays one. What the caps leave undone stays undone: a cropped top s
   and skirt keep their length, and the drawing rises from the line instead of opening the belly. The slide stops
   WAISTBAND_LIFT above the line (FULL_LENGTH_LIFT for full-length bottoms: their hem stays at the ankle), and a
   deeper drawing is scaled down to fit. Only what is not that drawing, the wrinkles of the generated cloth, is evened out, stretching from the crotch up
-  and up to the cap. waistband() gives that drawing on the line to whoever cuts the garment (shell.py);
+  and up to the cap. Whoever cuts the garment (shell.py) reads that drawing from the registered garment;
 - top: the hem should not stay above the waistband line minus OVERLAP, so the top covers the waistband: a shorter
   top is scaled in height from the shoulder down, up to the cap. The sleeve is scaled along the arm by the same
   factor as the body of the top. A long sleeve (LONG_SLEEVE of the arm or more) goes instead toward BELOW_WRIST
@@ -77,13 +77,6 @@ def drawing(shape, mb, full=False):
     c, a0, tilt, sides = shape; a = np.linspace(-np.pi, np.pi, 73); deep = -(tilt * np.sin(a) + sides * np.cos(2 * a)).min()
     k = min(1., ((FULL_LENGTH_LIFT if full else WAISTBAND_LIFT) + WAISTBAND_DROP) / max(deep, 1e-9))
     return (c, float(lines(mb)['waistband'] - WAISTBAND_DROP + k * deep), tilt * k, sides * k), float(k)
-
-
-def waistband(path, mb=None):
-    """The waistband of the registered bottom at `path`, as a function: points -> height of the waistband at their angle."""
-    mb = mb or L.recorded(); S = L.sample(path); pid = piece_id(path)
-    shape, _ = drawing(L.waistband_shape(S), mb, full_length(pid, L.garment(pid, S, mb, None), mb))
-    return lambda points: L.waistband_height(np.asarray(points), shape)
 
 
 def full_length(pid, g, mb):
@@ -171,7 +164,8 @@ def misses(pid, before, after, how, ln):
         return bad
     if p1['length_m'] > p0['length_m'] * MAX_STRETCH + LENGTH_TOL or p1['length_m'] < p0['length_m'] - LENGTH_TOL:
         bad.append(f'length was {p0["length_m"]} m, is {p1["length_m"]}, cap {MAX_STRETCH}')
-    if p0.get('sleeve_m'):
+    if p0.get('sleeve_m') and not p1.get('sleeve_m'): bad.append(f'sleeve was {p0["sleeve_m"]} m, is not read any more')
+    elif p0.get('sleeve_m'):
         r = how['sleeve'] / how['body']; slack = SLEEVE_TOL / p0['sleeve_m']
         if not 1 / PROPORTION - .002 < r < PROPORTION + .002: bad.append(f'sleeve changed {round(r, 3)} against the body of the top, at most {PROPORTION}')
         if abs(p1['sleeve_m'] / p0['sleeve_m'] / how['sleeve'] - 1) > slack: bad.append(f'sleeve was {p0["sleeve_m"]} m, is {p1["sleeve_m"]}, scaled {how["sleeve"]}')
@@ -216,14 +210,15 @@ def check(report):
                   for x in misses(pid, g['before'], g['registered'], g, ln) + against_record(pid, g['registered'], g, rec['garments'].get(pid))]
 
 
-# (what is broken, garment, constants of this module to change, garment registered in its place): each must fail the check
+# (what is broken, garment, constants of this module to change, garment registered in its place): each must leave a
+# finding on the garment itself (against_record); the lines differing from the recorded ones does not count
 MUTATIONS = (
     ('stretch cap at 30%', '016', {'MAX_STRETCH': 1.30}, None),
     ('waistband line 10 cm lower', '005', {'BELOW_WAIST': .17}, None),
     ('waistband line 10 cm higher', '005', {'BELOW_WAIST': -.03}, None),
     ('no cap on what the waistband rises', '003', {'WAISTBAND_LIFT': .15}, None),
     ('sleeve free of the body of the top', '035', {'PROPORTION': 1.30}, None),
-    ('long sleeve left where it is', '033', {'BELOW_WRIST': -.03}, None),
+    ('long sleeve 2 cm further down the hand', '033', {'BELOW_WRIST': .04}, None),
     ('another garment in its place',
      '017', {},
      '016'),
@@ -237,8 +232,8 @@ def mutations(mb, axis, B, tmp):
         old = {k: getattr(mod, k) for k in change}
         try:
             for k, x in change.items(): setattr(mod, k, x)
-            ln = lines(mb); before, after, how = register(pid, GARMENTS + f'{other or pid}.glb', os.path.join(tmp, f'mutant-{pid}.glb'), mb, axis, B['C' if pid in POSE_C else 'B'])
-            caught = (rec['lines'] != ln) + len(against_record(pid, after, how, rec['garments'].get(pid)))
+            before, after, how = register(pid, GARMENTS + f'{other or pid}.glb', os.path.join(tmp, f'mutant-{pid}.glb'), mb, axis, B['C' if pid in POSE_C else 'B'])
+            caught = against_record(pid, after, how, rec['garments'].get(pid))
         finally:
             for k, x in old.items(): setattr(mod, k, x)
         if not caught: passed.append(f'{what} ({pid}) passes the check')
