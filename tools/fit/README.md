@@ -103,7 +103,7 @@ Uma regra só para as 38 peças, no lugar de um conserto por peça. `python3 too
 | Script | O que faz |
 |---|---|
 | `landmarks.py` | lê os marcos do manequim (cintura, gancho, axila, punho) e de cada peça (cós, gancho, barra, fim da manga) |
-| `register.py` | leva a peça às linhas dos marcos sem mudar as proporções: desliza a peça inteira e estica no máximo 6% |
+| `register.py` | leva a peça às linhas dos marcos sem mudar as proporções: desliza a peça inteira, estica no máximo 6%, a manga acompanha o corpo da peça e o cós mantém o desenho que a peça tem |
 | `mannequin.py` | manequim da engine, derivado do corpo do site a cada rodada: curva nas costas e versão de poucos polígonos, em partes |
 | `shell.py` | o que veste o corpo vira casca do manequim de poucos polígonos, com a textura assada da peça; peça de baixo cortada na linha do cós, peça de cima por fora de todas as de baixo |
 | `tube.py` | saia e barra abaixo do quadril viram tubo soldado na casca |
@@ -127,6 +127,7 @@ Uma regra só para as 38 peças, no lugar de um conserto por peça. `python3 too
 | `penetration.py` | roupa mais folgada ou mais enfiada no corpo que o valor registrado em `penetration.json`, que só pode baixar |
 | `stretch.py` | estampa esticada em relação ao modelo original, região por região |
 | `landmarks.py --check` | corpo diferente do que deu os marcos gravados (`landmarks.json`), ou cintura, gancho, axila e punho do manequim fora do valor gravado |
+| `register.py --check` | registra as 38 peças em memória e falha se alguma não está onde foi gravada em `register.json` (cós e desenho do cós, barras, fim da manga), se deslocou ou esticou mais que o gravado ou que os limites, se mudou de classe de comprimento ou se a manga mudou mais de 3% contra o corpo da peça; e roda sete regras quebradas de propósito, que têm de reprovar |
 | `engine.py PASTA --check` | refaz as 38 peças pela engine e falha se alguma fica pior que a linha de base de `engine.json` (corpo atravessando, triângulos, rasgo da estampa no total e nas costas, distorção, cintura mais fina que a da peça original, perfil das costas perdido, contorno perdido: quanto a curva do cós, da barra e da lateral da peça original foi deixada reta, e o mesmo para a barra das peças de baixo e a gola, que não têm limite próprio), que só pode baixar, se o contorno perdido passa de 2 cm, ou se os 345 looks passam dos limites de barriga à vista e de peça de baixo na frente da de cima; chama também o `check(report)` de cada módulo da engine que tiver um |
 | `hood.py --check` | capuz ou gola achatados além do limite em relação ao modelo original; gola da 035 esticada além do limite ou mais de 3 cm por dentro do pescoço, ou máscara da 035 abaixo de 1,40 m diferente da guardada |
 | `back_inside.py` | avesso da peça de cima à vista pelas costas (dobra da axila atravessando as costas), além do valor registrado |
