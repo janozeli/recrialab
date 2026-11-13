@@ -40,7 +40,6 @@ ISLAND = 8             # vertices: a bare patch of the mannequin up to this size
 BURIED = .03           # m: a vertex of the mannequin this far from the body's skin is the middle of a lid
 SHOULDER_HOLDS = 1.34  # m: above this the mannequin's shoulder is one of the points a top hangs from
 SHOULDER_OUT, SHOULDER_TOP = .18, 1.52   # m: beyond this |x| and below this height the mannequin's shoulder is its arm, bent over it
-SLIVER = 0.02          # m: a top's hem that ends less than this far over the waistband line comes down to just under it
 HEM_RISE = 0.02        # m: the hem of a top that reaches its line rises at most this far over it (WAIST_DIP + HEM_RISE < register.OVERLAP)
 DRAPE_TO, DRAPE_COLUMNS = 1.43, 12   # a top hangs from this height down; columns around the torso (the mannequin's torso has 12 sides)
 HEM_TO = 1.25          # m: a top's hem is looked for on the torso below this height
@@ -447,7 +446,6 @@ def generate(kind, pid, path, dense_path, low_path, out, trace=None):
         if len(torso) > 2000 and np.percentile(torso[:, 1], 2) < HEM_TO - .05:
             line = np.minimum(edge(torso, torso[:, [0, 2]].mean(0), 2, v, sides=False), HEM_TO - .03)
             if np.median(line[tr]) < hem_max + HEM_RISE: line = np.minimum(line, hem_max + HEM_RISE)   # a top that reaches its line keeps the waistband covered all around
-            elif np.median(line[tr]) < waistband + SLIVER: line = np.minimum(line, waistband - WAIST_TOP)   # a hem that stops just over the waistband meets it: the strip of body between them read as a tear
             s = np.where(tr, v[:, 1] - line, s); cov_low = np.where(tr, v[:, 1] > line - .03, cov_low)
     # a leg of the mannequin is closed by a lid inside the hip, and the lid's middle is buried in the body:
     # it wears nothing, and the ring around it goes straight out like an open rim
