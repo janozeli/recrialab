@@ -14,7 +14,8 @@ rule brings its check without another CI step.
 usage: python3 tools/fit/engine.py WORK            (builds everything and writes WORK/report.json)
        python3 tools/fit/engine.py WORK 016 004    (only these garments; no look measures)
        python3 tools/fit/engine.py WORK --check    (fails where a garment is worse than its baseline or a look limit is passed)
-       python3 tools/fit/engine.py WORK --write    (records the baseline; values may only go down against the recorded ones)"""
+       python3 tools/fit/engine.py WORK --write    (records the baseline; values may only go down against the recorded ones)
+       python3 tools/fit/engine.py --sleeves SHELL.glb ...   (only the check of uneven sleeves, on shells already built)"""
 import sys, os, json, glob, shutil, hashlib, numpy as np, trimesh
 from multiprocessing import Pool
 from metric import measure, POSE_C
@@ -54,7 +55,7 @@ BACK_CASES = {
 }
 FOLD = .01             # m: a body vertex this close behind another part of the body, below the neck, is in a fold and is left out of body crossing
 CONTOUR_LIMIT = 2.0
-SLEEVES_UNEVEN = 8.0   # cm: the two sleeves of a top end within this of each other (the most today is 5.6, on 030, and a ring of the arm is 2 cm; a polo read 22.5)
+SLEEVES_UNEVEN = 8.0   # cm: the two sleeves of a top end within this of each other (the most today is 5.6, on 030, and a ring of the arm is 2 cm; a polo read 20.5)
 SLEEVE_AREA = .002     # m²: a piece of a shell smaller than this is no sleeve
 # over the 345 looks, in cm²: today's values (19, 8, 0, 0) and a little over them for what another machine reads,
 # never over what they were (220, 20, 97, 10). The worst look is skirt 007 under 034
@@ -242,6 +243,9 @@ def check(rep):
 
 if __name__ == '__main__':
     if len(sys.argv) < 2: sys.exit(__doc__)
+    if sys.argv[1] == '--sleeves':                           # the check of uneven sleeves alone, on shells already built
+        bad = [f'{f} sleeve_uneven_cm: {v}, limit {SLEEVES_UNEVEN}' for f in sys.argv[2:] for v in [sleeves_uneven(f)] if v > SLEEVES_UNEVEN]
+        print('\n'.join(bad) or 'ok'); sys.exit(1 if bad else 0)
     flags = [a for a in sys.argv[2:] if a.startswith('--')]
     work = sys.argv[1]; ids = [a for a in sys.argv[2:] if not a.startswith('--')] or [f'{n:03d}' for n in range(1, 39)]
     rep = run(work, ids)

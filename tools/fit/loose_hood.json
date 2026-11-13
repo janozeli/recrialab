@@ -1,8 +1,8 @@
 {
- "030": {"triangles": 0, "edge_cm": 0.0, "dark_cm2": 0.0, "off_cm2": 0.0, "lost_cm2": 1063.0},
- "033": {"triangles": 212, "edge_cm": 37.8, "dark_cm2": 0.0, "off_cm2": 55.0, "lost_cm2": 407.5},
- "034": {"triangles": 256, "edge_cm": 25.6, "dark_cm2": 6.2, "off_cm2": 99.0, "lost_cm2": 181.5},
- "035": {"triangles": 243, "edge_cm": 61.2, "dark_cm2": 0.0, "off_cm2": 185.0, "lost_cm2": 1033.5},
- "036": {"triangles": 253, "edge_cm": 21.8, "dark_cm2": 101.0, "off_cm2": 81.5, "lost_cm2": 219.5},
- "037": {"triangles": 246, "edge_cm": 70.7, "dark_cm2": 2.2, "off_cm2": 345.2, "lost_cm2": 559.0}
+ "030": {"ceiling": 260, "triangles": 0, "edge_cm": 0.0, "dark_cm2": 0.0, "off_cm2": 0.0, "lost_cm2": 1063.0, "border_per_side": 0.0},
+ "033": {"ceiling": 212, "triangles": 212, "edge_cm": 37.8, "dark_cm2": 0.0, "off_cm2": 55.0, "lost_cm2": 407.5, "border_per_side": 6.51},
+ "034": {"ceiling": 256, "triangles": 256, "edge_cm": 25.6, "dark_cm2": 6.2, "off_cm2": 99.0, "lost_cm2": 181.5, "border_per_side": 6.75},
+ "035": {"ceiling": 243, "triangles": 243, "edge_cm": 61.2, "dark_cm2": 0.0, "off_cm2": 185.0, "lost_cm2": 1033.5, "border_per_side": 6.72},
+ "036": {"ceiling": 253, "triangles": 253, "edge_cm": 21.8, "dark_cm2": 101.0, "off_cm2": 81.5, "lost_cm2": 219.5, "border_per_side": 4.97},
+ "037": {"ceiling": 246, "triangles": 246, "edge_cm": 70.7, "dark_cm2": 2.2, "off_cm2": 345.2, "lost_cm2": 559.0, "border_per_side": 6.32}
 }
