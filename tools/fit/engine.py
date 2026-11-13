@@ -39,13 +39,10 @@ KEPT = {
     'distortion_pct': (lambda g: round(100 * abs(g['shell']['identity']['distortion'] - 1), 1), 1.),
 }
 # where the CI machine read a garment further from the machine that recorded than the slack above, and by how much
-# it may: 021 read 762.4 cm of tear against 738.1, 017 read 133.4 cm on the back against 114.0 and 025 read 6.0 of
-# distortion against 4.5, the last two with the registration that keeps a garment's proportions. The cause is not known (the same machine repeats to the last digit, with one thread or
-# four), so the slack is of these garments only
+# it may: 021 read 762.4 cm of tear against 738.1. The cause is not known (the same machine repeats to the last
+# digit, with one thread or four), so the slack is of this garment only
 MACHINE = {
-    '017': {'tear_back_cm': 20},
     '021': {'tear_cm': 30},
-    '025': {'distortion_pct': 1.6},
 }
 # the lines that make a garment itself, for a bottom and for a top: the waistband or the hem, and the silhouette. A
 # line made straight shows here (a level cut on a waistband that dips 5 cm in front loses 1.7 cm). Over CONTOUR_LIMIT
@@ -161,7 +158,7 @@ def run(work, ids):
     low = {p: trimesh.load(f'{work}/low-{p}.glb', process=False).to_geometry() for p in 'BC'}
     for pid in ids:
         m = parts(work, pid); b = low[pose(pid)]
-        r, _, _ = measure(m, trimesh.Trimesh(b.vertices, b.faces, process=False), legs=int(pid) <= 15, through=True)
+        r, _, _ = measure(m, trimesh.Trimesh(b.vertices, b.faces, process=False), legs=int(pid) <= 15)
         rep['garments'][pid].update(body_crossing_pct=r['penetrates_pct'], triangles=int(len(m.faces)), contour=contour(pid, m, B[pose(pid)]))
     if len(ids) == 38:
         b = trimesh.load(f'{work}/low-B.glb', process=False).to_geometry()

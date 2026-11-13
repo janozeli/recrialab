@@ -40,11 +40,8 @@ def masked_vertices(piece, b):
 LEG_Y, LEG_X = .78, .01   # below the crotch of the neutral body (0.83 m), outside the 1 cm gap in the middle
 
 
-def measure(garment, b, hidden=None, out_max=.15, in_max=.06, legs=False, through=False):
-    """legs: below LEG_Y a ray that crosses the gap and hits the garment's other leg does not count (it is not gap).
-    through: an inward ray that leaves the body before it meets the garment does not count either: it found cloth
-    beside the body (the wrist beside a long hem, the bare arm beside the torso of a sleeveless top), not cloth the
-    body goes through."""
+def measure(garment, b, hidden=None, out_max=.15, in_max=.06, legs=False):
+    """legs: below LEG_Y a ray that crosses the gap and hits the garment's other leg does not count (it is not gap)."""
     ri = RayMeshIntersector(garment)
     n = b.vertex_normals
     o = b.vertices + n * 1e-4
@@ -63,10 +60,6 @@ def measure(garment, b, hidden=None, out_max=.15, in_max=.06, legs=False, throug
         return d
     fwd = first(n, o, out_max)
     bwd = first(-n, o, in_max)
-    if through:
-        out = RayMeshIntersector(b).intersects_location(b.vertices - n * 1e-3, -n, multiple_hits=False)
-        far = np.full(len(o), np.inf); far[out[1]] = np.einsum('ij,ij->i', out[0] - b.vertices[out[1]], -n[out[1]])
-        bwd[far < bwd] = np.inf
     covered = np.isfinite(fwd) | np.isfinite(bwd)
     signed = np.where(np.isfinite(fwd), fwd, -bwd)
     # area per vertex (1/3 of the adjacent faces)
