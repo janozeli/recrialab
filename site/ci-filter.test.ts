@@ -79,6 +79,10 @@ test('layer table: only the pairs that changed, or the bottom piece if its mesh 
 
 test('defects.json: photographs the looks whose link changed and checks the links', () => {
   expect(changedDefects({ _readme: 'a', junction: { '008.023': 'w' } }, { _readme: 'b', junction: {} })).toEqual(['008.023']);
+  // an entry with a cap is compared by content: the same cap is no change, another cap is
+  const capped = (up_to: number) => ({ tone: { '005.020': { issue: 't', up_to }, '012': { issue: 't', up_to: 49.5 } } });
+  expect(changedDefects(capped(62.1), capped(62.1))).toEqual([]);
+  expect(changedDefects(capped(62.1), capped(70))).toEqual(['005.020']);
   const read = (_: string, w: string) => w === 'before' ? { junction: { '008.023': 'f' } } : { junction: {} };
   expect(filter(['tools/visual-qa/defects.json'], read).visualQa).toBe('008.023');
   expect(filter(['tools/known-issues.yaml'], none).visualQa).toBe('check');

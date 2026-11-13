@@ -23,3 +23,17 @@ test('CI photographs the default: no version switch on the visual QA and showcas
   expect(read('tools/fit/calibration.py')).toContain("--classic --looks {} --out site/verify-out/calibration");
   expect(read('tools/fit/calibration.py')).toContain('--defects tools/visual-qa/defects-classic.json');
 });
+
+test('every defect listed for the default site has a cap, so a listed look that gets worse fails', () => {
+  const listed = JSON.parse(read('tools/visual-qa/defects.json')) as Record<string, Record<string, unknown>>;
+  const open: string[] = [];
+  for (const [measure, looks] of Object.entries(listed)) {
+    if (measure.startsWith('_')) continue;
+    for (const [look, entry] of Object.entries(looks)) {
+      const e = entry as { issue?: string; up_to?: number };
+      if (typeof e !== 'object' || typeof e.issue !== 'string' || typeof e.up_to !== 'number') open.push(`${measure} ${look}`);
+    }
+  }
+  expect(open).toEqual([]);
+  expect(read('tools/visual-qa/measure.py')).toContain('got worse than recorded');
+});
