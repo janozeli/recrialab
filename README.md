@@ -12,7 +12,7 @@ O provador foi feito para oficinas com alunos de escolas públicas: cada um mont
 cima e uma de baixo, gira o manequim, salva o look como imagem ou envia para a equipe, e a turma conversa
 sobre identidade, consumo e criatividade. Ele roda no navegador, pensado para o celular e sem cadastro: o
 look fica no próprio link (`recrialab.com/?look=015.021`) e na imagem salva. O site só guarda o que a
-pessoa escolhe enviar pelo botão Enviar (o look, um apelido, a turma e uma frase), além de uma contagem
+pessoa escolhe enviar pelo botão Enviar (o look, um nome ou apelido, a turma e uma frase), além de uma contagem
 anônima de visitas.
 
 ## Como as roupas viraram 3D

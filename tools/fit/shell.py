@@ -472,9 +472,11 @@ def generate(kind, pid, path, dense_path, low_path, out, trace=None):
             if np.median(line[tr]) < hem_max + HEM_RISE: line = np.minimum(line, hem_max + HEM_RISE)   # a top that reaches its line keeps the waistband covered all around
             elif np.median(line[tr]) < waistband + SLIVER: line = np.minimum(line, waistband - WAIST_TOP)   # a hem that stops just over the waistband meets it: the strip of body between them read as a tear
             s = np.where(tr, v[:, 1] - line, s); cov_low = np.where(tr, v[:, 1] > line - .03, cov_low)
-    # a leg of the mannequin is closed by a lid inside the hip, and the lid's middle is buried in the body:
-    # it wears nothing, and the ring around it goes straight out like an open rim
-    buried = (kd_dense.query(v)[0] > BURIED) & (v[:, 1] > mb['crotch'] + BURIED); s = np.where(buried, -1., s); cov_low &= ~buried
+    # a part of the mannequin is closed by a lid inside the body, and the lid's middle is buried in it: it wears
+    # nothing, and the ring around it goes straight out like an open rim. The hip has no lid (mannequin.joined_hip()
+    # joins torso and legs there) and its band stands off the dense body's skin: read as buried, it left a hole in
+    # every bottom at the hip
+    buried = (kd_dense.query(v)[0] > BURIED) & (v[:, 1] > mb['waist']); s = np.where(buried, -1., s); cov_low &= ~buried
     # a few vertices left bare with cloth all around them (the fold of the armpit under a sleeve, where no ray meets the
     # garment) are a hole the body shows through, not an opening of the garment: they are covered
     bare = (s <= 0) & ~buried; seen = np.zeros(len(v), bool)

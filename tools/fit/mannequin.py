@@ -36,8 +36,11 @@ APPROVED = {
     'waist_cm': 70.8,
     'shoulder_width_cm': 47.5,
     'overhang_cm2': 31,
-    'triangles': 1316,
+    'triangles': 1254,
 }
+
+CROTCH_Y = .78                 # m: the crotch, at the torso's underside
+HIP_RING, LEG_RING = .82, .74   # m: the torso's lowest ring and the leg's ring below the hip, joined in joined_hip()
 
 
 def material():
@@ -254,7 +257,7 @@ def measures(low, dense, pose=None):
     c, n = low.triangles_center, low.face_normals; under = (np.abs(c[:, 0]) > 0.15) & (c[:, 1] > 1.25) & (c[:, 1] < 1.50) & (n[:, 1] < -0.6)
     return {'asymmetry_cm': round(100 * float(far.max()), 2), 'point_cm': round(100 * float(((v[zone] - d[j]) * N[j]).sum(1).max()), 2),
             'waist_cm': round(100 * float(ConvexHull(w).area), 1), 'shoulder_width_cm': round(200 * float(np.abs(cut(1.42)[:, 0]).max()), 1),
-            'overhang_cm2': round(1e4 * float(low.area_faces[under].sum())), 'triangles': int(len(low.faces)), 'closed': bool(low.is_watertight),
+            'overhang_cm2': round(1e4 * float(low.area_faces[under].sum())), 'triangles': int(len(low.faces)), 'closed': bool(low.is_watertight and low.is_winding_consistent and all(c.volume > 0 for c in low.split(only_watertight=False))),
             **({'shape_mm': shape_mm(low, pose)} if pose else {})}
 
 
@@ -276,6 +279,51 @@ def differs(m):
     return bad
 
 
+def joined_hip(low):
+    """The low-poly mannequin with the hip in one surface. Built in parts, a leg was a part pushed into the torso,
+    whose underside ended in a rim that stood 2 cm out over the leg; a shell is a skin of the body it is built on, so
+    every bottom carried that rim as a step under the seat and a beak at the crotch (shorts 008). The torso's lowest
+    ring (HIP_RING) runs into each leg's ring at LEG_RING in one band, and the torso's underside and the leg's rings
+    inside the hip are gone. Garments are built on this body and the site draws it: with the drawn mannequin left in
+    parts, its rim showed through the bottoms, or a body let out to cover it brought the step back."""
+    v = np.asarray(low.vertices); f = np.asarray(low.faces); m = trimesh.Trimesh(v, f, process=False)
+    comp = trimesh.graph.connected_component_labels(m.face_adjacency, node_count=len(f)); vc = np.zeros(len(v), int); vc[f.ravel()] = np.repeat(comp, 3)
+    lo = np.array([v[vc == c, 1].min() for c in range(comp.max() + 1)]); hi = np.array([v[vc == c, 1].max() for c in range(comp.max() + 1)])
+    torso = int(np.flatnonzero((hi > 1.5) & (lo < .9))[0]); legs = np.flatnonzero(lo < .05)
+    at = lambda c, y: np.flatnonzero((vc == c) & (np.abs(v[:, 1] - y) < .004))
+    ring = at(torso, HIP_RING); mid = ring[np.abs(v[ring, 0]) < 1e-4]; assert len(mid) == 2 and len(legs) == 2, 'the hip is not built as joined_hip() reads it'
+    gone = np.r_[np.flatnonzero((vc == torso) & (v[:, 1] < HIP_RING - .004) & (np.abs(v[:, 0]) < .05)), np.flatnonzero(np.isin(vc, legs) & (v[:, 1] > LEG_RING + .004))]
+    new = []; tree = cKDTree(v)
+    for c in legs[:1]:
+        B = at(c, LEG_RING); ctr = v[B][:, [0, 2]].mean(0); A = np.r_[ring[v[ring, 0] * np.sign(ctr[0]) > 1e-4], mid]
+        ang = lambda i: np.arctan2(v[i, 2] - ctr[1], v[i, 0] - ctr[0])
+        A, B = A[np.argsort(ang(A))], B[np.argsort(ang(B))]; a, b = np.r_[ang(A), ang(A[0]) + 2 * np.pi], np.r_[ang(B), ang(B[0]) + 2 * np.pi]
+        i = j = 0
+        while i < len(A) or j < len(B):                        # one band between the two loops: the loop behind steps
+            if j == len(B) or (i < len(A) and a[i + 1] <= b[j + 1]): t = (A[i], A[(i + 1) % len(A)], B[j % len(B)]); i += 1
+            else: t = (A[i % len(A)], B[(j + 1) % len(B)], B[j]); j += 1
+            n = np.cross(v[t[1]] - v[t[0]], v[t[2]] - v[t[0]]); c3 = v[list(t)].mean(0)
+            new.append(t if n[0] * (c3[0] - ctr[0]) + n[2] * (c3[2] - ctr[1]) > 0 else (t[0], t[2], t[1]))   # outward: away from the leg's axis
+    # the other leg's band is this one in the mirror, triangle by triangle: two bands each built by its own walk
+    # put the diagonal from the crotch to one thigh only, a facet the bottoms carried on one side
+    far, twin = tree.query(v * [-1, 1, 1]); used = np.unique(new); assert far[used].max() < 1e-4, 'the hip is not the same on both sides'
+    new = np.vstack([np.array(new), twin[np.array(new)][:, ::-1]])
+    out = trimesh.Trimesh(v, np.vstack([f[~np.isin(f, gone).any(1)], new]), process=False); out.remove_unreferenced_vertices(); out.visual = material()
+    trimesh.repair.fix_normals(out)                            # every face outward: a band's face under the crotch faces the other leg, not away from its own axis
+    assert out.is_winding_consistent and all(p.is_watertight for p in out.split(only_watertight=False)), 'the hip is not closed'
+    # between the thighs the torso's ring has no body to stand on and its front vertex sits in the middle of the body:
+    # it goes forward to its neighbours and, with the back one, down to the torso's underside, so the crotch is closed
+    # in front of the legs and under the torso; the back one goes halfway to the back of the legs
+    V = np.asarray(out.vertices).copy(); F = np.asarray(out.faces); y = V[:, 1]
+    ringv = np.flatnonzero(np.abs(y - HIP_RING) < .004); c = ringv[np.abs(V[ringv, 0]) < 1e-4]; side = ringv[np.abs(V[ringv, 0]) > 1e-4]
+    front = c[np.argmax(V[c, 2])]; near = side[np.argsort(np.abs(V[side, 0]) - 10 * (V[side, 2] > V[front, 2]))[:2]]
+    V[front, 2] = V[near, 2].mean(); V[c, 1] = CROTCH_Y
+    back = c[np.argmin(V[c, 2])]; nb = side[np.argsort(np.abs(V[side, 0]) - 10 * (V[side, 2] < 0))[:2]]
+    leg = V[(np.abs(y - LEG_RING) < .004) & (np.abs(V[:, 0]) < .2), 2].min(); V[back, 2] = (V[nb, 2].mean() + leg) / 2
+    out = trimesh.Trimesh(V, F, process=False); out.visual = material()
+    return out
+
+
 def build(pose, dense_path, low_path):
     """Writes the dense and the low-poly body of a pose. Returns the low-poly body's triangles and how far it was
     built from the recorded one, in mm. Two processors do not round alike, and a low-poly body a hundredth of a
@@ -284,7 +332,7 @@ def build(pose, dense_path, low_path):
     recorded one, vertices and faces, the same on every machine. One built further is written as built, and check()
     fails it."""
     d = curved(pose); d.export(dense_path)
-    low = rounded(joined(d, in_parts(d)), ROUND); built = shape_mm(low, pose)
+    low = joined_hip(rounded(joined(d, in_parts(d)), ROUND)); built = shape_mm(low, pose)
     if built <= SHAPE:
         r = json.load(open(RECORD))[pose]; low = trimesh.Trimesh(np.array(r['v']), np.array(r['f']), process=False); low.visual = material()
     low.export(low_path)

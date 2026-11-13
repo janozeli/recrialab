@@ -141,6 +141,12 @@ test('the form and the server share the same limits', () => {
   expect(html).toContain('id="send-credit" name="credit" required');
 });
 
+test('the form asks for a name or nickname, not initials', () => {
+  const html = readFileSync(new URL('./index.html', import.meta.url), 'utf8');
+  expect(html).toContain('>Nome ou apelido<input id="send-credit"');
+  expect(html.toLowerCase()).not.toContain('iniciais');
+});
+
 // The fitting room confirms a send only on the server's whole answer. Confirming on the status line left the answer
 // unread, and the request then finished or was dropped with the page, whichever came first.
 const SENT = { look: '004.024', credit: 'Bia', group: '', name: '', note: '' };
