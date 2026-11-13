@@ -168,6 +168,8 @@ export async function auditSendLook(page, look) {
   let ended = false;
   const onEnd = request => { if (request.url().endsWith('/api/looks')) ended = true; };
   page.on('requestfinished', onEnd);
+  // A phone nobody has sent from: the form opens empty.
+  await page.evaluate(() => localStorage.removeItem('recrialab-sender'));
   await page.locator('#send-look').click();
   await page.waitForSelector('#look-send-dialog[open]');
   await page.waitForTimeout(300);
@@ -183,6 +185,9 @@ export async function auditSendLook(page, look) {
   await page.waitForTimeout(200);
   if (sent.length) out.push('a look was sent without a nickname');
   await page.locator('#send-credit').fill('teste');
+  await page.locator('#send-group').fill('2B');
+  await page.locator('#send-name').fill('primeiro');
+  await page.locator('#send-note').fill('a frase do primeiro');
   await page.locator('#send-submit').click();
   try {
     await page.locator('#send-done').waitFor({ state: 'visible', timeout: 10_000 });
@@ -195,6 +200,20 @@ export async function auditSendLook(page, look) {
   out.push(...await page.evaluate(commonProblems));
   await page.locator('#send-finish').click();
   if (await page.locator('#look-send-dialog[open]').count()) out.push('the send dialog does not close');
+  // The next look from the same phone: who sends is already filled in, what is said about the look is not, and one
+  // tap sends it.
+  await page.locator('#send-look').click();
+  await page.waitForSelector('#look-send-dialog[open]');
+  const again = await page.evaluate(() => Object.fromEntries(['credit', 'group', 'name', 'note'].map(f => [f, document.querySelector(`#send-${f}`).value])));
+  if (again.credit !== 'teste' || again.group !== '2B') out.push(`the second look does not come with name and class filled in: ${JSON.stringify(again)}`);
+  if (again.name || again.note) out.push(`the second look comes with the name or the note of the first: ${JSON.stringify(again)}`);
+  await page.locator('#send-submit').click();
+  try {
+    await page.locator('#send-done').waitFor({ state: 'visible', timeout: 10_000 });
+  } catch { out.push('the second look is not sent in one tap'); }
+  if (sent.length !== 2 || sent.at(-1)?.credit !== 'teste' || sent.at(-1)?.group !== '2B') out.push(`second look sent as ${JSON.stringify(sent.at(-1))}, expected teste of 2B`);
+  await page.locator('#send-finish').click();
+  await page.evaluate(() => localStorage.removeItem('recrialab-sender'));
   await page.unroute('**/api/looks');
   return out;
 }
