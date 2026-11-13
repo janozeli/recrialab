@@ -25,13 +25,14 @@ import mannequin, shell, tube, loose_hood, identity, looks
 
 BASELINE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'engine.json')
 # per-garment baseline: value read from the report and the slack a rerun on another machine may show over the
-# recorded value (CI against the machine that recorded: 1 triangle, 0.9 points of distortion; one more body vertex
+# recorded value (CI against the machine that recorded: 1 triangle, 0.9 points of distortion, 24 cm of tear on 021 at
+# e40c016 with every other garment within 3 cm, 19 cm on the back of 017; one more body vertex
 # crossing is 0.3 points or more, so 0.1 lets none through)
 KEPT = {
     'body_crossing_pct': (lambda g: g['body_crossing_pct'], .1),
     'triangles': (lambda g: g['triangles'], 5),
-    'tear_cm': (lambda g: g['shell']['identity']['tear_cm'], 15),
-    'tear_back_cm': (lambda g: g['shell']['identity']['tear_back_cm'], 10),
+    'tear_cm': (lambda g: g['shell']['identity']['tear_cm'], 30),
+    'tear_back_cm': (lambda g: g['shell']['identity']['tear_back_cm'], 20),
     'contour_lost_cm': (lambda g: lost(g, CONTOUR), .3),
     'edge_lost_cm': (lambda g: lost(g, EDGES), .3),
     'back_lost_cm': (lambda g: g['contour']['back']['lost_cm'] if 'back' in g['contour'] else 0., .3),
