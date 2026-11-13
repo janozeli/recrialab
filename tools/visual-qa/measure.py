@@ -5,9 +5,14 @@ back, from below and from above).
   python3 tools/visual-qa/measure.py DIR            # table per look
   python3 tools/visual-qa/measure.py DIR --ci       # fails a new defect and a fixed defect that is still listed
 
+The pictures are of the site as it opens for a visitor (visual-qa.mjs), so the measures and defects.json are of what
+the site serves by default. defects-classic.json is the list for the garments published before the fit engine, which
+`?classico` still shows: `--defects tools/visual-qa/defects-classic.json` over pictures taken with --classic.
+
 A known defect is never accepted silently: tools/visual-qa/defects.json links each look to an open known issue
 that names one of its pieces (known_issues.py), or records it under `_accepted` with who accepted it and a cap
-(what the thrift-shop photo has, like skin through a tear). A defect not on the list fails; a listed defect that went
+(what the thrift-shop photo has, like skin through a tear). A defect not on the list fails, and so does a listed one past its recorded cap (`up_to`: what was read when it was
+listed plus a tenth of the limit); a listed defect that went
 away also fails (take it off the list and close the issue in the same change). Limits live in LIMITS, never per
 garment.
 """
@@ -318,7 +323,9 @@ def main():
         print(f'{k:11} {len(looks):3} looks: ' + ' '.join(f"{l}({table[l]['measures'][k]})" for l in looks))
     if not ci:
         return
-    known = json.load(open(f'{ROOT}/tools/visual-qa/defects.json', encoding='utf8'))
+    # --defects FILE: the list for pictures taken with --classic (defects-classic.json, the garments before the engine)
+    listed = sys.argv[sys.argv.index('--defects') + 1] if '--defects' in sys.argv else 'tools/visual-qa/defects.json'
+    known = json.load(open(f'{ROOT}/{listed}', encoding='utf8'))
     issues = known_issues()
     errors = []
     # accepted by a person (what the thrift-shop photo has, like skin through a tear): passes up to the recorded
@@ -340,7 +347,12 @@ def main():
     for k, looks in known.items():
         if k.startswith('_'):
             continue
-        for key, stream in looks.items():
+        for key, entry in looks.items():
+            # an entry is the issue's id or {issue, up_to}: with a cap, a listed defect that gets worse fails too
+            stream, cap = (entry['issue'], entry.get('up_to')) if isinstance(entry, dict) else (entry, None)
+            if cap is not None and key in table and table[key]['measures'][k] > cap:
+                errors.append(f'{k} on {key} got worse than recorded ({table[key]["measures"][k]} > {cap}, '
+                              f'view {table[key]["worst_view"][k]}): known issue {stream} does not cover it')
             if stream not in issues:
                 errors.append(f'{k} {key}: {stream} is not an open known issue in {KNOWN_ISSUES}')
             elif not issues[stream] & set(key.split('.')):
@@ -358,7 +370,7 @@ def main():
             target = [l for l in measured if l == key]
             # really gone: below half the limit on every measured look (near the limit it is render noise)
             if target and all(table[l]['measures'][k] < LIMITS[k] / 2 for l in target):
-                errors.append(f'{k} on {key} went away: take it off tools/visual-qa/defects.json and close the known issue')
+                errors.append(f'{k} on {key} went away: take it off {listed} and close the known issue')
     print('\n'.join(errors) or 'visual QA ok')
     sys.exit(1 if errors else 0)
 

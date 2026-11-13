@@ -1,7 +1,7 @@
 // Visual QA: photographs each look from every point of the site orbit (from below and above too) with the site's
 // masks and layers, and saves per view the class mask (body, top, bottom, inside out), the garment depth, the unlit
 // texture and the torso in view at the waist. tools/visual-qa/measure.py measures what looks wrong.
-// Usage: node tools/verify-site/visual-qa.mjs [--looks 016,004.016] [--plan all|ci|pairs] [--changed 008,001.016] [--part 0/4] [--out dir] [--beauty] [--engine]
+// Usage: node tools/verify-site/visual-qa.mjs [--looks 016,004.016] [--plan all|ci|pairs] [--changed 008,001.016] [--part 0/4] [--out dir] [--beauty] [--classic|--engine]
 // Serves site/dist/ (run `bun run build` first). Writes NNN/view.cls, .depth.gz (garment depth), .body.gz (whole body, no mask) and .albedo.jpg, measures.json and, with --beauty,
 // the lit picture of each view as JPEG to compare by eye with the thrift-shop photos.
 import { createServer } from 'node:http';
@@ -23,9 +23,11 @@ const arg = (name, fallback) => { const i = process.argv.indexOf(`--${name}`); r
 const root = fileURLToPath(new URL('../..', import.meta.url)).replace(/\/$/, '');
 const out = arg('out', join(root, 'site', 'verify-out', 'visual-qa'));
 const beauty = process.argv.includes('--beauty');
-// The measures and their known defects are of the published garments (dense body, masks, layer tables): `?classico`.
-// --engine photographs the look with the fit engine's garments (`?engine`), where every garment of the look has one.
-const engine = process.argv.includes('--engine');
+// The look opens as the site opens it for a visitor, with no switch in the address: the measures and their known
+// defects are of what the site serves by default (site/engine-look.ts, site/ps1.ts). --classic photographs the garments
+// as published before the fit engine (`?classico`: dense body, masks, layer tables); --engine forces the engine's
+// garments (`?engine`) whatever the default.
+const version = process.argv.includes('--classic') ? '&classico' : process.argv.includes('--engine') ? '&engine' : '';
 mkdirSync(out, { recursive: true });
 
 const ids = n => Array.from({ length: n }, (_, i) => String(i + 1).padStart(3, '0'));
@@ -274,7 +276,7 @@ page.on('pageerror', e => errors.push(String(e)));
 const rows = [];
 try {
   for (const look of looks) {
-    await page.goto(`${base}/?look=${look}&qa=1${engine ? '&engine' : '&classico'}`);
+    await page.goto(`${base}/?look=${look}&qa=1${version}`);
     await page.waitForFunction(() => document.querySelector('#stage')?.getAttribute('aria-busy') === 'false' && window.__qa, null, { timeout: 120_000 });
     // the look restored from the link finishes dressing after the mannequin is ready
     const expected = look.split('.').sort().join('.');

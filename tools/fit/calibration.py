@@ -75,17 +75,22 @@ CASES = {
         'python3 tools/fit/penetration.py',
         'python3 tools/fit/poke_through.py --max-pokes 50 --max-holes 7000 --max-bottom-pokes 30 006',
     ]),
+    'uneven-sleeves-023': ('polo 023 as the fit engine first built it: the side of the top read as a sleeve, so one arm '
+                           'wore a sleeve down to the elbow, 20 cm longer than the other, painted with the lining', [
+        'python3 tools/fit/engine.py --sleeves site/assets/engine/023-shell.glb',
+    ]),
     'cuff-tip-021': ('tip of the left cuff of 021 hanging 4 cm below the rim, a beige V over the arm', [
         'python3 tools/fit/cuff_tip.py --check',
     ]),
 }
 
 
-# cases measured in the site's own pictures (tools/visual-qa/measure.py): they build the site and photograph it with
+# cases measured in the site's own pictures (tools/visual-qa/measure.py), of the garments published before the fit
+# engine (--classic and their own defect list): they build the site and photograph it with
 # chromium, so they run with --visual in the visual-qa job (site-e2e.yml), not in the fit job
 RENDER = ('cd site && GITHUB_SHA=calibration bun run build > /dev/null && cd .. && node tools/verify-site/visual-qa.mjs '
-          '--looks {} --out site/verify-out/calibration > /dev/null && python3 tools/visual-qa/measure.py '
-          'site/verify-out/calibration --ci')
+          '--classic --looks {} --out site/verify-out/calibration > /dev/null && python3 tools/visual-qa/measure.py '
+          'site/verify-out/calibration --ci --defects tools/visual-qa/defects-classic.json')
 VISUAL_CASES = {
     'arm-stump-022': ('022 as seen in the site before the sleeve clip: the jersey sleeve 5 cm in front of the arm and the mask hiding the arm '
                       'in long triangles, so under the sleeve the arm ends in a jagged stump with the background showing', [
