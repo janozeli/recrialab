@@ -15,8 +15,9 @@ usage: python3 tools/fit/engine.py WORK            (builds everything and writes
        python3 tools/fit/engine.py WORK 016 004    (only these garments; no look measures)
        python3 tools/fit/engine.py WORK --check    (fails where a garment is worse than its baseline or a look limit is passed)
        python3 tools/fit/engine.py WORK --write    (records the baseline; values may only go down against the recorded ones)
+       python3 tools/fit/engine.py WORK --write --new-body   (the same on a mannequin that is not main's: lines may go up, each printed)
        python3 tools/fit/engine.py --sleeves SHELL.glb ...   (only the check of uneven sleeves, on shells already built)"""
-import sys, os, json, glob, shutil, hashlib, numpy as np, trimesh
+import sys, os, json, glob, shutil, hashlib, subprocess, numpy as np, trimesh
 from multiprocessing import Pool
 from metric import measure, POSE_C
 from paths import GARMENTS
@@ -214,12 +215,26 @@ def worse(pid, k, new, old):
     return new is None or round(new - old, 1) > slack(pid, k)      # rounded: 5.1 + .1 is less than 5.2 in floating point
 
 
-def write(rep):
-    """One garment per line, so changes to different garments do not conflict."""
+def new_body():
+    """The recorded mannequin is not main's: a person approved another body, and the lines read on the old one are
+    read again on it. Without git or without main there is no telling, and the answer is no."""
+    try: was = subprocess.run(['git', 'show', 'origin/main:tools/fit/mannequin.json'], cwd=os.path.dirname(BASELINE), capture_output=True, check=True).stdout
+    except Exception: return False
+    return was != open(mannequin.RECORD, 'rb').read()
+
+
+def write(rep, body=False):
+    """One garment per line, so changes to different garments do not conflict. body: the lines are read again on a
+    new mannequin (--write --new-body); a line may then go up, each one is printed, and it is refused unless the
+    recorded mannequin differs from main's."""
     new = baseline(rep)
     if os.path.exists(BASELINE):
         old = json.load(open(BASELINE))
         up = [f'{p} {k}: {old[p][k]} -> {v}' for p, g in new.items() for k, v in g.items() if p in old and worse(p, k, v, old[p].get(k))]
+        if up and body and new_body():
+            print('lines that go up on the new body:\n' + '\n'.join(up)); raised = {tuple(u.split(':')[0].split()) for u in up}
+            new = {p: {k: v if (p, k) in raised or p not in old or old[p].get(k) is None else min(v, old[p][k]) for k, v in g.items()} for p, g in new.items()}
+            open(BASELINE, 'w').write('{\n' + ',\n'.join(f' "{p}": {json.dumps(g)}' for p, g in sorted(new.items())) + '\n}\n'); return
         if up: raise SystemExit('a baseline only goes down:\n' + '\n'.join(up))
         # a value inside the slack is the same value read on another machine: the recorded one stays, or write after
         # write would walk the baseline up
@@ -252,6 +267,8 @@ if __name__ == '__main__':
     for pid, g in rep['garments'].items():
         print(pid, f"crossing {g['body_crossing_pct']}%  triangles {g['triangles']}  identity {g['shell']['identity']}")
     if 'summary' in rep: print(json.dumps(rep['summary']))
-    if '--write' in flags: write(rep)
+    if '--write' in flags:
+        write(rep, '--new-body' in flags)
+        if '--new-body' in flags and new_body(): tube.record(rep, True)
     if '--check' in flags:
         bad = check(rep); print('\n'.join(bad) or 'ok'); sys.exit(1 if bad else 0)
