@@ -44,6 +44,8 @@ LIMB_BLEND = 0.04      # m: width of the blend between torso rays and limb rays 
 EDGE_SECTORS = 24      # sectors around the body in which a waistband's or a hem's height is read
 WAIST_DIP = 0.0        # m: the lowest point of a waistband's curve sits this far under the waistband line; the curve rises from there
 WAIST_TOP = 0.01       # m: ... up to this far under the waist
+TORSO_IN = 0.08        # m: half width of the torso that is inside every top; a sleeve's inner wall is further out than this
+IN_ARM = 0.003         # m: cloth this deep under the skin of an arm cuts through the arm
 ISLAND = 8             # vertices: a bare patch of the mannequin up to this size, with cloth all around, is covered
 BURIED = .03           # m: a vertex of the mannequin this far from the body's skin is the middle of a lid
 SHOULDER_HOLDS = 1.34  # m: above this the mannequin's shoulder is one of the points a top hangs from
@@ -241,14 +243,24 @@ def coverage(piece, dense, radius, kind):
         s = lab == m
         sign = 1 if m in (1, 3) else -1
         outer = s & (n[:, 0] * sign > -0.2)             # not facing the torso or the other leg
-        rings = {}
+        rings = {}; side = set()
         for y in np.unique(ys[s]):
             ring = s & (ys == y); vote = np.flatnonzero(outer & (ys == y))
             if len(vote) < 3: continue
             # rays from the limb axis outward: they hold even where the generated sleeve runs inside the arm
             c = v[ring].mean(0); r = v[vote] - c; dist = np.linalg.norm(r, axis=1); r /= dist[:, None]
             loc, ir, _ = piece.ray.intersects_location(np.repeat(c[None], len(vote), 0), r, multiple_hits=False)
-            rings[y] = (np.linalg.norm(loc - c, axis=1) < dist[ir] + radius).sum() / len(vote) > 0.5
+            hit = np.linalg.norm(loc - c, axis=1)
+            rings[y] = (hit < dist[ir] + radius).sum() / len(vote) > 0.5
+            # an arm that hangs through the side of a top that is wide or sits off centre has cloth around it too, and
+            # it is the body of the top, not a sleeve: most of that cloth cuts through the arm, and no wall stands
+            # between the arm and the torso. The ring wears nothing (a polo's short sleeve went on down to the elbow,
+            # painted with the top's lining). One ring like it alone is a fold of a sleeve
+            if rings[y] and kind == 'top' and m in (1, 2) and (hit < dist[ir] - IN_ARM).sum() / len(vote) > 0.5:
+                loc, _, _ = piece.ray.intersects_location(c[None], np.array([[-sign, 0., 0.]]), multiple_hits=True)
+                if not (loc[:, 0] * sign > TORSO_IN).any(): side.add(y)
+        for y in side:
+            if y + 1 in side or y - 1 in side: rings[y] = False
         # a sleeve or a pant leg covers from the shoulder or hip down to its end: the lowest covered ring (with a
         # covered neighbor right above) closes every ring above it
         keys = sorted(rings)

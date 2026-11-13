@@ -7,14 +7,17 @@ neck) or stands over the shell as a collar does. The choice is closed and smooth
 line, not triangle by triangle, so the border is clean; of it only the faces a camera can see are kept (a lining
 pressed against the back comes dark from the generator and would show through the outer face once both are
 simplified), and only pieces that hang from the neck. Where the shell passes over it, the loose part is lifted
-onto the shell, so it never shows in shards. It is simplified to TARGET triangles and painted from the same faces
+onto the shell, so it never shows in shards. It is simplified to the triangles its recorded one has (TARGET at most),
+twice: by a collapse that holds its border (one that does not wears the rim of a tall collar down and leaves the neck
+bare: 035) and by one that does not, and the first is kept unless it raises a recorded line. It is painted from the same faces
 it came from, each texel from the nearest point of them that faces the same way: the print of a hood is the
 garment's own. A garment with too little cloth outside its shell (a jersey's collar) gets no loose part.
 
 measure() compares the result with the garment as generated, from cameras around it, one ray per RAY² of area:
 - dark_cm2: the loose part in view much darker than the garment at the same place (a hole showing the lining);
 - off_cm2: the loose part in view with nothing of the garment within NEAR behind or in front of it (a sliver);
-- edge_cm: length of the loose part's border (a ragged cut, a shard);
+- edge_cm: length of the loose part's border where the garment goes on past it and no shell takes over (a ragged
+  cut, a notch); the garment's own rim and the seam on the shell are not counted;
 - lost_cm2: the garment's cloth around the neck and on the upper back in view where the rebuilt garment (shell and
   loose part) shows nothing: against the background (the hood or the collar lost its outline), or in front of the
   body where the low-poly mannequin is now bare (bare_cm2, a part of lost_cm2).
@@ -34,7 +37,7 @@ usage: python3 tools/fit/loose_hood.py DENSE_BODY.glb GARMENT.glb OUT.glb [SHELL
        python3 tools/fit/loose_hood.py --check WORK       (checks WORK/report.json, written by a run of engine.py)
        python3 tools/fit/loose_hood.py --write WORK       (records the measures of WORK/report.json as the baseline)
        python3 tools/fit/loose_hood.py --published WORK   (measures the published loose parts against the garments of WORK)"""
-import sys, os, json, numpy as np, trimesh, xatlas, fast_simplification
+import sys, os, json, heapq, numpy as np, trimesh, xatlas, fast_simplification
 from scipy.spatial import cKDTree
 from scipy.sparse import coo_matrix
 from scipy import ndimage
@@ -43,6 +46,7 @@ import shell as S
 
 NECK, BASE, SHOULDERS = 1.47, 1.20, .19   # m: neck line; lowest height; half width kept
 FAR = .03              # m: cloth this far from the body is hood or collar, not back or shoulder
+BORDER = 1             # times: in the collapse, leaving the border weighs this much more than leaving the surface
 SEED = .012            # m: cloth this far outside the shell is not held by it
 CLOSE, SMOOTH = 2, 3   # edges of the garment: holes of the choice closed; passes that smooth its border
 SLOPE = .15            # m per m: below the neck a garment hangs looser, and a hood has to stand further out to be one
@@ -55,6 +59,8 @@ MIN_AREA = .004        # m²: a kept piece smaller than this is a sliver
 AT_NECK = .10          # m: a kept piece comes this close to the middle of the neck, to the side; one that does not lies on a shoulder alone, cut off from the hood
 MIN_LOOSE = .025       # m²: less cloth than this outside the shell is no hood: the shell alone holds the garment
 IN_NECK = 1            # cm²: more of the loose part than this through the mannequin's neck fails
+PAST = .015            # m: how far past the border of the loose part the garment is looked for
+AT = .008              # m: cloth this close to that place is there
 TARGET = 260           # triangles
 TEX = 256              # px: side of the baked texture
 NEAR = .05             # m: two surfaces this close along a ray are the same cloth (the shell may move it this much)
@@ -140,14 +146,81 @@ def seen(c, piece, body):
     return out
 
 
-def simplify(V, F, target=TARGET):
+def collapse(V, F, target):
+    """Edges collapsed one at a time, the cheapest first, down to target triangles. The cost of a place for a vertex
+    is its squared distance to the planes of the triangles it stands for, and, on the border, to planes that stand
+    on the border's edges (BORDER times heavier): the outline of a hood or the rim of a collar is held while the
+    folds inside are spent. A collapse that would fold a triangle over, pinch the surface or leave a needle is not
+    made."""
+    V = V.copy(); F = F.copy(); n = len(V); alive = np.ones(len(F), bool)
+    tri = V[F]; N = np.cross(tri[:, 1] - tri[:, 0], tri[:, 2] - tri[:, 0]); area = np.linalg.norm(N, axis=1) / 2; N /= np.maximum(2 * area, 1e-20)[:, None]
+    Q = np.zeros((n, 4, 4))
+    def plane(nrm, p, w): pl = np.r_[nrm, -nrm @ p]; return w * np.outer(pl, pl)
+    for f in range(len(F)):
+        K = plane(N[f], V[F[f, 0]], area[f])
+        for v in F[f]: Q[v] += K
+    e = np.sort(np.concatenate([F[:, [0, 1]], F[:, [1, 2]], F[:, [2, 0]]]), axis=1); fe = np.tile(np.arange(len(F)), 3)
+    u, inv, cnt = np.unique(e, axis=0, return_inverse=True, return_counts=True); inv = inv.ravel()
+    for k in np.flatnonzero(cnt[inv] == 1):
+        a, b = e[k]; d = V[b] - V[a]; L2 = d @ d; nrm = np.cross(d, N[fe[k]]); nrm /= max(np.linalg.norm(nrm), 1e-20)
+        K = plane(nrm, V[a], BORDER * L2); Q[a] += K; Q[b] += K
+    border = np.zeros(n, bool); border[e[cnt[inv] == 1].ravel()] = True
+    faces = [set() for _ in range(n)]
+    for f, t in enumerate(F):
+        for v in t: faces[v].add(f)
+    stamp = np.zeros(n, int); heap = []
+    def cost(a, b):
+        q = Q[a] + Q[b]; best = None
+        cands = [V[a], V[b], (V[a] + V[b]) / 2]
+        if border[a] != border[b]: cands = [V[a] if border[a] else V[b]]      # the border does not move inward
+        else:
+            try:
+                x = np.linalg.solve(q[:3, :3], -q[:3, 3])
+                if np.linalg.norm(x - (V[a] + V[b]) / 2) < 2 * np.linalg.norm(V[a] - V[b]): cands.append(x)
+            except np.linalg.LinAlgError: pass
+        for x in cands:
+            h = np.r_[x, 1]; c = h @ q @ h
+            if best is None or c < best[0]: best = (c, x)
+        return best
+    def push(a, b):
+        a, b = (a, b) if a < b else (b, a); c, x = cost(a, b); heapq.heappush(heap, (c, a, b, stamp[a], stamp[b], tuple(x)))
+    for a, b in u: push(a, b)
+    left = len(F)
+    while left > target and heap:
+        c, a, b, sa, sb, x = heapq.heappop(heap)
+        if stamp[a] != sa or stamp[b] != sb or not faces[a] or not faces[b]: continue
+        shared = faces[a] & faces[b]
+        if not shared: continue
+        na = {v for f in faces[a] for v in F[f]} - {a, b}; nb = {v for f in faces[b] for v in F[f]} - {a, b}
+        if len(na & nb) != len(shared): continue                  # the collapse would pinch the surface
+        if border[a] and border[b] and len(shared) != 1: continue   # two borders joined across the cloth
+        x = np.array(x); bad = False
+        for f in (faces[a] | faces[b]) - shared:
+            t = F[f]; old = V[t]; new = old.copy(); new[(t == a) | (t == b)] = x
+            n0 = np.cross(old[1] - old[0], old[2] - old[0]); n1 = np.cross(new[1] - new[0], new[2] - new[0])
+            if n0 @ n1 < .2 * np.linalg.norm(n0) * np.linalg.norm(n1) or np.linalg.norm(n1) < 1e-12: bad = True; break
+        if bad: continue
+        V[a] = x; Q[a] = Q[a] + Q[b]; border[a] = border[a] or border[b]
+        for f in shared:
+            alive[f] = False
+            for v in F[f]: faces[v].discard(f)
+        for f in list(faces[b]): F[f][F[f] == b] = a; faces[a].add(f)
+        faces[b] = set(); left -= len(shared); stamp[a] += 1; stamp[b] += 1
+        for v in {v for f in faces[a] for v in F[f]} - {a}: push(a, v)
+    m = trimesh.Trimesh(V, F[alive], process=False); m.remove_unreferenced_vertices()
+    return np.asarray(m.vertices, float), np.asarray(m.faces)
+
+
+def simplify(V, F, target=TARGET, border=True):
     """The cut down to target triangles. The cut leaves triangles of no area and vertices in the same place, which
-    stall the collapse: they are removed first, so the collapse alone gets there. Only if it still stops, vertices
-    closer than a cell are welded, in cells that grow (that welding depends on where a vertex falls in its cell, so
-    two machines may not agree on it)."""
+    stall a collapse: they are removed first, and collapse() gets there holding the border. Where it stops short
+    (every edge left would fold or pinch the surface), or with border off, a collapse that holds no border does it, and only if that
+    one stops too, vertices closer than a cell are welded, in cells that grow (that welding depends on where a vertex
+    falls in its cell, so two machines may not agree on it)."""
     m = trimesh.Trimesh(V, F, process=False); m.merge_vertices()
     m.update_faces(m.area_faces > 1e-10); m.update_faces(m.unique_faces()); m.remove_unreferenced_vertices()
     V, F = np.asarray(m.vertices, float), np.asarray(m.faces)
+    if border: V, F = collapse(V, F, target)                   # what follows only finishes a collapse that stopped short
     for cell in (0, .01, .015, .02, .03, .04, .06):
         if len(F) <= target: break
         if cell:
@@ -268,20 +341,30 @@ def build(dense_path, src, dst, shell_path=None):
     low = S.load_body(low_path(dense_path))
     cloth = loose(piece, body, sh)
     if cloth is None: return {**measure(dense_path, src, [shell_path], dst), 'in_neck_cm2': 0.0, **published(dense_path, src)}
-    V0, F0, faces = cloth; before = len(F0); V0 = lift(V0, sh); target = TARGET
-    while True:                                                # the cut on the mannequin adds triangles: simplify further until it fits
-        V, F = simplify(V0, F0, target)
-        V, F = outside(lift(V, sh), F, low)
-        if len(F) <= TARGET or target < 60: break
-        target -= len(F) - TARGET + 4
-    F = F[whole(V, F)]
-    if not len(F): return {**measure(dense_path, src, [shell_path], dst), 'in_neck_cm2': 0.0, **published(dense_path, src)}
-    m = trimesh.Trimesh(V, F, process=False); m.remove_unreferenced_vertices()
-    V2, N2, UV, F2, img = bake(piece, faces, np.asarray(m.vertices), np.asarray(m.faces))
-    S.export(dst, V2, F2, N2, UV, img, double_sided=True)
-    return {**measure(dense_path, src, [shell_path], dst), 'triangles_before': int(before),
-            'pieces': len(m.split(only_watertight=False)), 'area_cm2': int(m.area * 1e4),
-            'in_neck_cm2': in_neck(m, low), **published(dense_path, src)}
+    V0, F0, faces = cloth; V0 = lift(V0, sh); pid = os.path.basename(src)[:3]; most = ceiling(pid); made = {}
+    for border in (True, False):                               # the collapse that holds the border, and the one that does not
+        target = fits = most if border else TARGET             # the plain collapse as it has always been made: the recorded loose parts come from it
+        while True:                                            # the cut on the mannequin adds triangles: simplify further until it fits
+            V, F = simplify(V0, F0, target, border)
+            V, F = outside(lift(V, sh), F, low); kept = F[whole(V, F)]
+            if len(kept if border else F) <= fits or target < 60: break
+            target -= len(kept if border else F) - fits + 4
+        F = kept
+        if not len(F): continue
+        m = trimesh.Trimesh(V, F, process=False); m.remove_unreferenced_vertices(); path = dst if border else dst + '.plain.glb'
+        V2, N2, UV, F2, img = bake(piece, faces, np.asarray(m.vertices), np.asarray(m.faces))
+        S.export(path, V2, F2, N2, UV, img, double_sided=True)
+        made[border] = {**measure(dense_path, src, [shell_path], path), 'triangles_before': int(len(F0)),
+                        'pieces': len(m.split(only_watertight=False)), 'area_cm2': int(m.area * 1e4),
+                        'in_neck_cm2': in_neck(m, low), 'border_held': border}
+    # holding the border is kept where no recorded line pays for it: a collapse is a different mesh for each way of
+    # making it, on some garments the held border is a longer ragged one, and a line only goes down
+    plain = dst + '.plain.glb'; line = json.load(open(BASELINE)).get(pid) or {}
+    if False in made and (True not in made or any(made[True][k] > line.get(k, np.inf) + s for k, s in SLACK.items())): os.replace(plain, dst); out = made[False]
+    else:
+        if os.path.exists(plain): os.remove(plain)
+        out = made.get(True) or {**measure(dense_path, src, [shell_path], dst), 'in_neck_cm2': 0.0}
+    return {**out, **published(dense_path, src)}
 
 
 def in_neck(m, low_body):
@@ -301,17 +384,34 @@ def published(dense_path, src):
     return {'published': out}
 
 
+def ceiling(pid):
+    """The most triangles the loose part of a garment may have: what its recorded one has, never over TARGET. A
+    garment's triangles are a line of the engine's baseline, which only goes down."""
+    was = json.load(open(BASELINE)).get(pid, {}).get('triangles', 0)
+    return min(was, TARGET) if was else TARGET
+
+
 def low_path(dense_path):
     """The low-poly mannequin the engine wrote next to the dense one."""
     low = dense_path.replace('dense-', 'low-'); assert low != dense_path and os.path.exists(low), f'no low-poly mannequin for {dense_path}'
     return low
 
 
-def open_edge(mesh):
-    """Length of the border of a surface (m): a ragged cut and a sliver are mostly border."""
+def open_edge(mesh, garment, shell):
+    """Length (m) of the border of the loose part where the garment goes on and nothing takes over: PAST the border,
+    in the plane of its triangle, there is cloth of the garment within AT and no shell within AT. The rest of the
+    border is the garment's own (a rim, or the fold where a collar turns into its lining: past it there is no
+    cloth) or a seam on the shell."""
     m = trimesh.Trimesh(mesh.vertices, mesh.faces, process=False); m.merge_vertices(digits_vertex=5)
-    e = np.sort(m.edges, axis=1); u, n = np.unique(e, axis=0, return_counts=True)
-    return np.linalg.norm(m.vertices[u[n == 1, 0]] - m.vertices[u[n == 1, 1]], axis=1).sum()
+    V = np.asarray(m.vertices); F = np.asarray(m.faces)
+    e = np.concatenate([F[:, [0, 1]], F[:, [1, 2]], F[:, [2, 0]]]); third = np.concatenate([F[:, 2], F[:, 0], F[:, 1]])
+    _, first, n = np.unique(np.sort(e, axis=1), axis=0, return_index=True, return_counts=True); k = first[n == 1]
+    if not len(k): return 0.0
+    a, b, c = V[e[k, 0]], V[e[k, 1]], V[third[k]]; d = b - a; ln = np.linalg.norm(d, axis=1); d /= np.maximum(ln, 1e-12)[:, None]
+    out = (a + b) / 2 - c; out -= np.einsum('ij,ij->i', out, d)[:, None] * d; out /= np.maximum(np.linalg.norm(out, axis=1), 1e-12)[:, None]
+    q = (a + b) / 2 + out * PAST
+    gp, _ = trimesh.sample.sample_surface_even(garment, 300000, seed=1); sp, _ = trimesh.sample.sample_surface_even(shell, 150000, seed=1)
+    return float(ln[(cKDTree(gp).query(q)[0] < AT) & (cKDTree(sp).query(q)[0] > AT)].sum())
 
 
 class Look:
@@ -344,7 +444,7 @@ def measure(dense_path, src, shell_paths, hood_path):
     has = os.path.exists(hood_path); new = Look(list(shell_paths) + ([hood_path] if has else []))
     hood_from = new.off[-2] if has else len(new.mesh.faces)
     hm = new.pieces[-1].mesh if has else None
-    out = {'triangles': int(len(hm.faces)) if has else 0, 'edge_cm': round(100 * float(open_edge(hm)), 1) if has else 0.0, 'dark_cm2': 0.0, 'off_cm2': 0.0, 'lost_cm2': 0.0, 'bare_cm2': 0.0}
+    out = {'triangles': int(len(hm.faces)) if has else 0, 'edge_cm': round(100 * open_edge(hm, old.mesh, trimesh.util.concatenate([p.mesh for p in new.pieces[:-1]])), 1) if has else 0.0, 'dark_cm2': 0.0, 'off_cm2': 0.0, 'lost_cm2': 0.0, 'bare_cm2': 0.0}
     cm2 = RAY * RAY * 1e4
     for d in directions():
         r = np.cross([0, 1, 0], d); r /= np.linalg.norm(r); u = np.cross(d, r)

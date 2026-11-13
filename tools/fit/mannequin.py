@@ -7,7 +7,7 @@ with 8, sloped shoulder, flat hand, foot), with torso and arm in one mesh from t
 arm as a part pushed into the torso, a sleeve came out as a block beside the garment's torso, with a step at the
 shoulder. rounded() rounds the tip of the shoulder. All are derived, never stored: engine.py builds them from
 site/assets/body/pose-b.glb and pose-c.glb on every run, so they cannot drift from the body. measures() and check()
-hold the mannequin to the recorded one: its measures and, vertex by vertex, its shape (mannequin.json).
+hold the mannequin to the recorded one: its measures and its shape, surface against surface (mannequin.json).
 usage: python3 tools/fit/mannequin.py B|C DENSE_OUT.glb LOWPOLY_OUT.glb
        python3 tools/fit/mannequin.py --record WORK   (rewrites mannequin.json from the bodies engine.py built in WORK)"""
 import sys, os, json, numpy as np, trimesh
@@ -25,8 +25,8 @@ POINT, OVER = .012, .004   # m: past the body's skin on the shoulder; past the s
 ROUND = 3              # passes of smoothing on the tip of the shoulder
 MIRROR = np.array([-1, 1, 1.0])
 WAIST_Y = 1.06
-# the shape itself: every vertex of the low-poly body, per pose, recorded in mannequin.json. A body whose vertices sit
-# further than this from the recorded ones, either way, is another mannequin (a rounder shoulder, wider legs, a chest
+# the shape itself: every vertex and face of the low-poly body, per pose, recorded in mannequin.json. A body whose
+# surface lies further than this from the recorded one's, either way, is another mannequin (a rounder shoulder, wider legs, a chest
 # further out), whatever the measures below say
 RECORD = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'mannequin.json')
 SHAPE = 1.0            # mm
@@ -225,10 +225,13 @@ def rounded(m, passes):
     return out
 
 
-def shape_mm(v, pose):
-    """Furthest a vertex of the body lies from the recorded body's vertices, or a recorded vertex from the body's, in mm."""
-    r = np.array(json.load(open(RECORD))[pose]['v'])
-    return round(1e3 * float(max(cKDTree(r).query(v)[0].max(), cKDTree(v).query(r)[0].max())), 2)
+def shape_mm(low, pose):
+    """Furthest the surface of the body lies from the recorded body's, either way, in mm: every vertex and every
+    middle of a triangle of one against the surface of the other. It reads the surface, not the list of faces: two
+    machines may split the same quad along the other diagonal or list the same triangles in another order."""
+    r = json.load(open(RECORD))[pose]; rec = trimesh.Trimesh(np.array(r['v']), np.array(r['f']), process=False)
+    far = lambda a, b: float(trimesh.proximity.closest_point(b, np.vstack([a.vertices, a.triangles_center]))[1].max())
+    return round(1e3 * max(far(low, rec), far(rec, low)), 2)
 
 
 def record(work):
@@ -252,7 +255,7 @@ def measures(low, dense, pose=None):
     return {'asymmetry_cm': round(100 * float(far.max()), 2), 'point_cm': round(100 * float(((v[zone] - d[j]) * N[j]).sum(1).max()), 2),
             'waist_cm': round(100 * float(ConvexHull(w).area), 1), 'shoulder_width_cm': round(200 * float(np.abs(cut(1.42)[:, 0]).max()), 1),
             'overhang_cm2': round(1e4 * float(low.area_faces[under].sum())), 'triangles': int(len(low.faces)), 'closed': bool(low.is_watertight),
-            **({'shape_mm': shape_mm(v, pose)} if pose else {})}
+            **({'shape_mm': shape_mm(low, pose)} if pose else {})}
 
 
 def check(rep):
@@ -268,7 +271,7 @@ def differs(m):
     if m['overhang_cm2'] > a['overhang_cm2']: bad.append(f"overhang {m['overhang_cm2']} cm2, approved {a['overhang_cm2']}")
     for k in ('waist_cm', 'shoulder_width_cm'):
         if abs(m[k] - a[k]) > 0.5: bad.append(f'{k} {m[k]}, approved {a[k]}')
-    if m.get('shape_mm', 0) > SHAPE: bad.append(f"a vertex {m['shape_mm']} mm from the recorded shape, limit {SHAPE}")
+    if m.get('shape_mm', 0) > SHAPE: bad.append(f"the surface {m['shape_mm']} mm from the recorded shape, limit {SHAPE}")
     if m['triangles'] != a['triangles'] or not m['closed']: bad.append(f"{m['triangles']} triangles, closed {m['closed']}; approved {a['triangles']}, closed")
     return bad
 
@@ -276,14 +279,14 @@ def differs(m):
 def build(pose, dense_path, low_path):
     """Writes the dense and the low-poly body of a pose. Returns the low-poly body's triangles and how far it was
     built from the recorded one, in mm. Two processors do not round alike, and a low-poly body a hundredth of a
-    millimetre apart gave every garment another mesh on the other machine (the loose hoods past their baselines): a body
-    built within SHAPE of the recorded one, with its faces, is written with the recorded vertices, the same on every
-    machine. One built further, or with other faces, is written as built, and check() fails it."""
+    millimetre apart, or with the same surface cut into other triangles, gave every garment another mesh on the other
+    machine (the loose hoods past their baselines): a body built within SHAPE of the recorded one is written as the
+    recorded one, vertices and faces, the same on every machine. One built further is written as built, and check()
+    fails it."""
     d = curved(pose); d.export(dense_path)
-    low = rounded(joined(d, in_parts(d)), ROUND); built = shape_mm(np.asarray(low.vertices), pose)
-    r = json.load(open(RECORD))[pose]
-    if built <= SHAPE and np.array_equal(np.asarray(low.faces), np.array(r['f'])): low.vertices = np.array(r['v'])
-    else: built = max(built, 2 * SHAPE)                      # other faces: not the recorded body, however close
+    low = rounded(joined(d, in_parts(d)), ROUND); built = shape_mm(low, pose)
+    if built <= SHAPE:
+        r = json.load(open(RECORD))[pose]; low = trimesh.Trimesh(np.array(r['v']), np.array(r['f']), process=False); low.visual = material()
     low.export(low_path)
     return len(low.faces), built
 

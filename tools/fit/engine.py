@@ -54,6 +54,8 @@ BACK_CASES = {
 }
 FOLD = .01             # m: a body vertex this close behind another part of the body, below the neck, is in a fold and is left out of body crossing
 CONTOUR_LIMIT = 2.0
+SLEEVES_UNEVEN = 8.0   # cm: the two sleeves of a top end within this of each other (the most today is 5.6, on 030, and a ring of the arm is 2 cm; a polo read 22.5)
+SLEEVE_AREA = .002     # m²: a piece of a shell smaller than this is no sleeve
 # over the 345 looks, in cm²: today's values (19, 8, 0, 0) and a little over them for what another machine reads,
 # never over what they were (220, 20, 97, 10). The worst look is skirt 007 under 034
 LOOK_LIMITS = {
@@ -155,6 +157,7 @@ def run(work, ids):
     low = {p: trimesh.load(f'{work}/low-{p}.glb', process=False).to_geometry() for p in 'BC'}
     for pid in ids:
         m = parts(work, pid); b = low[pose(pid)]
+        if int(pid) > 15: rep['garments'][pid]['sleeve_uneven_cm'] = sleeves_uneven(f'{work}/final/{pid}-shell.glb')
         r, _, _ = measure(m, trimesh.Trimesh(b.vertices, b.faces, process=False), legs=int(pid) <= 15, fold=(FOLD, L.recorded()['neck']))
         rep['garments'][pid].update(body_crossing_pct=r['penetrates_pct'], body_in_view_cm2=looks.through(m, trimesh.Trimesh(b.vertices, b.faces, process=False)),
                                     triangles=int(len(m.faces)), contour=contour(pid, m, B[pose(pid)]))
@@ -167,6 +170,20 @@ def run(work, ids):
     rep['machine'] = machine(work)
     json.dump(rep, open(f'{work}/report.json', 'w'), indent=1)
     return rep
+
+
+def sleeves_uneven(path):
+    """cm between the heights at which the two sleeves of a top's shell end. Below the armpit a sleeve is a piece of
+    the shell on one side of the body, not joined to the middle of the torso; a top with no sleeve there ends at the
+    armpit on that side. No garment of the collection has one sleeve longer than the other: a difference is cloth
+    that is not a sleeve built as one (a polo's side, down to the elbow on one arm)."""
+    m = trimesh.load(path, force='mesh', process=False); m.merge_vertices(merge_tex=True, merge_norm=True)
+    m.update_faces(m.triangles_center[:, 1] < tube.ARMPIT); m.remove_unreferenced_vertices(); end = {1: tube.ARMPIT, -1: tube.ARMPIT}
+    for c in m.split(only_watertight=False):
+        x = c.vertices[:, 0]
+        if x.min() < 0 < x.max() or c.area < SLEEVE_AREA: continue
+        side = 1 if x.mean() > 0 else -1; end[side] = min(end[side], float(c.vertices[:, 1].min()))
+    return round(100 * abs(end[1] - end[-1]), 1)
 
 
 def machine(work):
@@ -215,6 +232,7 @@ def check(rep):
         bad += [f'{pid} {k}: {"not read" if v is None else v}, recorded {old[pid][k]}' for k, v in g.items() if worse(pid, k, v, old[pid].get(k))]
     bad += [f'{pid} contour_lost_cm: {g["contour_lost_cm"]}, limit {CONTOUR_LIMIT}' for pid, g in baseline(rep).items() if over(g['contour_lost_cm'], CONTOUR_LIMIT)]
     bad += [f'{pid} back_lost_cm: {g["back_lost_cm"]}, limit {BACK_CASES[pid]}' for pid, g in baseline(rep).items() if pid in BACK_CASES and over(g['back_lost_cm'], BACK_CASES[pid])]
+    bad += [f'{pid} sleeve_uneven_cm: {g["sleeve_uneven_cm"]}, limit {SLEEVES_UNEVEN}' for pid, g in rep['garments'].items() if g.get('sleeve_uneven_cm', 0) > SLEEVES_UNEVEN]
     if 'summary' in rep: bad += [f'{k}: {rep["summary"][k]}, limit {lim}' for k, lim in LOOK_LIMITS.items() if rep['summary'][k] > lim]
     for name in MODULES:
         m = __import__(name)
