@@ -248,7 +248,7 @@ def build(dense_path, shell_path, garment_path, shell_out, tube_out, n, envelope
             if s.any(): floor[i] = br[s].max() + CLEAR
             if envelope is not None:
                 s = (np.abs(around(ea, t)) < span[i]) & (ey > y[i] - down[i] - .01) & (ey < y[i] + up[i] + .01)
-                if s.sum() >= 3: floor[i] = max(floor[i], er[s].max() + S.RISE)
+                if s.sum() >= 3: floor[i] = max(floor[i], er[s].max() / np.cos(span[i] / 2) + S.RISE)   # over the cosine: the side between two corners passes inside them
         # where the body (or a bottom) needs room on one side, the ring first moves as a whole, as cloth hanging from
         # the hip does, and only then widens: its girth stays the garment's
         move = (np.maximum(floor - r, 0) * span) @ u / np.pi
