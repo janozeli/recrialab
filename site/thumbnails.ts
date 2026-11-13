@@ -15,7 +15,7 @@ const SITE = new URL('.', import.meta.url).pathname;
 export const THUMBS = join(SITE, 'assets', 'thumbnails');
 export const LOCK = join(SITE, 'thumbnails.lock.json');
 /** What changes the rendering of every thumbnail. */
-const RENDERER = ['fabric.ts', 'thumbnail-render.ts', 'thumbnail-render.html'];
+const RENDERER = ['fabric.ts', 'ps1.ts', 'thumbnail-render.ts', 'thumbnail-render.html'];
 
 export type Lock = { renderer: string; pieces: Record<string, { glb: string; tone: number }> };
 const sha = (bytes: Buffer | string) => createHash('sha256').update(bytes).digest('hex');
