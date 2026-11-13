@@ -8,11 +8,9 @@ import g003_shell from './assets/engine/003-shell.glb';
 import g004_shell from './assets/engine/004-shell.glb';
 import g005_shell from './assets/engine/005-shell.glb';
 import g006_shell from './assets/engine/006-shell.glb';
-import g007_shell from './assets/engine/007-shell.glb';
+import g007_tube from './assets/engine/007-tube.glb';
 import g008_shell from './assets/engine/008-shell.glb';
-import g009_shell from './assets/engine/009-shell.glb';
 import g009_tube from './assets/engine/009-tube.glb';
-import g010_shell from './assets/engine/010-shell.glb';
 import g010_tube from './assets/engine/010-tube.glb';
 import g011_shell from './assets/engine/011-shell.glb';
 import g012_shell from './assets/engine/012-shell.glb';
@@ -43,7 +41,6 @@ import g028_shell from './assets/engine/028-shell.glb';
 import g028_tube from './assets/engine/028-tube.glb';
 import g029_shell from './assets/engine/029-shell.glb';
 import g029_tube from './assets/engine/029-tube.glb';
-import g030_hood from './assets/engine/030-hood.glb';
 import g030_shell from './assets/engine/030-shell.glb';
 import g030_tube from './assets/engine/030-tube.glb';
 import g031_shell from './assets/engine/031-shell.glb';
@@ -72,10 +69,10 @@ export const ENGINE_PARTS: Record<string, readonly string[]> = {
   '004': [g004_shell],
   '005': [g005_shell],
   '006': [g006_shell],
-  '007': [g007_shell],
+  '007': [g007_tube],
   '008': [g008_shell],
-  '009': [g009_shell, g009_tube],
-  '010': [g010_shell, g010_tube],
+  '009': [g009_tube],
+  '010': [g010_tube],
   '011': [g011_shell],
   '012': [g012_shell],
   '013': [g013_shell],
@@ -95,7 +92,7 @@ export const ENGINE_PARTS: Record<string, readonly string[]> = {
   '027': [g027_shell, g027_tube],
   '028': [g028_shell, g028_tube],
   '029': [g029_shell, g029_tube],
-  '030': [g030_hood, g030_shell, g030_tube],
+  '030': [g030_shell, g030_tube],
   '031': [g031_shell, g031_tube],
   '032': [g032_shell, g032_tube],
   '033': [g033_hood, g033_shell],
