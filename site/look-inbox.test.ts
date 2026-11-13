@@ -3,6 +3,7 @@ import { expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { aboutLookLine, checkSentLook, INBOX_LIMITS, INBOX_PATH, LAST_BOTTOM, LAST_PIECE } from './look-inbox';
 import { CATALOG } from './catalog-data';
+import { postLook } from './look-send';
 import { handle, INBOX_KEY_SHA256, LookInbox, MAX_STORED, type InboxStorage, type StoredLook } from './inbox-server';
 
 const KEY = 'a key only this test knows';
@@ -138,4 +139,46 @@ test('the form and the server share the same limits', () => {
   const html = readFileSync(new URL('./index.html', import.meta.url), 'utf8');
   for (const field of Object.keys(INBOX_LIMITS)) expect(html, field).toContain(`id="send-${field}"`);
   expect(html).toContain('id="send-credit" name="credit" required');
+});
+
+// The fitting room confirms a send only on the server's whole answer. Confirming on the status line left the answer
+// unread, and the request then finished or was dropped with the page, whichever came first.
+const SENT = { look: '004.024', credit: 'Bia', group: '', name: '', note: '' };
+/** A server that sends the status line at once and the body only when told to. */
+function slowAnswer(status = 200) {
+  let finish!: (body: string) => void, fail!: () => void;
+  const body = new ReadableStream<Uint8Array>({
+    start(controller) {
+      finish = text => { controller.enqueue(new TextEncoder().encode(text)); controller.close(); };
+      fail = () => controller.error(new Error('connection lost'));
+    },
+  });
+  const send = (async () => new Response(body, { status })) as unknown as typeof fetch;
+  return { send, finish, fail };
+}
+const settled = (promise: Promise<void>) => Promise.race([promise.then(() => 'sent', () => 'failed'), Bun.sleep(30).then(() => 'waiting')]);
+
+test('a send is not confirmed while the answer is still arriving', async () => {
+  const server = slowAnswer();
+  const sending = postLook(SENT, server.send);
+  expect(await settled(sending)).toBe('waiting');
+  server.finish('{"ok":true}');
+  expect(await settled(sending)).toBe('sent');
+});
+
+test('an answer cut off, an answer that is not the inbox and a refusal all count as not sent', async () => {
+  const cut = slowAnswer();
+  const sending = postLook(SENT, cut.send);
+  cut.fail();
+  expect(await settled(sending)).toBe('failed');
+  // A captive portal of the school network answers 200 with its own page.
+  expect(await settled(postLook(SENT, (async () => new Response('<html>login</html>')) as unknown as typeof fetch))).toBe('failed');
+  expect(await settled(postLook(SENT, (async () => new Response('{}')) as unknown as typeof fetch))).toBe('failed');
+  expect(await settled(postLook(SENT, (async () => new Response('{"error":"full"}', { status: 507 })) as unknown as typeof fetch))).toBe('failed');
+});
+
+test('a connection that hangs ends in an error', async () => {
+  const hang = ((_url: string, init: RequestInit) => new Promise((_resolve, reject) =>
+    init.signal!.addEventListener('abort', () => reject(new Error('aborted'))))) as unknown as typeof fetch;
+  expect(await settled(postLook(SENT, hang, 5))).toBe('failed');
 });

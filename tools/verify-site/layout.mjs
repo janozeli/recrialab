@@ -164,6 +164,10 @@ export async function auditSendLook(page, look) {
   const out = [];
   const sent = [];
   await page.route('**/api/looks', route => { sent.push(route.request().postDataJSON()); return route.fulfill({ json: { ok: true } }); });
+  // The confirmation comes after the request has ended for the browser, never while its answer is still unread.
+  let ended = false;
+  const onEnd = request => { if (request.url().endsWith('/api/looks')) ended = true; };
+  page.on('requestfinished', onEnd);
   await page.locator('#send-look').click();
   await page.waitForSelector('#look-send-dialog[open]');
   await page.waitForTimeout(300);
@@ -183,6 +187,8 @@ export async function auditSendLook(page, look) {
   try {
     await page.locator('#send-done').waitFor({ state: 'visible', timeout: 10_000 });
   } catch { out.push('sending the look shows no confirmation'); }
+  if (!ended) out.push('the look is confirmed before the request to the inbox has ended');
+  page.off('requestfinished', onEnd);
   // The look worn now, which the address follows (earlier steps may have swapped a piece).
   const want = new URL(page.url()).searchParams.get('look') ?? look;
   if (sent.at(-1)?.look !== want || sent.at(-1)?.credit !== 'teste') out.push(`sent ${JSON.stringify(sent.at(-1))}, expected look ${want} by teste`);
