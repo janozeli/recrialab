@@ -17,16 +17,22 @@ The mannequin's landmarks are recorded in landmarks.json with the hash of the bo
 usage: python3 tools/fit/landmarks.py            (prints the landmarks of the body and of the 38 garments)
        python3 tools/fit/landmarks.py --write    (records the mannequin's landmarks)
        python3 tools/fit/landmarks.py --check    (fails if the body changed or its landmarks moved from the recorded ones)"""
-import sys, os, json, hashlib, numpy as np, trimesh
+import sys, os, re, json, hashlib, numpy as np, trimesh
 from garment import Garment
 from metric import body
 from paths import GARMENTS, BODY
 
 STEP = .01             # m between body cuts
-SKIRTS = (
-    '009',
-    '010',
-)
+CATALOG = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'site', 'catalog-data.ts')
+
+
+def catalog_skirts(path=CATALOG):
+    """The bottoms the site's catalog names as a skirt (saia, minissaia). The list is read, never written by hand: a
+    skirt left out of it is dressed leg by leg and comes out as shorts (007, until it was read from here)."""
+    return tuple(sorted(re.findall(r'id: "(\d{3})", name: "[^"]*saia[^"]*", slot: "bottom"', open(path, encoding='utf-8').read(), re.I)))
+
+
+SKIRTS = catalog_skirts()
 # length classes: (fraction from which the class holds, name); the fractions are those of proportions()
 TOP_CLASSES = ((0, 'cropped'), (None, 'regular'), (1., 'long'))          # regular from the waistband line on; long below the crotch
 SLEEVE_CLASSES = ((0, 'short'), (.70, 'three-quarter'), (.90, 'long'))

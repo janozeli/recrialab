@@ -353,6 +353,9 @@ def check(report):
     """Compares the tubes of an engine report with tube.json; returns the list of failures (engine.py --check calls it)."""
     rep = report['garments']; base = recorded(); bad = []
     built = {p for p, g in rep.items() if 'tube' in g}
+    for p in sorted(set(L.SKIRTS) & set(rep)):           # a skirt is one tube from the waistband: as a shell it is dressed leg by leg, as shorts
+        if rep[p].get('tube', {}).get('sides') != SKIRT_SIDES: bad.append(f'{p}: a skirt of the catalog was not built as one tube')
+    if not L.SKIRTS: bad.append('no skirt read from the catalog')
     if len(rep) == 38 and built != set(base): bad.append(f'tubes built {sorted(built)} differ from the recorded {sorted(base)}')
     for p in sorted(built & set(base)):
         for key, tol in TOLERANCE.items():
