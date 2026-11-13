@@ -39,7 +39,7 @@ toque de no mínimo 44 px, texto de no mínimo 13 px, nada cortado, coberto ou f
 
 ## `showcase.mjs`: fotos de cada peça
 
-`node tools/verify-site/showcase.mjs [--pieces 016,031] [--crop collar]`
+`node tools/verify-site/showcase.mjs [--pieces 016,031] [--crop collar] [--classic|--engine]`
 
 Veste cada peça no build e fotografa frente, perfil e costas, uma linha por peça em
 `site/verify-out/showcase/showcase.png`. Serve para comparar com as fotos dos brechós depois de
@@ -49,8 +49,11 @@ mexer numa peça.
 
 ```sh
 node tools/verify-site/visual-qa.mjs [--plan all|ci|pairs] [--looks 016,004.016] [--changed 008] \
-  [--part 0/4] [--beauty]
+  [--part 0/4] [--beauty] [--classic|--engine]
 ```
+
+Os dois abrem o look como o site abre por padrão. `--classic` mostra as peças publicadas antes da engine de
+ajuste (`?classico`) e `--engine` força as da engine.
 
 Fotografa cada look de 14 pontos em volta do manequim (8 na altura do peito, 4 de baixo, 2 de cima) com
 as máscaras e camadas do site e guarda, por vista, a máscara de classes, a profundidade da roupa e a

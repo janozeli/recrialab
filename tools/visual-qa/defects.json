@@ -1,102 +1,33 @@
 {
- "_readme": "defect above a limit of tools/visual-qa/measure.py, per look of the ci plan, linked to the open known issue that fixes it. Once fixed, remove the entry and close the issue in the same change. Never raise the limit to make it fit.",
- "_accepted": {
-  "tear": {
-   "003": {
-    "up_to": 8.0,
-    "by": "project team: skin showing through the tear that is in the thrift-shop photo; knee of the shorts"
-   },
-   "007": {
-    "up_to": 5.0,
-    "by": "project team: skin showing through the tear that is in the thrift-shop photo; tears at the front of the skirt"
-   },
-   "010": {
-    "up_to": 6.5,
-    "by": "project team: skin showing through the tear that is in the thrift-shop photo; tear at the side of the skirt"
-   }
-  }
- },
- "midriff": {
-  "001.016": "short-tops-midriff",
-  "005.035": "short-tops-midriff",
-  "007.016": "short-tops-midriff",
-  "007.020": "short-tops-midriff",
-  "007.035": "short-tops-midriff",
-  "014.016": "short-tops-midriff"
- },
+ "_readme": "defect above a limit of tools/visual-qa/measure.py, per look of the ci plan, photographed as the site serves it by default, linked to the open known issue that fixes it. Once fixed, remove the entry and close the issue in the same change. Never raise the limit to make it fit.",
+ "_accepted": {},
  "junction": {
-  "007.018": "jagged-junction",
-  "007.019": "jagged-junction",
   "007.022": "jagged-junction",
-  "007.031": "jagged-junction",
-  "007.034": "jagged-junction",
   "008.023": "jagged-junction"
  },
- "threads": {
-  "002.032": "spiky-hems",
-  "003.033": "spiky-hems",
-  "005.020": "spiky-hems",
-  "006.027": "spiky-hems",
-  "008": "spiky-hems",
-  "008.028": "spiky-hems",
-  "009": "spiky-hems",
-  "011.026": "spiky-hems",
-  "014.033": "spiky-hems"
- },
- "pokes": {
-  "007.020": "body-framed-by-cloth",
-  "007.022": "body-framed-by-cloth",
-  "007.026": "body-framed-by-cloth",
-  "007.028": "body-framed-by-cloth",
-  "007.033": "body-framed-by-cloth",
-  "007.035": "body-framed-by-cloth",
-  "007.036": "body-framed-by-cloth",
-  "007.037": "body-framed-by-cloth",
-  "010": "body-framed-by-cloth",
-  "010.025": "body-framed-by-cloth",
-  "010.030": "body-framed-by-cloth",
-  "012.016": "short-tops-midriff"
- },
  "tear": {
-  "001.016": "short-tops-midriff",
-  "003.018": "body-framed-by-cloth",
-  "003.030": "body-framed-by-cloth",
-  "003.033": "body-framed-by-cloth",
-  "005.020": "body-framed-by-cloth",
-  "005.035": "short-tops-midriff",
-  "006.016": "short-tops-midriff",
-  "006.033": "body-framed-by-cloth",
-  "006.035": "short-tops-midriff",
-  "007.016": "body-framed-by-cloth",
-  "007.020": "body-framed-by-cloth",
-  "007.021": "body-framed-by-cloth",
-  "007.022": "body-framed-by-cloth",
-  "007.024": "body-framed-by-cloth",
-  "007.027": "body-framed-by-cloth",
-  "007.028": "body-framed-by-cloth",
-  "007.030": "body-framed-by-cloth",
-  "007.031": "body-framed-by-cloth",
-  "007.033": "body-framed-by-cloth",
-  "007.035": "body-framed-by-cloth",
-  "007.036": "body-framed-by-cloth",
-  "007.037": "body-framed-by-cloth",
-  "007.038": "body-framed-by-cloth",
-  "008.038": "body-framed-by-cloth",
-  "010.025": "body-framed-by-cloth",
-  "010.030": "waistband-010",
-  "012.016": "short-tops-midriff",
-  "014.016": "jagged-junction",
-  "014.033": "jagged-junction",
-  "014.035": "jagged-junction"
+  "005.035": "body-framed-by-cloth"
  },
- "see_through": {
-  "003.033": "jagged-junction",
-  "006.035": "short-tops-midriff",
-  "006.037": "body-framed-by-cloth",
-  "007.016": "jagged-junction",
-  "007.035": "jagged-junction",
-  "007.037": "jagged-junction",
-  "014.022": "jagged-junction",
-  "014.035": "jagged-junction"
+ "tone": {
+  "001": "stage-tone",
+  "001.031": "stage-tone",
+  "002": "stage-tone",
+  "002.032": "stage-tone",
+  "003.018": "stage-tone",
+  "004.019": "stage-tone",
+  "004.034": "stage-tone",
+  "005": "stage-tone",
+  "005.020": "stage-tone",
+  "005.035": "stage-tone",
+  "006.021": "stage-tone",
+  "007.022": "stage-tone",
+  "007.037": "stage-tone",
+  "008.038": "stage-tone",
+  "009.024": "stage-tone",
+  "010": "stage-tone",
+  "011": "stage-tone",
+  "012": "stage-tone",
+  "014": "stage-tone",
+  "014.029": "stage-tone"
  }
 }

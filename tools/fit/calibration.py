@@ -81,11 +81,12 @@ CASES = {
 }
 
 
-# cases measured in the site's own pictures (tools/visual-qa/measure.py): they build the site and photograph it with
+# cases measured in the site's own pictures (tools/visual-qa/measure.py), of the garments published before the fit
+# engine (--classic and their own defect list): they build the site and photograph it with
 # chromium, so they run with --visual in the visual-qa job (site-e2e.yml), not in the fit job
 RENDER = ('cd site && GITHUB_SHA=calibration bun run build > /dev/null && cd .. && node tools/verify-site/visual-qa.mjs '
-          '--looks {} --out site/verify-out/calibration > /dev/null && python3 tools/visual-qa/measure.py '
-          'site/verify-out/calibration --ci')
+          '--classic --looks {} --out site/verify-out/calibration > /dev/null && python3 tools/visual-qa/measure.py '
+          'site/verify-out/calibration --ci --defects tools/visual-qa/defects-classic.json')
 VISUAL_CASES = {
     'arm-stump-022': ('022 as seen in the site before the sleeve clip: the jersey sleeve 5 cm in front of the arm and the mask hiding the arm '
                       'in long triangles, so under the sleeve the arm ends in a jagged stump with the background showing', [

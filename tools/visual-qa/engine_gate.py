@@ -3,7 +3,7 @@
   python3 tools/visual-qa/engine_gate.py PUBLISHED ENGINE [--sheet WORK/sheet/sheet.json]
 
 PUBLISHED and ENGINE are folders measured by measure.py over the same looks, photographed by
-tools/verify-site/visual-qa.mjs without and with --engine (the engine run with every garment off hold). A look is
+tools/verify-site/visual-qa.mjs with --classic and with --engine (the engine run with every garment off hold). A look is
 worse when a measure is above its limit with the engine and above the published value by more than a tenth of the
 limit. Garments are then put on hold, the one with the most worse looks first, until no look of two engine garments
 is worse; a garment flagged by the engine sheet (silhouette, print or body crossing against the published garment)
