@@ -98,7 +98,7 @@ os pares cujo hash mudou.
 
 ## Engine de ajuste
 
-Uma regra só para as 38 peças, no lugar de um conserto por peça. `python3 tools/fit/engine.py PASTA` refaz todas numa pasta de trabalho (cerca de 2 min 30 s) e grava `PASTA/report.json`; nada é escrito em `site/assets`.
+Uma regra só para as 38 peças, no lugar de um conserto por peça. `python3 tools/fit/engine.py PASTA` refaz todas numa pasta de trabalho (cerca de 2 min 30 s) e grava `PASTA/report.json`; nada é escrito em `site/assets`. O relatório traz em `machine` o processador que rodou e um resumo (sha1) de cada arquivo escrito, etapa por etapa: duas máquinas que leem uma peça diferente se separam ali, na primeira etapa em que divergem.
 
 | Script | O que faz |
 |---|---|

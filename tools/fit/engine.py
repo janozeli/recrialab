@@ -15,7 +15,7 @@ usage: python3 tools/fit/engine.py WORK            (builds everything and writes
        python3 tools/fit/engine.py WORK 016 004    (only these garments; no look measures)
        python3 tools/fit/engine.py WORK --check    (fails where a garment is worse than its baseline or a look limit is passed)
        python3 tools/fit/engine.py WORK --write    (records the baseline; values may only go down against the recorded ones)"""
-import sys, os, json, glob, shutil, numpy as np, trimesh
+import sys, os, json, glob, shutil, hashlib, numpy as np, trimesh
 from multiprocessing import Pool
 from metric import measure, POSE_C
 from paths import GARMENTS
@@ -164,8 +164,18 @@ def run(work, ids):
         rep['summary'] = {'poke_total_cm2': int(v[:, 0].sum()), 'poke_worst_look_cm2': int(v[:, 0].max()), 'belly_total_cm2': int(v[:, 1].sum()), 'belly_worst_look_cm2': int(v[:, 1].max()),
                           'body_crossing_mean_pct': round(float(np.mean([g['body_crossing_pct'] for g in rep['garments'].values()])), 2),
                           'triangles_max': max(g['triangles'] for g in rep['garments'].values())}
+    rep['machine'] = machine(work)
     json.dump(rep, open(f'{work}/report.json', 'w'), indent=1)
     return rep
+
+
+def machine(work):
+    """The processor that ran and a digest of every file the run wrote, stage by stage. Two machines that read a garment
+    differently are told apart here, and so is the first stage at which they part (the bodies, the registration, the
+    bottoms' envelopes, the built garments)."""
+    cpu = next((l.split(':', 1)[1].strip() for l in open('/proc/cpuinfo') if l.startswith('model name')), '') if os.path.exists('/proc/cpuinfo') else ''
+    files = sorted(glob.glob(f'{work}/*.glb') + glob.glob(f'{work}/reg/*.glb') + glob.glob(f'{work}/shell/env/*.npy') + glob.glob(f'{work}/final/*.glb'))
+    return {'cpu': cpu, 'digest': {os.path.relpath(f, work): hashlib.sha1(open(f, 'rb').read()).hexdigest()[:12] for f in files}}
 
 
 def baseline(rep):
