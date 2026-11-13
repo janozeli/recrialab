@@ -171,6 +171,31 @@ def sleeve_lip(c, top, garment, whole):
     return lambda reg, m: top[nd.binary_dilation(reg, disk(2)) & garment].all() and (whole[m] >= 2).mean() > .5 and (reg & reach).any()
 
 
+def loose_area(c, m, depth):
+    """Pixels of the garment m in pieces that float in the air: components, other than the largest, that touch only the
+    background. A piece is not loose when cloth that the picture does not draw joins it to the largest one: pixels
+    left as background that have garment depth (the depth pass draws both faces; the picture, like the site, only the
+    face the material has). It is a single-sided shell seen from below in profile: the far wall's inner face is not
+    drawn, and its lower edge shows as a strip under the nearer hem (032, 036 and 021 from the engine). A shard or a
+    thread in the air has no cloth between it and the garment."""
+    lab, n = nd.label(m)
+    if n < 2:
+        return 0
+    areas = nd.sum(m, lab, range(1, n + 1))
+    largest = 1 + int(np.argmax(areas))
+    joined, _ = nd.label(m | ((c == BACKGROUND) & (depth > 0)))
+    main = np.unique(joined[lab == largest])
+    loose = 0
+    for i in range(1, n + 1):
+        if i == largest or areas[i - 1] < 6:
+            continue
+        reg = lab == i
+        nb = nd.binary_dilation(reg, disk(1)) & ~reg
+        if np.all(c[nb] == BACKGROUND) and not np.isin(joined[reg], main).any():
+            loose += areas[i - 1]
+    return loose
+
+
 def measure_view(c, alb, depth, whole, low=False):
     r = {}
     top, bottom = np.isin(c, (TOP, TOP_BACK)), np.isin(c, (BOTTOM, BOTTOM_BACK))
@@ -191,19 +216,7 @@ def measure_view(c, alb, depth, whole, low=False):
     # past the hem, is what a real short sleeve shows: those views are left out in measure_look
     r['arm_over'] = float(nd.binary_opening((c == BODY) & (whole >= 3 + OVER) & (depth > 0), disk(1)).sum() * CM2)
     # loose piece: a garment component that only touches the background
-    loose = 0
-    for m in (top, bottom):
-        lab, n = nd.label(m)
-        if n > 1:
-            areas = nd.sum(m, lab, range(1, n + 1))
-            largest = 1 + int(np.argmax(areas))
-            for i in range(1, n + 1):
-                if i == largest or areas[i - 1] < 6:
-                    continue
-                reg = lab == i
-                nb = nd.binary_dilation(reg, disk(1)) & ~reg
-                if np.all(c[nb] == BACKGROUND):
-                    loose += areas[i - 1]
+    loose = sum(loose_area(c, m, depth) for m in (top, bottom))
     r['loose'] = loose * CM2
     # junction: jagged bottom garment in a 4 cm band below the top's hem
     if top.any() and bottom.any():
