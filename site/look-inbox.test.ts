@@ -1,9 +1,9 @@
 // Looks sent from the fitting room reach the team: what the form accepts, what the server keeps and who may read it.
-import { expect, test } from 'bun:test';
+import { describe, expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { aboutLookLine, checkSentLook, INBOX_LIMITS, INBOX_PATH, LAST_BOTTOM, LAST_PIECE } from './look-inbox';
 import { CATALOG } from './catalog-data';
-import { postLook } from './look-send';
+import { postLook, recallSender, rememberSender, REMEMBER, REMEMBER_MS } from './look-send';
 import { handle, INBOX_KEY_SHA256, LookInbox, MAX_STORED, type InboxStorage, type StoredLook } from './inbox-server';
 
 const KEY = 'a key only this test knows';
@@ -187,4 +187,50 @@ test('a connection that hangs ends in an error', async () => {
   const hang = ((_url: string, init: RequestInit) => new Promise((_resolve, reject) =>
     init.signal!.addEventListener('abort', () => reject(new Error('aborted'))))) as unknown as typeof fetch;
   expect(await settled(postLook(SENT, hang, 5))).toBe('failed');
+});
+
+describe('the phone remembers who sent the last look', () => {
+  function phone() {
+    const data = new Map<string, string>();
+    return { data, getItem: (key: string) => data.get(key) ?? null, setItem: (key: string, value: string) => { data.set(key, value); }, removeItem: (key: string) => { data.delete(key); } };
+  }
+
+  test('name and class come back for the next look, and nothing else is kept', () => {
+    const store = phone();
+    rememberSender({ credit: 'Bia', group: '2B', ...{ name: 'Brechó chic', note: 'tem a minha cara', look: '001.002' } }, store, 1000);
+    expect(recallSender(store, 2000)).toEqual({ credit: 'Bia', group: '2B' });
+    expect(Object.keys(JSON.parse(store.data.get(REMEMBER)!)).sort()).toEqual(['at', 'credit', 'group']);
+  });
+
+  test('a phone handed on later starts empty: the record expires and is erased', () => {
+    const store = phone();
+    rememberSender({ credit: 'Bia', group: '2B' }, store, 1000);
+    expect(recallSender(store, 1000 + REMEMBER_MS - 1)).toEqual({ credit: 'Bia', group: '2B' });
+    expect(recallSender(store, 1000 + REMEMBER_MS)).toBeNull();
+    expect(store.data.has(REMEMBER)).toBe(false);
+    // Long enough for a workshop, never from one day to the next.
+    expect(REMEMBER_MS).toBeGreaterThanOrEqual(60 * 60 * 1000);
+    expect(REMEMBER_MS).toBeLessThanOrEqual(12 * 60 * 60 * 1000);
+  });
+
+  test('each look sent renews the time', () => {
+    const store = phone();
+    rememberSender({ credit: 'Bia', group: '2B' }, store, 0);
+    rememberSender({ credit: 'Bia', group: '2B' }, store, REMEMBER_MS - 1);
+    expect(recallSender(store, REMEMBER_MS + 1)).toEqual({ credit: 'Bia', group: '2B' });
+  });
+
+  test('a record without a time (before the expiry existed), from the future or broken is thrown away', () => {
+    for (const raw of ['{"credit":"Bia","group":"2B"}', `{"credit":"Bia","group":"2B","at":${10 * REMEMBER_MS}}`, '{"credit":7,"at":1}', 'not json']) {
+      const store = phone();
+      store.data.set(REMEMBER, raw);
+      expect(recallSender(store, 1000)).toBeNull();
+    }
+  });
+
+  test('a phone that keeps nothing does not break the send', () => {
+    const closed = { getItem: () => { throw new Error('denied'); }, setItem: () => { throw new Error('denied'); }, removeItem: () => { throw new Error('denied'); } };
+    expect(() => rememberSender({ credit: 'Bia', group: '' }, closed)).not.toThrow();
+    expect(recallSender(closed)).toBeNull();
+  });
 });
