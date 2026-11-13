@@ -50,6 +50,10 @@ CASES = {
                         'arm behind the tear looks like the arm going up into the sleeve, which the visual measure leaves out', [
         'python3 tools/fit/sleeve_tear.py 020',
     ]),
+    'hem-hole-030': ('030 rebuilt on the neutral mannequin, first pass: a 25 cm hole above the front hem where the lining was '
+                     'deleted, and a strip of the generated forearm hanging from the left cuff down to 1.11 m', [
+        'python3 tools/fit/sleeve_tear.py 030',
+    ]),
     'notch-016': ('one face of 0.7 cm² cut out of the hem of 016, at the front: the open boundary grows by one edge and by '
                   'less than 0.05 cm, which the cm alone rounded away', [
         'python3 tools/fit/sleeve_tear.py 016',
