@@ -36,6 +36,9 @@ LIMB_BLEND = 0.04      # m: width of the blend between torso rays and limb rays 
 EDGE_SECTORS = 24      # sectors around the body in which a waistband's or a hem's height is read
 WAIST_DIP = 0.0        # m: the lowest point of a waistband's curve sits this far under the waistband line; the curve rises from there
 WAIST_TOP = 0.01       # m: ... up to this far under the waist
+BURIED = .03           # m: a vertex of the mannequin this far from the body's skin is the middle of a lid
+SHOULDER_HOLDS = 1.34  # m: above this the mannequin's shoulder is one of the points a top hangs from
+SHOULDER_OUT, SHOULDER_TOP = .18, 1.52   # m: beyond this |x| and below this height the mannequin's shoulder is its arm, bent over it
 HEM_RISE = 0.02        # m: the hem of a top that reaches its line rises at most this far over it (WAIST_DIP + HEM_RISE < register.OVERLAP)
 DRAPE_TO, DRAPE_COLUMNS = 1.43, 12   # a top hangs from this height down; columns around the torso (the mannequin's torso has 12 sides)
 HEM_TO = 1.25          # m: a top's hem is looked for on the torso below this height
@@ -54,6 +57,11 @@ def load_body(path):
     m = trimesh.Trimesh(m.vertices, m.faces, process=False)
     m.merge_vertices(digits_vertex=5)
     return m
+
+
+def Low(path):
+    m = trimesh.load(path, process=False).to_geometry()
+    return trimesh.Trimesh(m.vertices, m.faces, process=False)
 
 
 def load_glb(path):
@@ -393,9 +401,8 @@ def generate(kind, pid, path, dense_path, low_path, out, trace=None):
     low = trimesh.load(low_path).to_geometry(); low = trimesh.Trimesh(low.vertices, low.faces, process=False)
     kd_dense = cKDTree(dense.vertices); v, n = np.asarray(low.vertices), np.asarray(low.vertex_normals); adj = low.vertex_neighbors
     clear, clear_limb = ceiling(pid); lab = L.limb(v)
-    # the mannequin's torso is one part: a wide hip is still torso, not the arm hanging beside it
-    for c in trimesh.graph.connected_components(low.edges, nodes=np.arange(len(v))):
-        if ((np.abs(v[c, 0]) < .05) & (np.abs(v[c, 1] - 1.2) < .1)).any(): lab[c] = 0
+    # on the mannequin the arm goes on over the shoulder, in one mesh with the torso: up there it is arm too
+    up = (lab == 0) & (np.abs(v[:, 0]) > SHOULDER_OUT) & (v[:, 1] < SHOULDER_TOP); lab[up] = np.where(v[up, 0] > 0, 1, 2)
     top = np.where(lab > 0, clear_limb, clear); top = np.maximum(smooth(top, adj, 2), MIN_CLEAR)
     piece = Piece(path); reach = clear + 0.05
     cov = coverage(piece, dense, 0.12, kind)
@@ -419,6 +426,9 @@ def generate(kind, pid, path, dense_path, low_path, out, trace=None):
             line = np.minimum(edge(torso, torso[:, [0, 2]].mean(0), 2, v, sides=False), HEM_TO - .03)
             if np.median(line[tr]) < hem_max + HEM_RISE: line = np.minimum(line, hem_max + HEM_RISE)   # a top that reaches its line keeps the waistband covered all around
             s = np.where(tr, v[:, 1] - line, s); cov_low = np.where(tr, v[:, 1] > line - .03, cov_low)
+    # a leg of the mannequin is closed by a lid inside the hip, and the lid's middle is buried in the body:
+    # it wears nothing, and the ring around it goes straight out like an open rim
+    buried = (kd_dense.query(v)[0] > BURIED) & (v[:, 1] > mb['crotch'] + BURIED); s = np.where(buried, -1., s); cov_low &= ~buried
     d, _, _ = probe(piece, kd_dense, dense.vertices, v, n, reach)
     measured = ~np.isnan(d) & cov_low; raw = d.copy()
     d = np.where(measured, np.clip(d, MIN_CLEAR, top), np.nan)
@@ -459,9 +469,11 @@ def generate(kind, pid, path, dense_path, low_path, out, trace=None):
     # on the open rim of a part (the top of a leg, inside the hip) the normal leans along the limb: the shell goes
     # straight out, or the rim of the mannequin shows over the rim of the shell
     out_dir = n.copy(); e = np.sort(low.edges, axis=1); u, c = np.unique(e, axis=0, return_counts=True); rim = np.unique(u[c == 1])
+    rim = np.union1d(rim, [j for i in np.flatnonzero(buried) for j in adj[i]]).astype(int)
     out_dir[rim, 1] = 0; out_dir[rim] /= np.linalg.norm(out_dir[rim], axis=1)[:, None] + 1e-9
     P = v + out_dir * d[:, None]
-    if kind == 'top': P = drape(P, v, n, raw, measured, lab == 0, s, adj)
+    # the shoulder holds the cloth out too: the side of a top hangs from it, not from the armpit
+    if kind == 'top': P = drape(P, v, n, raw, measured, (lab == 0) | (up & (v[:, 1] > SHOULDER_HOLDS)), s, adj)
     Pc, Fc, (Nc, Bc) = cut(P, low.faces, s, [n, v])
     used = np.unique(Fc); remap = -np.ones(len(Pc), int); remap[used] = np.arange(len(used))
     Pc, Nc, Bc, Fc = Pc[used], Nc[used], Bc[used], remap[Fc]

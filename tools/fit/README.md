@@ -104,12 +104,12 @@ Uma regra só para as 38 peças, no lugar de um conserto por peça. `python3 too
 |---|---|
 | `landmarks.py` | lê os marcos do manequim (cintura, gancho, axila, punho) e de cada peça (cós, gancho, barra, fim da manga) |
 | `register.py` | leva a peça às linhas dos marcos sem mudar as proporções: desliza a peça inteira e estica no máximo 6% |
-| `mannequin.py` | manequim da engine, derivado do corpo do site a cada rodada: curva nas costas e versão de poucos polígonos, em partes |
+| `mannequin.py` | manequim da engine, derivado do corpo do site a cada rodada: curva nas costas e versão de poucos polígonos, com tronco e braço numa malha só do ombro à axila e a ponta do ombro arredondada; `engine.py --check` confere que ele é o aprovado (os dois lados iguais, nenhuma ponta no ombro a mais de 1,7 cm da pele, ombro de 47,5 cm, cintura de 70,8 cm, beiral do tronco sobre o braço até 31 cm², 1.316 triângulos, malha fechada) |
 | `shell.py` | o que veste o corpo vira casca do manequim de poucos polígonos, com a textura assada da peça; peça de baixo cortada na linha do cós, peça de cima por fora de todas as de baixo |
 | `tube.py` | saia e barra abaixo do quadril viram tubo soldado na casca |
 | `loose_hood.py` | capuz e gola soltos em poucos polígonos |
 | `identity.py` | identidade da estampa contra a peça publicada: centímetros de rasgo (no total e nas costas) e distorção |
-| `engine.py` | roda tudo e mede: corpo atravessando, triângulos, identidade (estampa e contorno: cós, barra, gola e lateral contra a peça publicada) e, nos 345 looks, peça de baixo na frente da de cima e barriga à vista |
+| `engine.py` | roda tudo e mede: corpo atravessando (vértice do manequim com outra parte do próprio corpo a menos de 1 cm à frente está numa dobra, como a axila, e não conta), triângulos, identidade (estampa e contorno: cós, barra, gola e lateral contra a peça publicada) e, nos 345 looks, peça de baixo na frente da de cima e barriga à vista |
 
 ## Medidas que rodam no CI
 

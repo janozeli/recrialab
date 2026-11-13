@@ -57,13 +57,14 @@ EDGES = (('hem',), ('collar',))
 BACK_CASES = {
     '024': 0.8,
 }
+FOLD = .01             # m: a body vertex this close behind another part of the body is in a fold, not through the garment
 CONTOUR_LIMIT = 2.0
-# over the 345 looks, in cm²: today's values (198, 18, 88, 9) and a tenth over them
+# over the 345 looks, in cm²: today's values (17, 2, 0, 0) and a little over them
 LOOK_LIMITS = {
-    'poke_total_cm2': 220,
-    'poke_worst_look_cm2': 20,
-    'belly_total_cm2': 97,
-    'belly_worst_look_cm2': 10,
+    'poke_total_cm2': 20,
+    'poke_worst_look_cm2': 4,
+    'belly_total_cm2': 2,
+    'belly_worst_look_cm2': 2,
 }
 MODULES = (
     'register',
@@ -134,7 +135,7 @@ def run(work, ids):
     for d in ('reg', 'shell/env', 'final'): os.makedirs(f'{work}/{d}', exist_ok=True)
     for p in 'BC': mannequin.build(p, f'{work}/dense-{p}.glb', f'{work}/low-{p}.glb')
     B = {p: shell.load_body(f'{work}/dense-{p}.glb') for p in 'BC'}; mb = L.recorded(); axis = L.arm_axis(B['B'])
-    rep = {'lines': R.lines(mb), 'garments': {}}
+    rep = {'lines': R.lines(mb), 'garments': {}, 'mannequin': {p: mannequin.measures(shell.Low(f'{work}/low-{p}.glb'), B[p]) for p in 'BC'}}
     for pid in ids:
         before, after, how = R.register(pid, GARMENTS + f'{pid}.glb', f'{work}/reg/{pid}.glb', mb, axis, B[pose(pid)])
         rep['garments'][pid] = {'before': before, 'registered': after, **how}
@@ -158,7 +159,7 @@ def run(work, ids):
     low = {p: trimesh.load(f'{work}/low-{p}.glb', process=False).to_geometry() for p in 'BC'}
     for pid in ids:
         m = parts(work, pid); b = low[pose(pid)]
-        r, _, _ = measure(m, trimesh.Trimesh(b.vertices, b.faces, process=False), legs=int(pid) <= 15)
+        r, _, _ = measure(m, trimesh.Trimesh(b.vertices, b.faces, process=False), legs=int(pid) <= 15, fold=FOLD)
         rep['garments'][pid].update(body_crossing_pct=r['penetrates_pct'], triangles=int(len(m.faces)), contour=contour(pid, m, B[pose(pid)]))
     if len(ids) == 38:
         b = trimesh.load(f'{work}/low-B.glb', process=False).to_geometry()
@@ -177,7 +178,7 @@ def baseline(rep):
 def worse(pid, k, new, old):
     """A reading that was recorded and is missing now is worse too: a profile no longer read cannot pass as 0."""
     if old is None: return False
-    return new is None or new > old + slack(pid, k)
+    return new is None or round(new - old, 1) > slack(pid, k)      # rounded: 5.1 + .1 is less than 5.2 in floating point
 
 
 def write(rep):
