@@ -6,20 +6,27 @@ import g001_shell from './assets/engine/001-shell.glb';
 import g002_shell from './assets/engine/002-shell.glb';
 import g003_shell from './assets/engine/003-shell.glb';
 import g004_shell from './assets/engine/004-shell.glb';
+import g005_shell from './assets/engine/005-shell.glb';
 import g006_shell from './assets/engine/006-shell.glb';
 import g007_shell from './assets/engine/007-shell.glb';
 import g008_shell from './assets/engine/008-shell.glb';
+import g009_shell from './assets/engine/009-shell.glb';
+import g009_tube from './assets/engine/009-tube.glb';
+import g010_shell from './assets/engine/010-shell.glb';
+import g010_tube from './assets/engine/010-tube.glb';
 import g011_shell from './assets/engine/011-shell.glb';
 import g012_shell from './assets/engine/012-shell.glb';
 import g013_shell from './assets/engine/013-shell.glb';
 import g014_shell from './assets/engine/014-shell.glb';
 import g015_shell from './assets/engine/015-shell.glb';
+import g016_shell from './assets/engine/016-shell.glb';
 import g017_shell from './assets/engine/017-shell.glb';
 import g017_tube from './assets/engine/017-tube.glb';
 import g018_shell from './assets/engine/018-shell.glb';
 import g018_tube from './assets/engine/018-tube.glb';
 import g019_shell from './assets/engine/019-shell.glb';
 import g019_tube from './assets/engine/019-tube.glb';
+import g020_shell from './assets/engine/020-shell.glb';
 import g021_shell from './assets/engine/021-shell.glb';
 import g022_shell from './assets/engine/022-shell.glb';
 import g022_tube from './assets/engine/022-tube.glb';
@@ -36,10 +43,18 @@ import g028_shell from './assets/engine/028-shell.glb';
 import g028_tube from './assets/engine/028-tube.glb';
 import g029_shell from './assets/engine/029-shell.glb';
 import g029_tube from './assets/engine/029-tube.glb';
+import g030_hood from './assets/engine/030-hood.glb';
+import g030_shell from './assets/engine/030-shell.glb';
+import g030_tube from './assets/engine/030-tube.glb';
 import g031_shell from './assets/engine/031-shell.glb';
 import g031_tube from './assets/engine/031-tube.glb';
 import g032_shell from './assets/engine/032-shell.glb';
 import g032_tube from './assets/engine/032-tube.glb';
+import g033_hood from './assets/engine/033-hood.glb';
+import g033_shell from './assets/engine/033-shell.glb';
+import g034_hood from './assets/engine/034-hood.glb';
+import g034_shell from './assets/engine/034-shell.glb';
+import g034_tube from './assets/engine/034-tube.glb';
 import g035_hood from './assets/engine/035-hood.glb';
 import g035_shell from './assets/engine/035-shell.glb';
 import g036_hood from './assets/engine/036-hood.glb';
@@ -55,17 +70,22 @@ export const ENGINE_PARTS: Record<string, readonly string[]> = {
   '002': [g002_shell],
   '003': [g003_shell],
   '004': [g004_shell],
+  '005': [g005_shell],
   '006': [g006_shell],
   '007': [g007_shell],
   '008': [g008_shell],
+  '009': [g009_shell, g009_tube],
+  '010': [g010_shell, g010_tube],
   '011': [g011_shell],
   '012': [g012_shell],
   '013': [g013_shell],
   '014': [g014_shell],
   '015': [g015_shell],
+  '016': [g016_shell],
   '017': [g017_shell, g017_tube],
   '018': [g018_shell, g018_tube],
   '019': [g019_shell, g019_tube],
+  '020': [g020_shell],
   '021': [g021_shell],
   '022': [g022_shell, g022_tube],
   '023': [g023_shell, g023_tube],
@@ -75,8 +95,11 @@ export const ENGINE_PARTS: Record<string, readonly string[]> = {
   '027': [g027_shell, g027_tube],
   '028': [g028_shell, g028_tube],
   '029': [g029_shell, g029_tube],
+  '030': [g030_hood, g030_shell, g030_tube],
   '031': [g031_shell, g031_tube],
   '032': [g032_shell, g032_tube],
+  '033': [g033_hood, g033_shell],
+  '034': [g034_hood, g034_shell, g034_tube],
   '035': [g035_hood, g035_shell],
   '036': [g036_hood, g036_shell],
   '037': [g037_hood, g037_shell],
