@@ -13,6 +13,7 @@ from scipy.spatial import cKDTree
 import landmarks as L
 
 BEHIND = .03           # m: a top this close behind the bottom is being poked through
+REACH = .08            # m: the body a piece of cloth wears lies this close under it
 BAND = (.90, 1.05)     # m: heights where a torso in view is belly
 
 
@@ -47,18 +48,35 @@ def measure(meshes, low):
     return out
 
 
+def worn(low, lab, kd, p, n):
+    """Label of the body part under each point p of the cloth: where the ray from p against the cloth's normal n meets
+    the body within REACH, the label of that face; otherwise that of the nearest vertex."""
+    out = lab[kd.query(p)[1]]
+    loc, ir, tri = low.ray.intersects_location(p, -n, multiple_hits=False)
+    near = np.linalg.norm(loc - p[ir], axis=1) < REACH
+    out[ir[near]] = lab[low.faces[tri[near], 0]]
+    return out
+
+
 def through(garment, low):
-    """cm² of body in view through the garment's cloth, from the 12 cameras, one ray per cm²."""
+    """cm² of body in view through the garment's cloth, from the 12 cameras, one ray per cm². The cloth just behind the
+    body must show its outer face to the camera: at an opening of the garment itself (an armhole, the end of a sleeve,
+    the hem of shorts) the body is in view with the inside of the far wall behind it, and that is not a hole."""
     angles = np.arange(12) * np.pi / 6; X, Y = (a.ravel() for a in np.meshgrid(np.arange(-.60, .60, .01), np.arange(0, 1.85, .01)))
     v = np.asarray(low.vertices); lab = L.limb(v); kd = cKDTree(v); n = 0
     for a in angles:
         d = np.array([np.sin(a), 0, np.cos(a)]); r = np.array([np.cos(a), 0, -np.sin(a)])
         o = X[:, None] * r + Y[:, None] * [0, 1, 0] + d * 3; back = np.repeat(-d[None], len(o), 0)
         hb, ib, _ = low.ray.intersects_location(o, back, multiple_hits=False)
-        hg, ig, _ = garment.ray.intersects_location(o, back, multiple_hits=False)
+        hg, ig, fg = garment.ray.intersects_location(o, back, multiple_hits=False)
         tb = np.full(len(o), np.inf); tb[ib] = np.linalg.norm(hb - o[ib], axis=1); pb = np.zeros((len(o), 3)); pb[ib] = hb
         tg = np.full(len(o), np.inf); tg[ig] = np.linalg.norm(hg - o[ig], axis=1); pg = np.zeros((len(o), 3)); pg[ig] = hg
+        outer = np.zeros(len(o), bool); outer[ig] = garment.face_normals[fg] @ d > 0
+        nrm = np.zeros((len(o), 3)); nrm[ig] = garment.face_normals[fg]
         with np.errstate(invalid='ignore'):
-            k = np.flatnonzero((tb < tg - .002) & (tg - tb < BEHIND))
-        n += int((lab[kd.query(pb[k])[1]] == lab[kd.query(pg[k])[1]]).sum()) if len(k) else 0
+            k = np.flatnonzero((tb < tg - .002) & (tg - tb < BEHIND) & outer)
+        if not len(k): continue
+        # the part of the body the cloth wears is the one under it, along its own normal: beside the torso the nearest
+        # vertex of the body is often the arm's, and a bare arm in front of the side of a top is not a hole in a sleeve
+        n += int((lab[kd.query(pb[k])[1]] == worn(low, lab, kd, pg[k], nrm[k])).sum())
     return n
