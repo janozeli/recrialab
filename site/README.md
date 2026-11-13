@@ -56,23 +56,47 @@ peça de cima: 15 × 23 = 345 pares.
 | `fabric.ts`, `garment-tones.ts` | material, luz e o ajuste de cor de cada peça, os mesmos no palco e nas miniaturas |
 | `camera-motion.ts` | o giro automático do manequim e a volta para a frente, respeitando quem prefere menos movimento |
 | `look-code.ts`, `look-export.ts` | o código do look (`004.024`) e a imagem PNG salva |
+| `look-send.ts`, `look-inbox.ts` | o botão Enviar e o que um look enviado pode conter |
+| `worker.ts`, `inbox-server.ts`, `inbox.ts` | o servidor que recebe os looks enviados e o comando que lê o que chegou |
 | `about.ts`, `about-data.ts`, `about-model.ts` | a página Sobre e o seu conteúdo (eventos, looks e equipe) |
 | `thumbnails.ts`, `thumbnail-render.ts` | desenham as miniaturas a partir dos modelos 3D |
 | `verify-dist.ts`, `check-live.ts` | conferem o pacote antes de publicar e o site no ar depois |
 
 ## Salvar e abrir looks
 
-O provador não tem servidor e não guarda dados de quem usa. O look viaja de duas formas:
+O look viaja de duas formas, e nenhuma delas passa por servidor:
 
 - **No link:** o endereço muda a cada troca de peça (`/?look=004.024`).
 - **Na imagem:** o botão Salvar gera um PNG de 1080×1350 com `LOOK 004 + 024` no canto e o mesmo código
   escondido no arquivo (um bloco `tEXt` chamado `recrialab-look`). O botão Abrir lê essa imagem e veste
   as mesmas peças.
 
+## Enviar o look para a equipe
+
+O botão Enviar manda o look vestido direto para a equipe, sem salvar imagem: abre um formulário curto
+(apelido ou iniciais, turma, nome do look e uma frase) e grava só isso, o código do look e a hora. Não
+vai imagem, nome completo nem endereço de rede; a imagem se refaz pelo código.
+
+É a única parte do site com servidor. O Worker (`worker.ts`, `inbox-server.ts`) atende só `/api/looks`
+e guarda os looks num Durable Object, criado pelo próprio deploy. As páginas continuam estáticas e abrem
+mesmo que o envio esteja fora do ar. O que o formulário e o servidor aceitam está em `look-inbox.ts`.
+
+Para ler o que chegou é preciso a chave da equipe, que não fica no repositório (aqui está só o hash
+dela, em `inbox-server.ts`):
+
+```sh
+RECRIALAB_INBOX_KEY=... bun inbox.ts          # entradas prontas para a lista `looks` de about-data.ts
+RECRIALAB_INBOX_KEY=... bun inbox.ts --json   # tudo o que foi enviado, com a hora
+RECRIALAB_INBOX_KEY=... bun inbox.ts --delete 2026-11-13T14:02:00.000Z   # tira um look (teste, lixo) pela hora
+```
+
+A caixa guarda até 5.000 looks e recusa peça fora do acervo ou look com duas peças do mesmo grupo.
+
 ## Página Sobre
 
 `/sobre` apresenta o projeto e a equipe e não carrega o 3D. O conteúdo fica em `about-data.ts`, e uma
-seção sem conteúdo não aparece. Para incluir looks salvos pelos alunos, `bun about-look.ts images/*.png`
+seção sem conteúdo não aparece. Os looks enviados pelo botão Enviar saem prontos de `bun inbox.ts`. Para
+looks que chegaram como imagem salva, `bun about-look.ts images/*.png`
 lê as imagens e imprime as entradas prontas para colar na lista `looks` de `about-data.ts`.
 
 ## Miniaturas

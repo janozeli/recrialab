@@ -6,7 +6,7 @@ import { execSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { extname, join } from 'node:path';
 import { createRequire } from 'node:module';
-import { SCREENS, auditFilters, auditAbout, auditStageOnDress, auditFittingRoom, auditExpandedStage } from './layout.mjs';
+import { SCREENS, auditFilters, auditAbout, auditStageOnDress, auditFittingRoom, auditExpandedStage, auditSendLook } from './layout.mjs';
 
 // The project's Playwright or the global one (`npm i -g playwright`), with no new dependency on the site.
 const require = createRequire(import.meta.url);
@@ -151,6 +151,10 @@ try {
   await page.waitForTimeout(1500);
   await page.screenshot({ path: join(out, '2-swap.png') });
 
+  // 3. The look goes to the team from the fitting room itself, on this phone's engine.
+  await page.waitForFunction(() => !document.querySelector('#send-look').disabled, null, { timeout: profile.limits.loadMs });
+  for (const p of await auditSendLook(page, look)) check(false, `sending the look on ${profileName}: ${p}`);
+
   // 4. The about page opens without three.js and with content.
   await page.goto(`${base}/sobre`);
   check(await page.locator('h1').textContent() === 'Sobre', 'about page without <h1>Sobre</h1>');
@@ -181,6 +185,8 @@ try {
     });
     check(save.fits && save.button, `the save dialog does not fit on ${screen}: ${JSON.stringify(save)}`);
     await p.locator('#export-close').click();
+    for (const x of await auditSendLook(p, look)) check(false, `sending the look on ${screen}: ${x}`);
+    await p.screenshot({ path: join(out, `screen-${screen}-sent.png`) });
     await p.goto(`${base}/sobre`);
     for (const x of await auditAbout(p)) check(false, `about page on ${screen}: ${x}`);
     await ctx.close();
@@ -216,6 +222,23 @@ try {
   await reader.close();
   check(measures.orange015.pixels > 1000 && measures.orange015.saturation >= .68,
     `orange of 015 washed out on stage: saturation ${measures.orange015.saturation} over ${measures.orange015.pixels} px (minimum 0.68)`);
+
+  // 6. The fit engine's garments (`?engine`): the look dresses on the engine's body, and without the parameter (or
+  // with a garment that has no engine version) the fitting room is the published one.
+  const stageEngine = async url => {
+    await page.goto(url);
+    await page.waitForFunction(() => document.querySelector('#stage')?.getAttribute('aria-busy') === 'false', null,
+      { timeout: profile.limits.loadMs + 30_000 });
+    await page.waitForFunction(() => document.querySelectorAll('#clothes-grid [data-piece].loading').length === 0);
+    await page.waitForLoadState('networkidle', { timeout: profile.limits.loadMs }).catch(() => {});
+    return page.locator('#stage').getAttribute('data-engine');
+  };
+  check(await stageEngine(`${base}/?look=${look}`) === 'false', `?look=${look} without ?engine drew the engine's garments`);
+  const engineStage = await stageEngine(`${base}/?look=${look}&engine`);
+  const held = await page.evaluate(() => window.__engineHold ?? []);
+  const expected = String(!look.split('.').some(id => held.includes(id)));
+  check(engineStage === expected, `?look=${look}&engine: engine look is ${engineStage}, expected ${expected}`);
+  await page.screenshot({ path: join(out, '6-engine.png') });
 
   check(errors.length === 0, `console/network errors:\n  ${errors.join('\n  ')}`);
 } catch (error) {
