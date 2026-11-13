@@ -188,7 +188,7 @@ def against_record(pid, after, how, rec):
     if how['moved_cm'] > LIMITS['moved_cm']: bad.append(f'moved {how["moved_cm"]} cm, limit {LIMITS["moved_cm"]}')
     if not top and not LIMITS['waistband'][0] <= after['waistband_mean'] <= LIMITS['waistband'][1]: bad.append(f'waistband at {after["waistband_mean"]}, outside {LIMITS["waistband"]}')
     if top and how['limit'] is None and max(after['hem_front'], after['hem_back']) > LIMITS['top_hem']: bad.append(f'hem at {max(after["hem_front"], after["hem_back"])}, above {LIMITS["top_hem"]} with stretch to spare')
-    if top and how['proportions'][0]['sleeve_class'] == 'long' and not LIMITS['long_sleeve'][0] <= after['sleeve'] <= LIMITS['long_sleeve'][1]:
+    if top and how['proportions'][0]['sleeve_class'] == 'long' and not (after['sleeve'] is not None and LIMITS['long_sleeve'][0] <= after['sleeve'] <= LIMITS['long_sleeve'][1]):
         bad.append(f'long sleeve ends at {after["sleeve"]}, outside {LIMITS["long_sleeve"]}')
     if rec is None: return bad + ['not in register.json (--write)']
     if how['moved_cm'] > rec['moved_cm'] + MOVED_SLACK: bad.append(f'moved {how["moved_cm"]} cm, recorded {rec["moved_cm"]}')
@@ -241,7 +241,7 @@ def mutations(mb, axis, B, tmp):
 
 
 def row(pid, before, after, how):
-    p0, p1 = how['proportions']; cm = lambda k: f'{100 * p0[k]:5.1f} > {100 * p1[k]:5.1f}' if p0.get(k) else '     -       '
+    p0, p1 = how['proportions']; cm = lambda k: f'{100 * p0[k]:5.1f} > {100 * p1[k]:5.1f}' if p0.get(k) and p1.get(k) else '     -       '
     kind = p0['length_class'] + ('' if int(pid) <= 15 else ' / ' + p0['sleeve_class'])
     what = (f"slide {how['slide_cm']:+.1f} cm, level {how['level']}, drawing x{how['waistband_drawing']}, waistband front drop {100 * before['waistband_front_drop']:+.1f} > {100 * after['waistband_front_drop']:+.1f} cm,"
             f" side rise {100 * before['waistband_side_rise']:+.1f} > {100 * after['waistband_side_rise']:+.1f}, uneven {100 * before['waistband_uneven']:.1f} > {100 * after['waistband_uneven']:.1f}") if int(pid) <= 15 else f"body {how['body']}, sleeve {how['sleeve']}" + (f" ({how['limit']})" if how['limit'] else '')
