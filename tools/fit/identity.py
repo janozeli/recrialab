@@ -106,7 +106,8 @@ def profiles(pid, P, body):
         out['side'] = side(torso[torso[:, 1] < 1.30])
         # the line of the back, seen in profile: a loose top hangs from the shoulder blades; one that follows the lumbar
         # and the glute reads as painted on the body
-        mid = torso[(np.abs(torso[:, 0]) < .05) & (torso[:, 1] < 1.40)]; lo, hi = np.percentile(mid[:, 1], [4, 96]) if len(mid) > 400 else (0, 0)
+        mid = torso[(np.abs(torso[:, 0]) < .05) & (torso[:, 1] < 1.40)]; mid = mid[mid[:, 2] < np.median(torso[:, 2])]   # the back half only: below a back hem that ends higher, the front is not the back
+        lo, hi = np.percentile(mid[:, 1], [4, 96]) if len(mid) > 400 else (0, 0)
         out['back'] = np.array([np.percentile(mid[np.abs(mid[:, 1] - y) < .01, 2], 2) if (np.abs(mid[:, 1] - y) < .01).sum() > 20 else np.nan for y in np.arange(lo, hi, .02)]) if hi > lo else None
     return out
 
