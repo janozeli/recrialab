@@ -141,7 +141,7 @@ test('the form and the server share the same limits', () => {
   expect(html).toContain('id="send-credit" name="credit" required');
 });
 
-test('the form asks for a name or nickname, not initials (Lucas, 13/11/2026: a first name is fine)', () => {
+test('the form asks for a name or nickname, not initials', () => {
   const html = readFileSync(new URL('./index.html', import.meta.url), 'utf8');
   expect(html).toContain('>Nome ou apelido<input id="send-credit"');
   expect(html.toLowerCase()).not.toContain('iniciais');
