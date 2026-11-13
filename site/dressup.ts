@@ -19,6 +19,9 @@ import { stageLabel } from './stage-label';
 import { addGarmentLights, matteFabric } from './fabric';
 import { addPs1Lights, addRimLights, PS1, ps1Material } from './ps1';
 import { FILTERS, wardrobeOrder } from './catalog-tags';
+import { ENGINE_BODY_URLS, ENGINE_PARTS } from './engine-garments';
+import { engineLook } from './engine-look';
+import { ENGINE_HOLD } from './engine-hold';
 
 import garment001 from './assets/garments/001.glb';
 import garment002 from './assets/garments/002.glb';
@@ -448,13 +451,18 @@ export function initDressUp(): void {
   });
 
   // --- wear / take off ------------------------------------------------------
-  const worn = new Map<Slot, { piece: Piece; object: THREE.Object3D }>();
+  // `engine`: the object is the fit engine's version of the piece (engine-look.ts); every worn piece is of one kind.
+  type Worn = { piece: Piece; object: THREE.Object3D; engine: boolean };
+  const worn = new Map<Slot, Worn>();
   const bodyGeometry: { pose: BodyPose; mesh: THREE.Mesh; original: Uint16Array | Uint32Array; setClip: (waist: readonly number[] | undefined, neck: readonly number[] | undefined, sleeve?: readonly number[], sleeveBand?: number) => void }[] = [];
   // Visual QA (tools/verify-site/visual-qa.mjs) photographs the stage from any point of the orbit; localhost only.
   if (['localhost', '127.0.0.1'].includes(location.hostname) && params.has('qa')) {
     Object.assign(window, { __qa: { THREE, scene, camera, controls, renderer, worn, mannequin, followCamera, bodyGeometry, qaSleeve } });
   }
+  // read by tools/verify-site/drive.mjs: a look with a garment on hold is expected as published
+  Object.assign(window, { __engineHold: Object.keys(ENGINE_HOLD) });
   const bodyRoots = new Map<BodyPose, THREE.Object3D>();
+  const engineBodyRoots = new Map<BodyPose, THREE.Object3D>();
   function updateGarmentLayering(): void {
     const bottom = worn.get('bottom');
     if (!bottom) return;
@@ -513,9 +521,15 @@ export function initDressUp(): void {
     if (ordinal !== table.meshes.length) throw new Error('Layer mesh count mismatch');
   }
   function updateBodyCoverage(): void {
-    updateGarmentLayering();
     const pose = bodyPoseForBottom(worn.get('bottom')?.piece.id);
-    for (const [key, body] of bodyRoots) body.visible = key === pose;
+    // The engine's shells go on its own low-poly body, whole: every top is built outside every bottom and outside
+    // the body, so there is no mask, clip line or layer table. With nothing on, the body is the engine's too.
+    const engine = worn.size ? [...worn.values()].every(entry => entry.engine) : engineLook([]);
+    for (const [key, body] of bodyRoots) body.visible = !engine && key === pose;
+    for (const [key, body] of engineBodyRoots) body.visible = engine && key === pose;
+    stage.dataset.engine = String(engine);
+    if (engine) return;
+    updateGarmentLayering();
     const registry: Record<string, BodyMask> = pose === 'C' ? BODY_C_MASKS : BODY_MASKS;
     const activeMasks = [...worn.values()].flatMap(({piece}) => registry[piece.id] ? [registry[piece.id]] : []);
     const bottom = worn.get('bottom')?.piece.id;
@@ -605,10 +619,10 @@ export function initDressUp(): void {
   }
   function pruneCache(): void {
     const protectedKeys = new Set<string>();
-    for (const { piece } of worn.values()) protectedKeys.add(piece.url);
+    for (const { piece } of worn.values()) protectedKeys.add(modelKey(piece, false)).add(modelKey(piece, true));
     for (const request of pending.values()) {
       const piece = PIECES.find(p => p.id === request.pieceId);
-      if (piece) protectedKeys.add(piece.url);
+      if (piece) protectedKeys.add(modelKey(piece, false)).add(modelKey(piece, true));
     }
     const evicted = evictionCandidates([...readyCache].map(([key, value]) => ({ key, bytes: value.bytes })), protectedKeys, 64 * 1024 ** 2);
     for (const key of evicted) {
@@ -627,21 +641,31 @@ export function initDressUp(): void {
     }
   }
 
-  async function buildObject(piece: Piece): Promise<THREE.Object3D> {
-    if (!glbCache.has(piece.url)) {
+  /** Cache key of a piece's model: the published GLB's address, or the engine version of the piece. */
+  const modelKey = (piece: Piece, engine: boolean): string => engine ? `engine:${piece.id}` : piece.url;
+  async function loadModel(piece: Piece, engine: boolean): Promise<THREE.Group> {
+    if (!engine) return (await loadVerified(piece.url, (BODY_MASKS[piece.id] ?? BODY_C_MASKS[piece.id])?.garment_sha256)).scene;
+    // the engine's parts (shell, tube, hood) share the body's metres and origin: one group, no transform
+    const model = new THREE.Group();
+    for (const part of await Promise.all(ENGINE_PARTS[piece.id].map(url => gltfLoader.loadAsync(url)))) model.add(part.scene);
+    return model;
+  }
+  async function buildObject(piece: Piece, engine: boolean): Promise<THREE.Object3D> {
+    const key = modelKey(piece, engine);
+    if (!glbCache.has(key)) {
       glbCache.set(
-        piece.url,
-        loadVerified(piece.url, (BODY_MASKS[piece.id] ?? BODY_C_MASKS[piece.id])?.garment_sha256).then(({scene: model}) => {
+        key,
+        loadModel(piece, engine).then(model => {
           matteFabric(model, piece.id);
           if (PS1) model.traverse(node => { if (node instanceof THREE.Mesh) for (const m of [node.material].flat()) if (m instanceof THREE.MeshStandardMaterial) ps1Material(m); });
           return model;
-        }).catch(error => { glbCache.delete(piece.url); throw error; }),
+        }).catch(error => { glbCache.delete(key); throw error; }),
       );
     }
-    const template = await glbCache.get(piece.url)!;
-    const entry = readyCache.get(piece.url) ?? { model: template, bytes: textureEstimate(template) };
-    readyCache.delete(piece.url);
-    readyCache.set(piece.url, entry);
+    const template = await glbCache.get(key)!;
+    const entry = readyCache.get(key) ?? { model: template, bytes: textureEstimate(template) };
+    readyCache.delete(key);
+    readyCache.set(key, entry);
     // Shared metres/origin/orientation: preserve glTF transforms, normals and material sides.
     return template.clone();
   }
@@ -649,7 +673,8 @@ export function initDressUp(): void {
   // Keeps the previous piece while loading; the last choice wins.
   let requestId = 0;
   const pending = new Map<Slot, { id: number; pieceId: string }>();
-  function detach(slot: Slot): void {
+  /** Takes the piece's object off the scene, without redrawing the body. */
+  function unmount(slot: Slot): void {
     const entry = worn.get(slot);
     if (!entry) return;
     scene.remove(entry.object);
@@ -662,13 +687,44 @@ export function initDressUp(): void {
       }
     });
     worn.delete(slot);
+  }
+  function mount(piece: Piece, object: THREE.Object3D, engine: boolean): void {
+    unmount(piece.slot);
+    scene.add(object);
+    worn.set(piece.slot, { piece, object, engine });
+  }
+  function detach(slot: Slot): void {
+    if (!worn.has(slot)) return;
+    unmount(slot);
     updateBodyCoverage();
     requestRender();
+  }
+  /** What a look needs before it can be drawn in that version: the bottom's layer table, for the published one. */
+  const layersFor = (engine: boolean, bottomId: string | undefined): Promise<unknown> =>
+    engine ? Promise.resolve() : Promise.all([classicBodies(), bottomId ? loadGarmentLayers(bottomId) : null]);
+  /** After a piece leaves, the one that stays may change version (engine-look.ts): it is swapped once loaded. */
+  async function settle(): Promise<void> {
+    for (;;) {
+      const entries = [...worn.values()];
+      const engine = engineLook(entries.map(entry => entry.piece.id));
+      const stale = entries.filter(entry => entry.engine !== engine);
+      if (!stale.length) return;
+      let objects: THREE.Object3D[];
+      try {
+        [objects] = await Promise.all([Promise.all(stale.map(entry => buildObject(entry.piece, engine))), layersFor(engine, worn.get('bottom')?.piece.id)]);
+      } catch { return; } // the piece stays as it is, in a look that is whole
+      if (entries.length !== worn.size || entries.some(entry => worn.get(entry.piece.slot) !== entry)) continue;
+      stale.forEach((entry, i) => mount(entry.piece, objects[i], engine));
+      updateBodyCoverage();
+      requestRender();
+      return;
+    }
   }
   function remove(slot: Slot): void {
     const name = worn.get(slot)?.piece.name;
     pending.delete(slot);
     detach(slot);
+    void settle();
     pruneCache();
     update();
     if (name) announce(`${name} saiu do look.`);
@@ -682,11 +738,22 @@ export function initDressUp(): void {
     pending.set(piece.slot, { id, pieceId: piece.id });
     update();
     try {
-      const [object] = await Promise.all([buildObject(piece),piece.slot==='bottom'?loadGarmentLayers(piece.id):Promise.resolve()]);
-      if (pending.get(piece.slot)?.id !== id) return;
-      detach(piece.slot);
-      scene.add(object);
-      worn.set(piece.slot, { piece, object });
+      const otherSlot: Slot = piece.slot === 'top' ? 'bottom' : 'top';
+      for (;;) {
+        // The look is of one version (engine-look.ts): the piece already worn is swapped together with the new one.
+        const other = worn.get(otherSlot);
+        const engine = engineLook(other ? [piece.id, other.piece.id] : [piece.id]);
+        const [object, otherObject] = await Promise.all([
+          buildObject(piece, engine),
+          other && other.engine !== engine ? buildObject(other.piece, engine) : null,
+          layersFor(engine, piece.slot === 'bottom' ? piece.id : other?.piece.id),
+        ]);
+        if (pending.get(piece.slot)?.id !== id) return;
+        if (worn.get(otherSlot) !== other) continue; // the other piece changed meanwhile: decide again
+        if (other && otherObject) mount(other.piece, otherObject, engine);
+        mount(piece, object, engine);
+        break;
+      }
       updateBodyCoverage();
       requestRender();
       announce(`${piece.name} no look.`);
@@ -794,24 +861,42 @@ export function initDressUp(): void {
   renderPieces();
   stage.setAttribute('aria-busy', 'true');
   stageStatus.textContent = 'Carregando manequim…';
-  void Promise.all((['B', 'C'] as const).map(async pose => {
-    const { scene: body } = await loadVerified(BODY_POSES[pose].url, BODY_POSES[pose].hash);
-    const registry = pose === 'B' ? BODY_MASKS : BODY_C_MASKS;
+  const engineBodies = engineLook([]) ? (['B', 'C'] as const).map(async pose => {
+    const { scene: body } = await gltfLoader.loadAsync(ENGINE_BODY_URLS[pose]);
     body.traverse(node => {
       if (!(node instanceof THREE.Mesh)) return;
-      const indices = node.geometry.index?.array;
-      if (!(indices instanceof Uint16Array || indices instanceof Uint32Array)) throw new Error('Unexpected body topology');
-      for (const mask of Object.values(registry)) validateBodyMask(mask, BODY_POSES[pose].hash, node.name, indices.length / 3);
-      node.geometry = node.geometry.clone();
-      if (!(node.material instanceof THREE.MeshStandardMaterial)) throw new Error('Unexpected body material');
-      node.material = node.material.clone();
-      if (PS1) ps1Material(node.material);
-      bodyGeometry.push({pose, mesh: node, original: indices.slice(), setClip: bodyClip(node, node.material)});
+      if (!node.geometry.getAttribute('normal')) node.geometry.computeVertexNormals();
+      if (PS1 && node.material instanceof THREE.MeshStandardMaterial) ps1Material(node.material);
     });
-    body.visible = pose === 'B';
-    bodyRoots.set(pose, body);
+    body.visible = false;
+    engineBodyRoots.set(pose, body);
     mannequin.add(body);
-  })).then(() => {
+  }) : [];
+  // The dense bodies of the published garments are megabytes: with the engine on they wait until the opening look
+  // is on (or load at once when the look, or `?classico`, needs them).
+  let classicLoad: Promise<unknown> | null = null;
+  function classicBodies(): Promise<unknown> {
+    return classicLoad ??= Promise.all((['B', 'C'] as const).map(async pose => {
+      if (bodyRoots.has(pose)) return;
+      const { scene: body } = await loadVerified(BODY_POSES[pose].url, BODY_POSES[pose].hash);
+      const registry = pose === 'B' ? BODY_MASKS : BODY_C_MASKS;
+      body.traverse(node => {
+        if (!(node instanceof THREE.Mesh)) return;
+        const indices = node.geometry.index?.array;
+        if (!(indices instanceof Uint16Array || indices instanceof Uint32Array)) throw new Error('Unexpected body topology');
+        for (const mask of Object.values(registry)) validateBodyMask(mask, BODY_POSES[pose].hash, node.name, indices.length / 3);
+        node.geometry = node.geometry.clone();
+        if (!(node.material instanceof THREE.MeshStandardMaterial)) throw new Error('Unexpected body material');
+        node.material = node.material.clone();
+        if (PS1) ps1Material(node.material);
+        bodyGeometry.push({pose, mesh: node, original: indices.slice(), setClip: bodyClip(node, node.material)});
+      });
+      body.visible = false;
+      bodyRoots.set(pose, body);
+      mannequin.add(body);
+    })).catch(error => { classicLoad = null; throw error; });
+  }
+  void Promise.all([...engineBodies, ...(engineLook(initialLook) ? [] : [classicBodies()])]).then(() => {
     updateBodyCoverage();
     bodyState = 'ready';
     stageStatus.textContent = '';
@@ -825,6 +910,7 @@ export function initDressUp(): void {
         localStorage.setItem('recrialab-visited', '1');
       } catch { /* storage blocked: no showcase */ }
       if (!visited) cameraMotion.showcase();
+      void classicBodies().catch(() => { /* asked for again by the first published look */ });
     });
   }).catch((error) => {
     bodyState = 'error';

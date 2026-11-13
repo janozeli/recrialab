@@ -1,5 +1,6 @@
 // Fit showcase: dresses each garment of the collection on the build and photographs front, profile and back.
-// Usage: node tools/verify-site/showcase.mjs [--pieces 016,019] [--out dir] [--crop collar]
+// Usage: node tools/verify-site/showcase.mjs [--pieces 016,019] [--out dir] [--crop collar] [--engine]
+// --engine draws the fit engine's version of the garment (`?engine`), where it has one.
 // Serves site/dist/ (run `bun run build` first). Writes one sheet per garment and showcase.png with all of them,
 // to check the fit against the original photos without opening the site garment by garment.
 import { createServer } from 'node:http';
@@ -43,7 +44,7 @@ page.on('pageerror', e => errors.push(String(e)));
 const sheets = [];
 try {
   for (const id of pieces) {
-    await page.goto(`${base}/?look=${id}`);
+    await page.goto(`${base}/?look=${id}${process.argv.includes('--engine') ? '&engine' : ''}`);
     await page.waitForFunction(() => document.querySelector('#stage')?.getAttribute('aria-busy') === 'false', null, { timeout: 60_000 });
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(800);

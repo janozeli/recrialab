@@ -223,6 +223,23 @@ try {
   check(measures.orange015.pixels > 1000 && measures.orange015.saturation >= .68,
     `orange of 015 washed out on stage: saturation ${measures.orange015.saturation} over ${measures.orange015.pixels} px (minimum 0.68)`);
 
+  // 6. The fit engine's garments (`?engine`): the look dresses on the engine's body, and without the parameter (or
+  // with a garment that has no engine version) the fitting room is the published one.
+  const stageEngine = async url => {
+    await page.goto(url);
+    await page.waitForFunction(() => document.querySelector('#stage')?.getAttribute('aria-busy') === 'false', null,
+      { timeout: profile.limits.loadMs + 30_000 });
+    await page.waitForFunction(() => document.querySelectorAll('#clothes-grid [data-piece].loading').length === 0);
+    await page.waitForLoadState('networkidle', { timeout: profile.limits.loadMs }).catch(() => {});
+    return page.locator('#stage').getAttribute('data-engine');
+  };
+  check(await stageEngine(`${base}/?look=${look}`) === 'false', `?look=${look} without ?engine drew the engine's garments`);
+  const engineStage = await stageEngine(`${base}/?look=${look}&engine`);
+  const held = await page.evaluate(() => window.__engineHold ?? []);
+  const expected = String(!look.split('.').some(id => held.includes(id)));
+  check(engineStage === expected, `?look=${look}&engine: engine look is ${engineStage}, expected ${expected}`);
+  await page.screenshot({ path: join(out, '6-engine.png') });
+
   check(errors.length === 0, `console/network errors:\n  ${errors.join('\n  ')}`);
 } catch (error) {
   failures.push(String(error));
