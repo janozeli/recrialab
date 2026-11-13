@@ -299,10 +299,25 @@ def outside(V, F, low_body):
     return V, F
 
 
-def bake(piece, faces, V, F):
-    """Texture of the shape V, F from the triangles `faces` of the garment: each texel takes the color of the nearest
-    point of them that faces its way."""
-    src = trimesh.Trimesh(piece.v, piece.f[faces], process=False)
+def seen_side(V, F, around):
+    """Per triangle of the loose part: +1 where more cameras see its front, -1 where more see its back (the loose
+    part itself and the meshes `around`, shell and body, in the way)."""
+    m = trimesh.Trimesh(V, F, process=False); world = trimesh.util.concatenate([m] + list(around)); c = m.triangles_center; n = m.face_normals
+    count = np.zeros((len(F), 2), int)
+    for d in directions():
+        for k, sign in enumerate((1, -1)):
+            f = np.flatnonzero(n @ d * sign > .1)
+            if len(f): count[f[~world.ray.intersects_any(c[f] + n[f] * sign * .002, np.repeat(d[None], len(f), 0))], k] += 1
+    return np.where(count[:, 1] > count[:, 0], -1, 1)
+
+
+def bake(piece, faces, V, F, around=()):
+    """Texture of the shape V, F from the triangles `faces` of the garment: each texel takes the color of the
+    nearest point of them that faces the side its triangle is seen from (around: the meshes that hide the loose part,
+    for seen_side()). Where the cloth right there shows only its other face, it takes what is seen of them from that
+    side within NEAR, and only failing that the nearest point: the nearest point alone paints the rim of a hood
+    with the lining just under it, which is dark (037: 21 cm² dark on three triangles of the rim)."""
+    src = trimesh.Trimesh(piece.v, piece.f[faces], process=False); side = dict(zip(map(tuple, np.sort(F, axis=1).tolist()), seen_side(V, F, around)))
     sp, sf = trimesh.sample.sample_surface(src, 200000, seed=1); sn = src.face_normals[sf]; kd = cKDTree(sp)
     atlas = xatlas.Atlas(); atlas.add_mesh(V.astype(np.float32), F.astype(np.uint32))
     po = xatlas.PackOptions(); po.padding = 4; po.resolution = TEX
@@ -323,9 +338,13 @@ def bake(piece, faces, V, F):
         x, y, w = x[ok2], y[ok2], np.clip(w[ok][ok2], 0, 1); w /= w.sum(1, keepdims=True)
         if not len(x): continue
         p = w @ V2[[a, b, c]]; n = np.cross(V2[b] - V2[a], V2[c] - V2[a]); n /= np.linalg.norm(n) + 1e-12
-        _, near = kd.query(p, k=8)
+        n = n * side[tuple(sorted((int(vm[a]), int(vm[b]), int(vm[c]))))]; _, near = kd.query(p, k=8)
         facing = sn[near] @ n > 0; first = np.where(facing.any(1), facing.argmax(1), 0); s = near[np.arange(len(p)), first]
-        img[TEX - 1 - y, x] = piece.color(faces[sf[s]], sp[s]); valid[TEX - 1 - y, x] = True
+        col = piece.color(faces[sf[s]], sp[s])
+        o = p + n * NEAR; loc, ir, it = piece.mesh.ray.intersects_location(o, np.repeat(-n[None], len(p), 0), multiple_hits=False)
+        hit = np.linalg.norm(loc - o[ir], axis=1) < 2 * NEAR
+        if hit.any(): col[ir[hit]] = piece.color(it[hit], loc[hit])
+        img[TEX - 1 - y, x] = col; valid[TEX - 1 - y, x] = True
     idx = ndimage.distance_transform_edt(~valid, return_distances=False, return_indices=True)
     return V2, N2, UV, F2, Image.fromarray(np.clip(img[idx[0], idx[1]], 0, 255).astype(np.uint8))
 
@@ -357,12 +376,12 @@ def build(dense_path, src, dst, shell_path=None):
         while True:                                            # the cut on the mannequin adds triangles: simplify further until it fits
             V, F = simplify(V0, F0, target, border)
             V, F = outside(lift(V, sh), F, low); kept = F[whole(V, F)]
-            if len(kept if border else F) <= fits or target < 60: break
-            target -= len(kept if border else F) - fits + 4
+            if len(kept) <= fits or target < 60: break          # counted after the pieces that go: counted before, a loose part that loses pieces ends far under its ceiling (033: 151 of 212, and 31 cm² more cloth lost)
+            target -= len(kept) - fits + 4
         F = kept
         if not len(F): continue
         m = trimesh.Trimesh(V, F, process=False); m.remove_unreferenced_vertices(); path = dst if border else dst + '.plain.glb'
-        V2, N2, UV, F2, img = bake(piece, faces, np.asarray(m.vertices), np.asarray(m.faces))
+        V2, N2, UV, F2, img = bake(piece, faces, np.asarray(m.vertices), np.asarray(m.faces), [sh, trimesh.Trimesh(low.vertices, low.faces, process=False)])
         S.export(path, V2, F2, N2, UV, img, double_sided=True)
         made[border] = {**measure(dense_path, src, [shell_path], path), 'triangles_before': int(len(F0)),
                         'pieces': len(m.split(only_watertight=False)), 'area_cm2': int(m.area * 1e4),
