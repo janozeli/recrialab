@@ -15,8 +15,9 @@ measure() compares the result with the garment as generated, from cameras around
 - dark_cm2: the loose part in view much darker than the garment at the same place (a hole showing the lining);
 - off_cm2: the loose part in view with nothing of the garment within NEAR behind or in front of it (a sliver);
 - edge_cm: length of the loose part's border (a ragged cut, a shard);
-- lost_cm2: the garment's cloth around the neck and on the upper back in view against the background where the
-  rebuilt garment (shell and loose part) shows nothing: the hood or the collar lost its outline.
+- lost_cm2: the garment's cloth around the neck and on the upper back in view where the rebuilt garment (shell and
+  loose part) shows nothing: against the background (the hood or the collar lost its outline), or in front of the
+  body where the low-poly mannequin is now bare (bare_cm2, a part of lost_cm2).
 build() returns them, engine.py keeps them in its report, and check(report) fails on what rose above loose_hood.json.
 usage: python3 tools/fit/loose_hood.py DENSE_BODY.glb GARMENT.glb OUT.glb [SHELL.glb]
        python3 tools/fit/loose_hood.py --check [WORK]     (no WORK: runs the engine on the hooded garments first)
@@ -36,7 +37,8 @@ SLOPE = .15            # m per m: below the neck a garment hangs looser, and a h
 HANGS = 1.42           # m: a loose piece that does not reach this height hangs from nothing
 EDGE = .3              # of 1: where the smoothed choice is cut; under one half, a thin collar is not eaten by the smoothing
 LIFT = .004            # m: the loose part stays this far over the shell
-IN_BODY = .002         # m: a triangle with a point this deep in the low-poly mannequin is inside it
+OVER_BODY = .003       # m: the loose part stays this far over the low-poly mannequin
+IN_BODY = .002         # m: cloth this deep in the low-poly mannequin is inside it
 MIN_AREA = .004        # m²: a kept piece smaller than this is a sliver
 MIN_LOOSE = .025       # m²: less cloth than this outside the shell is no hood: the shell alone holds the garment
 TARGET = 260           # triangles
@@ -118,17 +120,17 @@ def seen(c, piece, body):
     return out
 
 
-def simplify(V, F):
-    """The cut down to TARGET triangles. Where a tangled cut stops the collapse, vertices closer than a cell are
+def simplify(V, F, target=TARGET):
+    """The cut down to target triangles. Where a tangled cut stops the collapse, vertices closer than a cell are
     welded first, in cells that grow."""
     for cell in (0, .01, .015, .02, .03, .04, .06):
-        if len(F) <= TARGET: break
+        if len(F) <= target: break
         if cell:
             _, first, inv = np.unique(np.round(V / cell).astype(int), axis=0, return_index=True, return_inverse=True)
             V, F = V[first], inv.ravel()[F]; F = F[(F[:, 0] != F[:, 1]) & (F[:, 1] != F[:, 2]) & (F[:, 0] != F[:, 2])]
             F = F[np.unique(np.sort(F, axis=1), axis=0, return_index=True)[1]]
         for agg in (3, 7):
-            if len(F) > TARGET: V, F = fast_simplification.simplify(np.asarray(V, np.float32), F, target_count=TARGET - 1, agg=agg)   # the collapse may stop one triangle over
+            if len(F) > target: V, F = fast_simplification.simplify(np.asarray(V, np.float32), F, target_count=target - 1, agg=agg)   # the collapse may stop one triangle over
     return np.asarray(V, float), np.asarray(F)
 
 
@@ -140,14 +142,51 @@ def lift(V, shell):
     return V
 
 
+def split(V, F, hit):
+    """The triangles `hit` split in four at the middle of their edges, and their neighbors along the split edges, so
+    no edge is left with a vertex in the middle of it."""
+    V = list(V); mid = {}
+    def m(a, b):
+        k = (min(a, b), max(a, b))
+        if k not in mid: V.append((V[a] + V[b]) / 2); mid[k] = len(V) - 1
+        return mid[k]
+    for a, b, c in F[hit]: m(a, b), m(b, c), m(c, a)
+    out = []
+    for t in F:
+        t = [int(x) for x in t]; cut = [mid.get((min(t[i], t[(i + 1) % 3]), max(t[i], t[(i + 1) % 3]))) for i in range(3)]; n = sum(x is not None for x in cut)
+        if n == 0: out.append(t)
+        elif n == 3: out += [(t[0], cut[0], cut[2]), (cut[0], t[1], cut[1]), (cut[2], cut[1], t[2]), (cut[0], cut[1], cut[2])]
+        elif n == 1:
+            i = [x is not None for x in cut].index(True); a, b, c = t[i], t[(i + 1) % 3], t[(i + 2) % 3]
+            out += [(a, cut[i], c), (cut[i], b, c)]
+        else:
+            i = [x is None for x in cut].index(True); a, b, c = t[i], t[(i + 1) % 3], t[(i + 2) % 3]   # edge a-b whole
+            bc, ca = cut[(i + 1) % 3], cut[(i + 2) % 3]
+            out += [(a, b, bc), (a, bc, ca), (ca, bc, c)]
+    return np.array(V), np.array(out, int)
+
+
 def outside(V, F, low_body):
-    """The triangles that are not inside the low-poly mannequin, which is what the garment is worn on: a collar's
-    triangle that cuts through the neck is not seen, and it counts as body crossing the garment."""
-    if low_body is None: return F
-    P = V[F]; keep = np.ones(len(F), bool)
-    for w in ((1, 1, 1), (2, 1, 0), (0, 2, 1), (1, 0, 2), (1, 2, 0), (0, 1, 2), (2, 0, 1)):
-        keep &= nearest(low_body, np.einsum('k,ikj->ij', np.array(w) / 3, P))[0] > -IN_BODY
-    return F[keep]
+    """The loose part without what cuts through the neck of the low-poly mannequin, which is what the garment is
+    worn on and where it counts as body crossing the garment (below the neck line the loose part lies on the shell,
+    and lift() keeps it over). The vertices of a triangle that crosses are brought to OVER_BODY over the mannequin's
+    surface; one that still bridges through it is split and its new vertices brought out too, so the cloth stays in
+    view; only what bridges after that is dropped."""
+    def out_of_body(V, F):                                     # only the vertices of triangles that cross: the rest stays as cut
+        sd, q, n = nearest(low_body, V); deep = (sd < 0) & np.isin(np.arange(len(V)), F)
+        V = V.copy(); V[deep] = q[deep] + n[deep] * OVER_BODY
+        return V
+    def inside(V, F):
+        P = V[F]; hit = np.zeros(len(F), bool)
+        for w in ((1, 1, 1), (2, 1, 0), (0, 2, 1), (1, 0, 2), (1, 2, 0), (0, 1, 2), (2, 0, 1)):
+            hit |= nearest(low_body, np.einsum('k,ikj->ij', np.array(w) / 3, P))[0] <= -IN_BODY
+        return hit & (P[:, :, 1].min(1) > NECK)
+    hit = inside(V, F)
+    if not hit.any(): return V, F
+    V = out_of_body(V, F[hit]); hit = inside(V, F)
+    if hit.any():
+        V, F = split(V, F, hit); V = out_of_body(V, F); F = F[~inside(V, F)]
+    return V, F
 
 
 def bake(piece, faces, V, F):
@@ -188,16 +227,26 @@ def build(dense_path, src, dst, shell_path=None):
     if os.path.exists(dst): os.remove(dst)
     body = S.load_body(dense_path); piece = S.Piece(src)
     sh = trimesh.load(shell_path, process=False).to_geometry(); sh = trimesh.Trimesh(sh.vertices, sh.faces, process=False)
-    low = dense_path.replace('dense-', 'low-'); low = S.load_body(low) if low != dense_path and os.path.exists(low) else None
+    low = S.load_body(low_path(dense_path))
     cloth = loose(piece, body, sh)
     if cloth is None: return measure(dense_path, src, [shell_path], dst)
-    V, F, faces = cloth; before = len(F); V = lift(V, sh)
-    V, F = simplify(V, F)
-    V = lift(np.asarray(V, float), sh); m = trimesh.Trimesh(V, outside(V, np.asarray(F), low), process=False); m.remove_unreferenced_vertices()
+    V0, F0, faces = cloth; before = len(F0); V0 = lift(V0, sh); target = TARGET
+    while True:                                                # the cut on the mannequin adds triangles: simplify further until it fits
+        V, F = simplify(V0, F0, target)
+        V, F = outside(lift(V, sh), F, low)
+        if len(F) <= TARGET or target < 60: break
+        target -= len(F) - TARGET + 4
+    m = trimesh.Trimesh(V, F, process=False); m.remove_unreferenced_vertices()
     V2, N2, UV, F2, img = bake(piece, faces, np.asarray(m.vertices), np.asarray(m.faces))
     S.export(dst, V2, F2, N2, UV, img, double_sided=True)
     return {**measure(dense_path, src, [shell_path], dst), 'triangles_before': int(before),
             'pieces': len(m.split(only_watertight=False)), 'area_cm2': int(m.area * 1e4)}
+
+
+def low_path(dense_path):
+    """The low-poly mannequin the engine wrote next to the dense one."""
+    low = dense_path.replace('dense-', 'low-'); assert low != dense_path and os.path.exists(low), f'no low-poly mannequin for {dense_path}'
+    return low
 
 
 def open_edge(mesh):
@@ -232,11 +281,12 @@ class Look:
 def measure(dense_path, src, shell_paths, hood_path):
     """The loose part against the garment as generated, in cm² summed over the cameras, and its triangles."""
     body = S.load_body(dense_path); body = trimesh.Trimesh(body.vertices, body.faces, process=False)
+    worn = S.load_body(low_path(dense_path)); worn = trimesh.Trimesh(worn.vertices, worn.faces, process=False)
     old = Look([src]); cloth = around_neck(S.load_body(dense_path), old.pieces[0].v)[0][old.pieces[0].f].all(1)
     has = os.path.exists(hood_path); new = Look(list(shell_paths) + ([hood_path] if has else []))
     hood_from = new.off[-2] if has else len(new.mesh.faces)
     hm = new.pieces[-1].mesh if has else None
-    out = {'triangles': int(len(hm.faces)) if has else 0, 'edge_cm': round(100 * float(open_edge(hm)), 1) if has else 0.0, 'dark_cm2': 0.0, 'off_cm2': 0.0, 'lost_cm2': 0.0}
+    out = {'triangles': int(len(hm.faces)) if has else 0, 'edge_cm': round(100 * float(open_edge(hm)), 1) if has else 0.0, 'dark_cm2': 0.0, 'off_cm2': 0.0, 'lost_cm2': 0.0, 'bare_cm2': 0.0}
     cm2 = RAY * RAY * 1e4
     for d in directions():
         r = np.cross([0, 1, 0], d); r /= np.linalg.norm(r); u = np.cross(d, r)
@@ -251,6 +301,10 @@ def measure(dense_path, src, shell_paths, hood_path):
         if s.any(): out['dark_cm2'] += cm2 * float((new.luma(fn[s], pn[s]) < old.luma(fo[s], po[s]) - DARK).sum())
         was = (fo >= 0) & cloth[np.maximum(fo, 0)] & ~np.isfinite(t_body)
         out['lost_cm2'] += cm2 * float((was & ~np.isfinite(tn)).sum())
+        tw = worn.ray.intersects_location(o, dd, multiple_hits=False); t_worn = np.full(len(o), np.inf); t_worn[tw[1]] = np.linalg.norm(tw[0] - o[tw[1]], axis=1)
+        bare = (fo >= 0) & cloth[np.maximum(fo, 0)] & (to < t_body) & np.isfinite(t_worn) & ~(tn < t_worn)
+        out['bare_cm2'] += cm2 * float(bare.sum())
+    out['lost_cm2'] += out['bare_cm2']
     return {k: round(v, 1) if isinstance(v, float) else v for k, v in out.items()}
 
 
