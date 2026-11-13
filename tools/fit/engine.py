@@ -39,14 +39,6 @@ KEPT = {
     'waist_thinner_pct': (lambda g: round(max(0., 100 * (1 - g['contour']['waist']['girth_rebuilt_cm'] / g['contour']['waist']['girth_cm'])), 1) if 'waist' in g['contour'] else None, .5),
     'distortion_pct': (lambda g: round(100 * abs(g['shell']['identity']['distortion'] - 1), 1), 1.),
 }
-# where the CI machine read a garment further from the machine that recorded than the slack above, and by how much
-# it may: 021 read 762.4 cm of tear against 738.1. The cause is not known (the same machine repeats to the last
-# digit, with one thread or four), so the slack is of this garment only. 025, with the registration that keeps the
-# waistbands' drawing: the CI machine read 6.0 % of distortion against 4.5 on the machine that recorded
-MACHINE = {
-    '021': {'tear_cm': 30},
-    '025': {'distortion_pct': 1.6},
-}
 # the lines that make a garment itself, for a bottom and for a top: the waistband or the hem, and the silhouette. A
 # line made straight shows here (a level cut on a waistband that dips 5 cm in front loses 1.7 cm). Over CONTOUR_LIMIT
 # a garment fails whatever its baseline says.
@@ -62,11 +54,11 @@ BACK_CASES = {
 }
 FOLD = .01             # m: a body vertex this close behind another part of the body, below the neck, is in a fold and is left out of body crossing
 CONTOUR_LIMIT = 2.0
-# over the 345 looks, in cm²: today's values (36, 18, 0, 0) and a little over them, never over what they were
-# (220, 20, 97, 10). The worst look is skirt 010 under 022
+# over the 345 looks, in cm²: today's values (19, 8, 0, 0) and a little over them for what another machine reads,
+# never over what they were (220, 20, 97, 10). The worst look is skirt 007 under 034
 LOOK_LIMITS = {
-    'poke_total_cm2': 40,
-    'poke_worst_look_cm2': 20,
+    'poke_total_cm2': 24,
+    'poke_worst_look_cm2': 10,
     'belly_total_cm2': 2,
     'belly_worst_look_cm2': 2,
 }
@@ -94,7 +86,7 @@ SKIRT_RINGS, HEM_RINGS = 4, 3
 def pose(pid): return 'C' if pid in POSE_C else 'B'
 
 
-def slack(pid, k): return MACHINE.get(pid, {}).get(k, KEPT[k][1])
+def slack(pid, k): return KEPT[k][1]
 
 
 def lost(g, edges):
@@ -139,7 +131,7 @@ def run(work, ids):
     for d in ('reg', 'shell/env', 'final'): os.makedirs(f'{work}/{d}', exist_ok=True)
     for p in 'BC': mannequin.build(p, f'{work}/dense-{p}.glb', f'{work}/low-{p}.glb')
     B = {p: shell.load_body(f'{work}/dense-{p}.glb') for p in 'BC'}; mb = L.recorded(); axis = L.arm_axis(B['B'])
-    rep = {'lines': R.lines(mb), 'garments': {}, 'mannequin': {p: mannequin.measures(shell.Low(f'{work}/low-{p}.glb'), B[p]) for p in 'BC'}}
+    rep = {'lines': R.lines(mb), 'garments': {}, 'mannequin': {p: mannequin.measures(shell.Low(f'{work}/low-{p}.glb'), B[p], p) for p in 'BC'}}
     for pid in ids:
         before, after, how = R.register(pid, GARMENTS + f'{pid}.glb', f'{work}/reg/{pid}.glb', mb, axis, B[pose(pid)])
         rep['garments'][pid] = {'before': before, 'registered': after, **how}
