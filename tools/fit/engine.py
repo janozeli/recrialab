@@ -248,6 +248,8 @@ def check(rep):
         bad += [f'{pid} {k}: {"not read" if v is None else v}, recorded {old[pid][k]}' for k, v in g.items() if worse(pid, k, v, old[pid].get(k))]
     bad += [f'{pid} contour_lost_cm: {g["contour_lost_cm"]}, limit {CONTOUR_LIMIT}' for pid, g in baseline(rep).items() if over(g['contour_lost_cm'], CONTOUR_LIMIT)]
     bad += [f'{pid} back_lost_cm: {g["back_lost_cm"]}, limit {BACK_CASES[pid]}' for pid, g in baseline(rep).items() if pid in BACK_CASES and over(g['back_lost_cm'], BACK_CASES[pid])]
+    bad += [f"{pid} crotch_down: {g['shell']['crotch_down']}, limit {shell.CROTCH_DOWN} (lit as a slope under the crotch, a dark triangle)" for pid, g in rep['garments'].items()
+            if g.get('shell', {}).get('crotch_down', 1) > shell.CROTCH_DOWN + .005]
     bad += [f'{pid} sleeve_uneven_cm: {g["sleeve_uneven_cm"]}, limit {SLEEVES_UNEVEN}' for pid, g in rep['garments'].items() if g.get('sleeve_uneven_cm', 0) > SLEEVES_UNEVEN]
     if 'summary' in rep: bad += [f'{k}: {rep["summary"][k]}, limit {lim}' for k, lim in LOOK_LIMITS.items() if rep['summary'][k] > lim]
     for name in MODULES:

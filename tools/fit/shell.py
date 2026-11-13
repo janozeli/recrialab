@@ -27,6 +27,8 @@ MIN_CLEAR = 0.006      # m: the shell is never closer than this to the body
 BACK_OFF = 0.03        # m: the ray starts this far inside the body, to catch cloth that sank into it
 WALL = 0.015           # m: thickest double wall (lining + outer face) of a generated garment
 TEX = 512              # px: side of the baked texture
+CROTCH_BAND = (.70, .83, .08)   # m: under the crotch, between the leg rings and the hip ring, within this of the middle
+CROTCH_DOWN = .3       # how far down a shell's lighting normal points there at most (the legs alone: 0.1 to 0.3)
 NEAR_PART = 0.05       # m: a top clears the bottoms' surface on every part of the mannequin within this distance
 PART_RISE = 0.012      # m: ... and by this much, since facets of two parts do not line up between their rings
 RISE = 0.004           # m: a top stays this far outside the envelope of the bottoms
@@ -431,6 +433,27 @@ def bake(piece, kd, body_v, P, B, N, F, reach, limbs=True, trace=None):
     return V2, N2, UV, F2, Image.fromarray(np.clip(img, 0, 255).astype(np.uint8)), missing
 
 
+def in_crotch(V):
+    y0, y1, half = CROTCH_BAND; return (V[:, 1] > y0) & (V[:, 1] < y1) & (np.abs(V[:, 0]) < half)
+
+
+def crotch_lit(V, N):
+    """The normals a shell is lit with. Under the crotch the mannequin's hip is one band from the torso to each leg,
+    whose faces slope down between the thighs; a shell copies them, and lit by its own normals the cloth there turned
+    into a dark triangle under the crotch of every pair of trousers, seen from the front (the cloth of the photo is
+    not dark there). In that band the downward part of the normal is kept to CROTCH_DOWN, as the legs alone had it."""
+    N = np.array(N, float); c = in_crotch(V) & (N[:, 1] < -CROTCH_DOWN)
+    if c.any():
+        side = N[c] * [1, 0, 1]; side /= np.linalg.norm(side, axis=1)[:, None] + 1e-9
+        N[c] = side * np.sqrt(1 - CROTCH_DOWN ** 2) + [0, -CROTCH_DOWN, 0]
+    return N
+
+
+def crotch_down(V, N):
+    """Most a lighting normal of the shell points down under the crotch (0 when the shell does not reach it)."""
+    c = in_crotch(V); return round(float(max(-N[c, 1].min(), 0)), 2) if c.any() else 0.0
+
+
 def export(path, V, F, N, UV, img, double_sided=False):
     m = trimesh.Trimesh(V, F, vertex_normals=N, process=False)
     m.visual = trimesh.visual.TextureVisuals(uv=UV, material=trimesh.visual.material.PBRMaterial(
@@ -558,10 +581,11 @@ def generate(kind, pid, path, dense_path, low_path, out, trace=None):
     Pc, Nc, Bc, Fc = Pc[used], Nc[used], Bc[used], remap[Fc]
     Nc /= np.linalg.norm(Nc, axis=1)[:, None] + 1e-9
     V2, N2, UV, F2, img, missing = bake(piece, kd_dense, dense.vertices, Pc, Bc, Nc, Fc, reach, trace=trace)
-    export(f'{out}/shell-{pid}.glb', V2, F2, N2, UV, img)
+    lit = crotch_lit(V2, N2); export(f'{out}/shell-{pid}.glb', V2, F2, lit, UV, img)
     b = raw[measured]
     return {'triangles_before': int(len(piece.f)), 'triangles': int(len(F2)), 'inside_body_before_pct': round(float((b < 0).mean() * 100), 1),
-            'clearance_cm': [round(float(d[s > 0].min() * 100), 1), round(float(d[s > 0].max() * 100), 1)], 'texture_without_source_pct': round(missing * 100, 1)}
+            'clearance_cm': [round(float(d[s > 0].min() * 100), 1), round(float(d[s > 0].max() * 100), 1)], 'texture_without_source_pct': round(missing * 100, 1),
+            'crotch_down': crotch_down(V2, lit)}
 
 
 if __name__ == '__main__':
