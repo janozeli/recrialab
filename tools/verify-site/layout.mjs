@@ -185,7 +185,7 @@ export async function auditSendLook(page, look) {
   await page.waitForTimeout(200);
   if (sent.length) out.push('a look was sent without a nickname');
   await page.locator('#send-credit').fill('teste');
-  await page.locator('#send-group').fill('3A');
+  await page.locator('#send-group').fill('2B');
   await page.locator('#send-name').fill('primeiro');
   await page.locator('#send-note').fill('a frase do primeiro');
   await page.locator('#send-submit').click();
@@ -205,13 +205,13 @@ export async function auditSendLook(page, look) {
   await page.locator('#send-look').click();
   await page.waitForSelector('#look-send-dialog[open]');
   const again = await page.evaluate(() => Object.fromEntries(['credit', 'group', 'name', 'note'].map(f => [f, document.querySelector(`#send-${f}`).value])));
-  if (again.credit !== 'teste' || again.group !== '3A') out.push(`the second look does not come with name and class filled in: ${JSON.stringify(again)}`);
+  if (again.credit !== 'teste' || again.group !== '2B') out.push(`the second look does not come with name and class filled in: ${JSON.stringify(again)}`);
   if (again.name || again.note) out.push(`the second look comes with the name or the note of the first: ${JSON.stringify(again)}`);
   await page.locator('#send-submit').click();
   try {
     await page.locator('#send-done').waitFor({ state: 'visible', timeout: 10_000 });
   } catch { out.push('the second look is not sent in one tap'); }
-  if (sent.length !== 2 || sent.at(-1)?.credit !== 'teste' || sent.at(-1)?.group !== '3A') out.push(`second look sent as ${JSON.stringify(sent.at(-1))}, expected teste of 3A`);
+  if (sent.length !== 2 || sent.at(-1)?.credit !== 'teste' || sent.at(-1)?.group !== '2B') out.push(`second look sent as ${JSON.stringify(sent.at(-1))}, expected teste of 3A`);
   await page.locator('#send-finish').click();
   await page.evaluate(() => localStorage.removeItem('recrialab-sender'));
   await page.unroute('**/api/looks');

@@ -197,15 +197,15 @@ describe('the phone remembers who sent the last look', () => {
 
   test('name and class come back for the next look, and nothing else is kept', () => {
     const store = phone();
-    rememberSender({ credit: 'Kelly', group: '3A', ...{ name: 'Brechó chic', note: 'tem a minha cara', look: '001.002' } }, store, 1000);
-    expect(recallSender(store, 2000)).toEqual({ credit: 'Kelly', group: '3A' });
+    rememberSender({ credit: 'Bia', group: '2B', ...{ name: 'Brechó chic', note: 'tem a minha cara', look: '001.002' } }, store, 1000);
+    expect(recallSender(store, 2000)).toEqual({ credit: 'Bia', group: '2B' });
     expect(Object.keys(JSON.parse(store.data.get(REMEMBER)!)).sort()).toEqual(['at', 'credit', 'group']);
   });
 
   test('a phone handed on later starts empty: the record expires and is erased', () => {
     const store = phone();
-    rememberSender({ credit: 'Kelly', group: '3A' }, store, 1000);
-    expect(recallSender(store, 1000 + REMEMBER_MS - 1)).toEqual({ credit: 'Kelly', group: '3A' });
+    rememberSender({ credit: 'Bia', group: '2B' }, store, 1000);
+    expect(recallSender(store, 1000 + REMEMBER_MS - 1)).toEqual({ credit: 'Bia', group: '2B' });
     expect(recallSender(store, 1000 + REMEMBER_MS)).toBeNull();
     expect(store.data.has(REMEMBER)).toBe(false);
     // Long enough for a workshop, never from one day to the next.
@@ -215,13 +215,13 @@ describe('the phone remembers who sent the last look', () => {
 
   test('each look sent renews the time', () => {
     const store = phone();
-    rememberSender({ credit: 'Kelly', group: '3A' }, store, 0);
-    rememberSender({ credit: 'Kelly', group: '3A' }, store, REMEMBER_MS - 1);
-    expect(recallSender(store, REMEMBER_MS + 1)).toEqual({ credit: 'Kelly', group: '3A' });
+    rememberSender({ credit: 'Bia', group: '2B' }, store, 0);
+    rememberSender({ credit: 'Bia', group: '2B' }, store, REMEMBER_MS - 1);
+    expect(recallSender(store, REMEMBER_MS + 1)).toEqual({ credit: 'Bia', group: '2B' });
   });
 
   test('a record without a time (before the expiry existed), from the future or broken is thrown away', () => {
-    for (const raw of ['{"credit":"Kelly","group":"3A"}', `{"credit":"Kelly","group":"3A","at":${10 * REMEMBER_MS}}`, '{"credit":7,"at":1}', 'not json']) {
+    for (const raw of ['{"credit":"Bia","group":"2B"}', `{"credit":"Bia","group":"2B","at":${10 * REMEMBER_MS}}`, '{"credit":7,"at":1}', 'not json']) {
       const store = phone();
       store.data.set(REMEMBER, raw);
       expect(recallSender(store, 1000)).toBeNull();
@@ -230,7 +230,7 @@ describe('the phone remembers who sent the last look', () => {
 
   test('a phone that keeps nothing does not break the send', () => {
     const closed = { getItem: () => { throw new Error('denied'); }, setItem: () => { throw new Error('denied'); }, removeItem: () => { throw new Error('denied'); } };
-    expect(() => rememberSender({ credit: 'Kelly', group: '' }, closed)).not.toThrow();
+    expect(() => rememberSender({ credit: 'Bia', group: '' }, closed)).not.toThrow();
     expect(recallSender(closed)).toBeNull();
   });
 });
