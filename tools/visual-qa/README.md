@@ -13,6 +13,10 @@ python3 tools/visual-qa/measure.py site/verify-out/visual-qa        # tabela por
 python3 tools/visual-qa/measure.py site/verify-out/visual-qa --ci   # reprova defeito novo ou já resolvido
 ```
 
+As fotos são do site como ele abre para quem visita, sem chave no endereço: hoje as peças da engine de ajuste
+e o visual PS1. `visual-qa.mjs --classic` fotografa as peças publicadas antes da engine (`?classico`), e
+`measure.py DIR --ci --defects tools/visual-qa/defects-classic.json` compara com a lista delas.
+
 ## Medidas
 
 O limite vale para toda peça, na pior das 14 vistas (`LIMITS` em `measure.py`):
