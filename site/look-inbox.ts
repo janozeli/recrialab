@@ -14,7 +14,7 @@ export const LAST_PIECE = 38;
 export interface SentLook {
   /** Look code, as in `?look=` (e.g. `004.024`). */
   look: string;
-  /** Nickname or initials of the author, never a full name. */
+  /** First name or nickname of the author, never a full name. */
   credit: string;
   /** School class. */
   group: string;
