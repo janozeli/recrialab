@@ -1,33 +1,102 @@
 {
- "_readme": "defect above a limit of tools/visual-qa/measure.py, per look of the ci plan, photographed as the site serves it by default, linked to the open known issue that fixes it. Once fixed, remove the entry and close the issue in the same change. Never raise the limit to make it fit.",
+ "_readme": "defect above a limit of tools/visual-qa/measure.py, per look of the ci plan, photographed as the site serves it by default, linked to the open known issue that fixes it. Once fixed, remove the entry and close the issue in the same change. `up_to` is what was read when the defect was listed plus a tenth of the limit: past it the look fails even though it is listed. Never raise the limit to make it fit.",
  "_accepted": {},
  "junction": {
-  "007.022": "jagged-junction",
-  "008.023": "jagged-junction"
+  "007.022": {
+   "issue": "jagged-junction",
+   "up_to": 8.9
+  },
+  "008.023": {
+   "issue": "jagged-junction",
+   "up_to": 9.2
+  }
  },
  "tear": {
-  "005.035": "body-framed-by-cloth"
+  "005.035": {
+   "issue": "body-framed-by-cloth",
+   "up_to": 4.6
+  }
  },
  "tone": {
-  "001": "stage-tone",
-  "001.031": "stage-tone",
-  "002": "stage-tone",
-  "002.032": "stage-tone",
-  "003.018": "stage-tone",
-  "004.019": "stage-tone",
-  "004.034": "stage-tone",
-  "005": "stage-tone",
-  "005.020": "stage-tone",
-  "005.035": "stage-tone",
-  "006.021": "stage-tone",
-  "007.022": "stage-tone",
-  "007.037": "stage-tone",
-  "008.038": "stage-tone",
-  "009.024": "stage-tone",
-  "010": "stage-tone",
-  "011": "stage-tone",
-  "012": "stage-tone",
-  "014": "stage-tone",
-  "014.029": "stage-tone"
+  "001": {
+   "issue": "stage-tone",
+   "up_to": 36.2
+  },
+  "001.031": {
+   "issue": "stage-tone",
+   "up_to": 30.3
+  },
+  "002": {
+   "issue": "stage-tone",
+   "up_to": 22.4
+  },
+  "002.032": {
+   "issue": "stage-tone",
+   "up_to": 41.1
+  },
+  "003.018": {
+   "issue": "stage-tone",
+   "up_to": 30.0
+  },
+  "004.019": {
+   "issue": "stage-tone",
+   "up_to": 41.6
+  },
+  "004.034": {
+   "issue": "stage-tone",
+   "up_to": 17.1
+  },
+  "005": {
+   "issue": "stage-tone",
+   "up_to": 21.7
+  },
+  "005.020": {
+   "issue": "stage-tone",
+   "up_to": 62.1
+  },
+  "005.035": {
+   "issue": "stage-tone",
+   "up_to": 24.4
+  },
+  "006.021": {
+   "issue": "stage-tone",
+   "up_to": 45.2
+  },
+  "007.022": {
+   "issue": "stage-tone",
+   "up_to": 32.6
+  },
+  "007.037": {
+   "issue": "stage-tone",
+   "up_to": 37.9
+  },
+  "008.038": {
+   "issue": "stage-tone",
+   "up_to": 26.6
+  },
+  "009.024": {
+   "issue": "stage-tone",
+   "up_to": 30.6
+  },
+  "010": {
+   "issue": "stage-tone",
+   "up_to": 23.8
+  },
+  "011": {
+   "issue": "stage-tone",
+   "up_to": 38.6
+  },
+  "012": {
+   "issue": "stage-tone",
+   "up_to": 49.5
+  },
+  "014": {
+   "issue": "stage-tone",
+   "up_to": 46.9
+  },
+  "014.029": {
+   "issue": "stage-tone",
+   "up_to": 24.6
+  }
  }
 }

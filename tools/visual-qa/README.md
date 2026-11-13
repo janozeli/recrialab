@@ -39,7 +39,8 @@ O limite vale para toda peça, na pior das 14 vistas (`LIMITS` em `measure.py`):
 
 `defects.json` lista, por medida, os looks que ainda passam do limite. Cada um aponta um problema em
 aberto de `tools/known-issues.yaml` ou fica em `_accepted`, com quem aceitou e um limite (o que a foto da
-peça já tem, como pele por um rasgo). Com `--ci`, defeito fora da lista reprova, e defeito listado que
+peça já tem, como pele por um rasgo). Cada entrada da lista do site padrão traz `up_to`, o que foi lido quando o defeito entrou mais um décimo do
+limite: look listado que passa disso reprova. Com `--ci`, defeito fora da lista reprova, e defeito listado que
 sumiu também: tire-o da lista na mesma mudança que o resolveu.
 
 ## Tom das peças

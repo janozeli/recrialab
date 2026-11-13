@@ -11,7 +11,8 @@ the site serves by default. defects-classic.json is the list for the garments pu
 
 A known defect is never accepted silently: tools/visual-qa/defects.json links each look to an open known issue
 that names one of its pieces (known_issues.py), or records it under `_accepted` with who accepted it and a cap
-(what the thrift-shop photo has, like skin through a tear). A defect not on the list fails; a listed defect that went
+(what the thrift-shop photo has, like skin through a tear). A defect not on the list fails, and so does a listed one past its recorded cap (`up_to`: what was read when it was
+listed plus a tenth of the limit); a listed defect that went
 away also fails (take it off the list and close the issue in the same change). Limits live in LIMITS, never per
 garment.
 """
@@ -346,7 +347,12 @@ def main():
     for k, looks in known.items():
         if k.startswith('_'):
             continue
-        for key, stream in looks.items():
+        for key, entry in looks.items():
+            # an entry is the issue's id or {issue, up_to}: with a cap, a listed defect that gets worse fails too
+            stream, cap = (entry['issue'], entry.get('up_to')) if isinstance(entry, dict) else (entry, None)
+            if cap is not None and key in table and table[key]['measures'][k] > cap:
+                errors.append(f'{k} on {key} got worse than recorded ({table[key]["measures"][k]} > {cap}, '
+                              f'view {table[key]["worst_view"][k]}): known issue {stream} does not cover it')
             if stream not in issues:
                 errors.append(f'{k} {key}: {stream} is not an open known issue in {KNOWN_ISSUES}')
             elif not issues[stream] & set(key.split('.')):

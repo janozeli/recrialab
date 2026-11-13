@@ -61,8 +61,8 @@ export function changedDefects(before: Record<string, unknown> | null, after: Re
   const looks = new Set<string>();
   for (const k of new Set([...Object.keys(before), ...Object.keys(after)])) {
     if (k.startsWith('_')) continue;
-    const a = (before[k] ?? {}) as Record<string, string>, d = (after[k] ?? {}) as Record<string, string>;
-    for (const l of new Set([...Object.keys(a), ...Object.keys(d)])) if (a[l] !== d[l]) looks.add(l);
+    const a = (before[k] ?? {}) as Record<string, unknown>, d = (after[k] ?? {}) as Record<string, unknown>;
+    for (const l of new Set([...Object.keys(a), ...Object.keys(d)])) if (!same(a[l], d[l])) looks.add(l);
   }
   return [...looks].sort();
 }
