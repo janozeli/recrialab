@@ -20,10 +20,11 @@ on a level line gives a garment that fits and no longer looks like itself (a wai
 tail, a V neck). contour() reads each edge of the garment as a profile, the height of the edge around the body and
 the half-width of the silhouette along the height, on the published garment and on the rebuilt one, and compares
 the two with their means removed: a slide or a uniform change of size costs nothing, a curve made straight does.
+The girth at the waist is read on both too: a rebuilt garment much thinner than the published one lost its volume.
 usage: from identity import measure; measure(trace, registered, published) with the trace shell.bake fills
        from identity import contour; contour(pid, published_points, rebuilt_points, body)"""
 import numpy as np, trimesh
-from scipy.spatial import cKDTree
+from scipy.spatial import cKDTree, ConvexHull
 import landmarks as L
 
 TEAR_RATIO, TEAR_MIN = 3.0, .005   # a pair this many times further apart on the garment than on the new shape, plus this (m)
@@ -31,6 +32,7 @@ BACK_NZ, TORSO_X = -.3, .16        # back: normal pointing back, between the arm
 HIDDEN = .05                       # m: the shape itself this close in front of a texel hides it
 SECTORS = 24                       # sectors around the body in which the height of an edge is read
 NECK_R = .13                       # m: the collar is the cloth this close to the neck's axis
+WAIST_Y, WAIST_UNDER = 1.06, .03   # m: height of a top's waist; a bottom's is read this far below its waistband
 RELIEF = .015                      # m: an edge with at least this much relief on the published garment has a shape to keep
 
 
@@ -47,8 +49,10 @@ def measure(t, registered=None, published=None, where=None, above=None):
     hit = shape.ray.intersects_first(t['new'] + t['normal'] * .002, t['normal'])
     seen = np.ones(len(hit), bool); h = hit >= 0
     if h.any():
-        loc, ir, _ = shape.ray.intersects_location(t['new'][h] + t['normal'][h] * .002, t['normal'][h], multiple_hits=False)
+        loc, ir, it = shape.ray.intersects_location(t['new'][h] + t['normal'][h] * .002, t['normal'][h], multiple_hits=False)
         idx = np.flatnonzero(h)[ir]; seen[idx] = np.linalg.norm(loc - t['new'][idx], axis=1) > HIDDEN
+        # ... and one that meets the shape from the inside lies within another part (the torso's side inside the shoulder)
+        seen[idx] &= np.einsum('ij,ij->i', shape.face_normals[it], t['normal'][idx]) < 0
     t = {k: (v[seen] if isinstance(v, np.ndarray) and len(v) == len(seen) else v) for k, v in t.items()}
     n = t['size']; new = np.full((n, n, 3), np.nan); old = np.full((n, n, 3), np.nan); nz = np.zeros((n, n))
     new[t['y'], t['x']] = t['new']; old[t['y'], t['x']] = t['old']; nz[t['y'], t['x']] = t['normal'][:, 2]
@@ -100,20 +104,38 @@ def profiles(pid, P, body):
         collar = P[(np.hypot(P[:, 0] - neck[0], P[:, 2] - neck[1]) < NECK_R) & (P[:, 1] > 1.35)]
         out['collar'] = L.sectors(collar, neck, SECTORS, 98)[1] if len(collar) > 40 * SECTORS else None
         out['side'] = side(torso[torso[:, 1] < 1.30])
+        # the line of the back, seen in profile: a loose top hangs from the shoulder blades; one that follows the lumbar
+        # and the glute reads as painted on the body
+        mid = torso[(np.abs(torso[:, 0]) < .05) & (torso[:, 1] < 1.40)]; lo, hi = np.percentile(mid[:, 1], [4, 96]) if len(mid) > 400 else (0, 0)
+        out['back'] = np.array([np.percentile(mid[np.abs(mid[:, 1] - y) < .01, 2], 2) if (np.abs(mid[:, 1] - y) < .01).sum() > 20 else np.nan for y in np.arange(lo, hi, .02)]) if hi > lo else None
     return out
+
+
+def girth(pid, P, body):
+    """Perimeter of the garment at the waist, in m (convex hull of its cut): a bottom WAIST_UNDER below its waistband, a
+    top at WAIST_Y, sleeves left out. None where the garment does not reach."""
+    if int(pid) <= 15: y = float(np.median(L.sectors(P, L.waist_center(P), SECTORS, 98)[1])) - WAIST_UNDER
+    else:
+        v = np.asarray(body.vertices); P = P[~np.isin(L.limb(v)[cKDTree(v).query(P)[1]], (1, 2))]; y = WAIST_Y
+    cut = P[np.abs(P[:, 1] - y) < .01][:, [0, 2]]
+    return float(ConvexHull(cut).area) if len(cut) > 200 else None
 
 
 def contour(pid, published, rebuilt, body):
     """Per edge, in cm: relief of the published garment's edge (5th to 95th percentile), relief of the rebuilt one,
     and lost, the RMS difference between the two profiles with their means removed."""
     a, b = profiles(pid, published, body), profiles(pid, rebuilt, body); out = {}
+    ga, gb = girth(pid, published, body), girth(pid, rebuilt, body)
+    if ga and gb: out['waist'] = {'girth_cm': round(100 * ga, 1), 'girth_rebuilt_cm': round(100 * gb, 1)}
     for k in a:
         if a[k] is None or b.get(k) is None: continue
         f, g = a[k], b[k]
-        if k == 'side':                                   # the two run over different heights: compared along the garment
+        if k in ('side', 'back'):                                   # the two run over different heights: compared along the garment
             f, g = f[~np.isnan(f)], g[~np.isnan(g)]
             if min(len(f), len(g)) < 4: continue
             x = np.linspace(0, 1, 24); f = np.interp(x, np.linspace(0, 1, len(f)), f); g = np.interp(x, np.linspace(0, 1, len(g)), g)
+        if k == 'back':                                   # a back that leans is the same back: the lean is taken out too
+            f, g = (p - np.polyval(np.polyfit(x, p, 1), x) for p in (f, g))
         relief = lambda p: float(np.percentile(p, 95) - np.percentile(p, 5))
         out[k] = {'relief_cm': round(100 * relief(f), 1), 'relief_rebuilt_cm': round(100 * relief(g), 1),
                   'lost_cm': round(100 * float(np.sqrt(np.mean(((f - f.mean()) - (g - g.mean())) ** 2))), 1)}

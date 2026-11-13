@@ -32,12 +32,20 @@ KEPT = {
     'tear_cm': (lambda g: g['shell']['identity']['tear_cm'], 15),
     'tear_back_cm': (lambda g: g['shell']['identity']['tear_back_cm'], 10),
     'contour_lost_cm': (lambda g: max(g['contour'][k]['lost_cm'] for k in CONTOUR[int(g['registered'].get('collar') is not None)] if k in g['contour']), .3),
+    'back_lost_cm': (lambda g: g['contour']['back']['lost_cm'] if 'back' in g['contour'] else 0., .3),
+    'waist_thinner_pct': (lambda g: round(max(0., 100 * (1 - g['contour']['waist']['girth_rebuilt_cm'] / g['contour']['waist']['girth_cm'])), 1) if 'waist' in g['contour'] else 0., .5),
     'distortion_pct': (lambda g: round(100 * abs(g['shell']['identity']['distortion'] - 1), 1), 1.5),
 }
 # the lines that make a garment itself, for a bottom and for a top: the waistband or the hem, and the silhouette. A
 # line made straight shows here (a level cut on a waistband that dips 5 cm in front loses 1.7 cm). Over CONTOUR_LIMIT
 # a garment fails whatever its baseline says.
 CONTOUR = (('waistband', 'side'), ('hem', 'side'))
+# the back of a top seen in profile, against the published garment's: the look Lucas pointed at (jeans 004 with top 024,
+# where the shell followed the shoulder blade, the lumbar and the glute and the back read as painted on the body)
+# stays under this, in cm
+BACK_CASES = {
+    '024': 0.8,
+}
 CONTOUR_LIMIT = 2.0
 # over the 345 looks, in cm²
 LOOK_LIMITS = {
@@ -160,6 +168,7 @@ def check(rep):
     for pid, g in baseline(rep).items():
         bad += [f'{pid} {k}: {v}, recorded {old[pid][k]}' for k, v in g.items() if v > old[pid][k] + KEPT[k][1]]
     bad += [f'{pid} contour_lost_cm: {g["contour_lost_cm"]}, limit {CONTOUR_LIMIT}' for pid, g in baseline(rep).items() if g['contour_lost_cm'] > CONTOUR_LIMIT]
+    bad += [f'{pid} back_lost_cm: {g["back_lost_cm"]}, limit {BACK_CASES[pid]}' for pid, g in baseline(rep).items() if pid in BACK_CASES and g['back_lost_cm'] > BACK_CASES[pid]]
     bad += [f'{k}: {rep["summary"][k]}, limit {lim}' for k, lim in LOOK_LIMITS.items() if rep['summary'][k] > lim]
     for name in MODULES:
         m = __import__(name)
