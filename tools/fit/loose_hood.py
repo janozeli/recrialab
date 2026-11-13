@@ -63,8 +63,6 @@ AT_NECK = .10          # m: a kept piece comes this close to the middle of the n
 MIN_LOOSE = .025       # m²: less cloth than this outside the shell is no hood: the shell alone holds the garment
 IN_NECK = 1            # cm²: more of the loose part than this through the mannequin's neck fails
 PUBLISHED_IN_NECK = {   # cm²: a loose part the site serves that was built while the depth in the neck was read on points sampled from the body or against the whole body at once, which missed it; it leaves at the next import of the engine's garments, and the entry with it
-    '033': 2,
-    '035': 9,
 }
 PAST = .015            # m: how far past the border of the loose part the garment is looked for
 AT = .008              # m: cloth this close to that place is there
