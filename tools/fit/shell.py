@@ -36,9 +36,11 @@ LIMB_BLEND = 0.04      # m: width of the blend between torso rays and limb rays 
 EDGE_SECTORS = 24      # sectors around the body in which a waistband's or a hem's height is read
 WAIST_DIP = 0.0        # m: the lowest point of a waistband's curve sits this far under the waistband line; the curve rises from there
 WAIST_TOP = 0.01       # m: ... up to this far under the waist
+ISLAND = 8             # vertices: a bare patch of the mannequin up to this size, with cloth all around, is covered
 BURIED = .03           # m: a vertex of the mannequin this far from the body's skin is the middle of a lid
 SHOULDER_HOLDS = 1.34  # m: above this the mannequin's shoulder is one of the points a top hangs from
 SHOULDER_OUT, SHOULDER_TOP = .18, 1.52   # m: beyond this |x| and below this height the mannequin's shoulder is its arm, bent over it
+SLIVER = 0.02          # m: a top's hem that ends less than this far over the waistband line comes down to just under it
 HEM_RISE = 0.02        # m: the hem of a top that reaches its line rises at most this far over it (WAIST_DIP + HEM_RISE < register.OVERLAP)
 DRAPE_TO, DRAPE_COLUMNS = 1.43, 12   # a top hangs from this height down; columns around the torso (the mannequin's torso has 12 sides)
 HEM_TO = 1.25          # m: a top's hem is looked for on the torso below this height
@@ -274,12 +276,12 @@ def hull(y, r):
     return np.interp(y, y[k], r[k])
 
 
-def drape(P, v, n, raw, measured, torso, s, adj):
+def drape(P, v, n, raw, measured, torso, s, adj, holds):
     """A top hangs: cloth runs straight between the points that hold it out (shoulder blade and glute, chest and
     belly, armpit and hip) and does not follow the body into the lumbar or the waist. A shell that does reads as the
     print painted on the body, the torso narrowing from the shoulders to the hem. Per column of the torso (an angle
     around its axis), the shell goes out to the string pulled tight over it, less what the garment itself goes in
-    (a fitted waist stays fitted)."""
+    (a fitted waist stays fitted). holds: vertices that hold the string and are not moved."""
     P = P.copy(); on = torso & (s > -.03) & (v[:, 1] < DRAPE_TO)
     if on.sum() < 8: return P
     c = v[on][:, [0, 2]].mean(0); ang = np.arctan2(v[:, 2] - c[1], v[:, 0] - c[0]); col = np.round(ang / (2 * np.pi / DRAPE_COLUMNS)).astype(int) % DRAPE_COLUMNS
@@ -296,7 +298,27 @@ def drape(P, v, n, raw, measured, torso, s, adj):
     out = move[idx]
     for _ in range(3): out = np.array([(out[i] + out[a].sum()) / (1 + len(a)) for i, a in enumerate(near)])
     d = np.c_[P[idx, 0] - c[0], P[idx, 2] - c[1]]; d /= np.linalg.norm(d, axis=1)[:, None] + 1e-9
+    out = np.where(holds[idx], 0, out)                   # what only holds the string stays where it is
     P[idx, 0] += d[:, 0] * out; P[idx, 2] += d[:, 1] * out
+    return P
+
+
+def out_of_fold(P, v, low, adj, above):
+    """In a fold of the mannequin (the armpit, where the arm's inner side faces the torso) a vertex's normal points into
+    another part of the body, and the shell went in with it: the body showed through the cloth. Above the waist (mask
+    above; below it the parts that overlap are the hip and the legs, which the clearances already deal with), a shell
+    vertex that ends up inside the mannequin stands off its own vertex of the mannequin the way its neighbors that
+    are outside stand off theirs."""
+    P = P.copy(); parts = [c for c in low.split(only_watertight=False) if c.is_watertight]
+    inside = np.zeros(len(P), bool)
+    for c in parts: inside |= c.contains(P)
+    inside &= above; left = inside.copy()
+    for _ in range(4):
+        done = []
+        for i in np.flatnonzero(left):
+            a = [j for j in adj[i] if not left[j]]
+            if a: P[i] = v[i] + (P[a] - v[a]).mean(0); done.append(i)
+        left[done] = False
     return P
 
 
@@ -425,10 +447,21 @@ def generate(kind, pid, path, dense_path, low_path, out, trace=None):
         if len(torso) > 2000 and np.percentile(torso[:, 1], 2) < HEM_TO - .05:
             line = np.minimum(edge(torso, torso[:, [0, 2]].mean(0), 2, v, sides=False), HEM_TO - .03)
             if np.median(line[tr]) < hem_max + HEM_RISE: line = np.minimum(line, hem_max + HEM_RISE)   # a top that reaches its line keeps the waistband covered all around
+            elif np.median(line[tr]) < waistband + SLIVER: line = np.minimum(line, waistband - WAIST_TOP)   # a hem that stops just over the waistband meets it: the strip of body between them read as a tear
             s = np.where(tr, v[:, 1] - line, s); cov_low = np.where(tr, v[:, 1] > line - .03, cov_low)
     # a leg of the mannequin is closed by a lid inside the hip, and the lid's middle is buried in the body:
     # it wears nothing, and the ring around it goes straight out like an open rim
     buried = (kd_dense.query(v)[0] > BURIED) & (v[:, 1] > mb['crotch'] + BURIED); s = np.where(buried, -1., s); cov_low &= ~buried
+    # a few vertices left bare with cloth all around them (the fold of the armpit under a sleeve, where no ray meets the
+    # garment) are a hole the body shows through, not an opening of the garment: they are covered
+    bare = (s <= 0) & ~buried; seen = np.zeros(len(v), bool)
+    for i in np.flatnonzero(bare):
+        if seen[i]: continue
+        isle = [i]; seen[i] = True
+        for k in isle:
+            for j in adj[k]:
+                if bare[j] and not seen[j]: seen[j] = True; isle.append(j)
+        if len(isle) <= ISLAND: s[isle] = MIN_CLEAR; cov_low[isle] = True
     d, _, _ = probe(piece, kd_dense, dense.vertices, v, n, reach)
     measured = ~np.isnan(d) & cov_low; raw = d.copy()
     d = np.where(measured, np.clip(d, MIN_CLEAR, top), np.nan)
@@ -473,7 +506,12 @@ def generate(kind, pid, path, dense_path, low_path, out, trace=None):
     out_dir[rim, 1] = 0; out_dir[rim] /= np.linalg.norm(out_dir[rim], axis=1)[:, None] + 1e-9
     P = v + out_dir * d[:, None]
     # the shoulder holds the cloth out too: the side of a top hangs from it, not from the armpit
-    if kind == 'top': P = drape(P, v, n, raw, measured, (lab == 0) | (up & (v[:, 1] > SHOULDER_HOLDS)), s, adj)
+    # the shoulder holds the string and stays where it is: pushed out with the torso, the top of the sleeve sheared
+    # sideways off the arm under it and the body showed at the armpit
+    holds = up & (v[:, 1] > SHOULDER_HOLDS)
+    holds |= (lab == 0) & (np.abs(v[:, 0]) > .1) & (n[:, 0] * v[:, 0] < 0)   # nor does the socket of the arm, which faces inward
+    if kind == 'top': P = drape(P, v, n, raw, measured, (lab == 0) | holds, s, adj, holds)
+    P = out_of_fold(P, v, low, adj, v[:, 1] > mb['waist'])
     Pc, Fc, (Nc, Bc) = cut(P, low.faces, s, [n, v])
     used = np.unique(Fc); remap = -np.ones(len(Pc), int); remap[used] = np.arange(len(used))
     Pc, Nc, Bc, Fc = Pc[used], Nc[used], Bc[used], remap[Fc]

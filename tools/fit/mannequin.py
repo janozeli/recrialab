@@ -24,7 +24,7 @@ POINT, OVER = .012, .004   # m: past the body's skin on the shoulder; past the s
 ROUND = 3              # passes of smoothing on the tip of the shoulder
 MIRROR = np.array([-1, 1, 1.0])
 WAIST_Y = 1.06
-# the mannequin as approved on 12/11/2026, in both poses
+# what check() holds, in both poses
 APPROVED = {
     'point_cm': 1.7,
     'waist_cm': 70.8,

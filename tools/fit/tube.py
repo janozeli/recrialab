@@ -8,7 +8,7 @@ every bottom). The hem keeps the garment's own height per angle. The texture is 
 Sleeves are left whole: sleeve or torso is told by the mesh's connectivity, not by distance to the body (the hand
 rests against the hip).
 usage: python3 tools/fit/tube.py DENSE_BODY.glb SHELL.glb GARMENT.glb SHELL_CUT_OUT.glb TUBE_OUT.glb RINGS [ENVELOPE.npy]"""
-import sys, numpy as np, trimesh
+import os, sys, numpy as np, trimesh
 from scipy.spatial import cKDTree
 from scipy.sparse import coo_matrix
 from scipy.sparse.csgraph import connected_components
@@ -56,7 +56,10 @@ def radius(P, c, ang, width, q):
 
 
 def build(dense_path, shell_path, garment_path, shell_out, tube_out, n, envelope=None):
-    n = int(n); b = S.load_body(dense_path); BV = np.asarray(b.vertices); lab = L.limb(BV)
+    n = int(n); b = S.load_body(dense_path); BV = np.asarray(b.vertices)
+    low = dense_path.replace('dense-', 'low-')            # the body that is drawn: where it stands outside the dense one (the bridge between the thighs), the cloth covers it too
+    if low != dense_path and os.path.exists(low): BV = np.vstack([BV, trimesh.sample.sample_surface(S.load_body(low), 30000, seed=1)[0]])
+    lab = L.limb(BV)
     arms = BV[(lab == 1) | (lab == 2)]; BV = BV[(lab != 1) & (lab != 2)]
     P = Garment(garment_path).vertices(); P = P[np.abs(P[:, 0]) < .21]
     edge = cut_shell(shell_path, shell_out)

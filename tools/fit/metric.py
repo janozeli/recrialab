@@ -42,8 +42,10 @@ LEG_Y, LEG_X = .78, .01   # below the crotch of the neutral body (0.83 m), outsi
 
 def measure(garment, b, hidden=None, out_max=.15, in_max=.06, legs=False, fold=0):
     """legs: below LEG_Y a ray that crosses the gap and hits the garment's other leg does not count (it is not gap).
-    fold: a vertex with another part of the body itself less than this far in front of it (m) sits in a fold of the
-    body, out of view, and does not count as the body going through the garment."""
+    fold: (distance, height), in m. A vertex below that height with another part of the body itself less than that
+    distance in front of it sits in a fold of the body (armpit, crotch), out of view: it is left out of the reading,
+    of the area that crosses and of the covered area alike. Above the height (the neck, in view over a collar) every
+    vertex counts."""
     ri = RayMeshIntersector(garment)
     n = b.vertex_normals
     o = b.vertices + n * 1e-4
@@ -63,6 +65,11 @@ def measure(garment, b, hidden=None, out_max=.15, in_max=.06, legs=False, fold=0
     fwd = first(n, o, out_max)
     bwd = first(-n, o, in_max)
     covered = np.isfinite(fwd) | np.isfinite(bwd)
+    if fold:
+        loc, idx_ray, _ = RayMeshIntersector(b).intersects_location(o, n, multiple_hits=True)
+        dist = np.einsum('ij,ij->i', loc - o[idx_ray], n[idx_ray]); folded = np.zeros(len(o), bool)
+        folded[idx_ray[(dist > 1e-3) & (dist < fold[0])]] = True
+        covered &= ~(folded & (b.vertices[:, 1] < fold[1]))
     signed = np.where(np.isfinite(fwd), fwd, -bwd)
     # area per vertex (1/3 of the adjacent faces)
     area = np.zeros(len(b.vertices))
@@ -71,11 +78,6 @@ def measure(garment, b, hidden=None, out_max=.15, in_max=.06, legs=False, fold=0
     a = area[c]
     s = signed[c]
     pen = s < -0.003
-    if fold:
-        loc, idx_ray, _ = RayMeshIntersector(b).intersects_location(o, n, multiple_hits=True)
-        dist = np.einsum('ij,ij->i', loc - o[idx_ray], n[idx_ray]); folded = np.zeros(len(o), bool)
-        folded[idx_ray[(dist > 1e-3) & (dist < fold)]] = True
-        pen &= ~folded[c]
     res = {
         'covered_area_m2': round(float(a.sum()), 3),
         'penetrates_pct': round(100 * float(a[pen].sum() / a.sum()), 1) if a.sum() else 0,
