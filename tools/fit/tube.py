@@ -363,13 +363,16 @@ def check(report):
     return bad
 
 
-def record(report):
-    """Rewrites tube.json, one garment per line; a recorded value only goes down."""
+def record(report, body=False):
+    """Rewrites tube.json, one garment per line; a recorded value only goes down. body: the lines are read again on a
+    new mannequin (engine.py --write --new-body), and one that goes up is printed and recorded."""
     rep = report['garments']; new = {p: {key: g['tube'][key] for key in TOLERANCE} for p, g in sorted(rep.items()) if 'tube' in g}
     old = recorded() if os.path.exists(RECORD) else {}
     up = [f'{p} {key}: {old[p][key]} -> {v}' for p, g in new.items() for key, v in g.items() if key in old.get(p, {}) and v > old[p][key] + TOLERANCE[key]]
-    if up: raise SystemExit('a baseline only goes down:\n' + '\n'.join(up))
-    new = {p: {key: min(v, old.get(p, {}).get(key, v)) for key, v in g.items()} for p, g in new.items()}   # inside the slack the recorded value stays
+    if up and not body: raise SystemExit('a baseline only goes down:\n' + '\n'.join(up))
+    if up: print('tube lines that go up on the new body:\n' + '\n'.join(up))
+    raised = {tuple(u.split(':')[0].split()) for u in up}
+    new = {p: {key: v if (p, key) in raised else min(v, old.get(p, {}).get(key, v)) for key, v in g.items()} for p, g in new.items()}   # inside the slack the recorded value stays
     open(RECORD, 'w').write('{\n' + ',\n'.join(f' "{p}": {json.dumps(g)}' for p, g in new.items()) + '\n}\n')
 
 
