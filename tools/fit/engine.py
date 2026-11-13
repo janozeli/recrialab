@@ -29,6 +29,7 @@ BASELINE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'engine.json
 # crossing is 0.3 points or more, so 0.1 lets none through)
 KEPT = {
     'body_crossing_pct': (lambda g: g['body_crossing_pct'], .1),
+    'body_in_view_cm2': (lambda g: g['body_in_view_cm2'], 3),
     'triangles': (lambda g: g['triangles'], 5),
     'tear_cm': (lambda g: g['shell']['identity']['tear_cm'], 15),
     'tear_back_cm': (lambda g: g['shell']['identity']['tear_back_cm'], 10),
@@ -163,7 +164,8 @@ def run(work, ids):
     for pid in ids:
         m = parts(work, pid); b = low[pose(pid)]
         r, _, _ = measure(m, trimesh.Trimesh(b.vertices, b.faces, process=False), legs=int(pid) <= 15, fold=(FOLD, L.recorded()['neck']))
-        rep['garments'][pid].update(body_crossing_pct=r['penetrates_pct'], triangles=int(len(m.faces)), contour=contour(pid, m, B[pose(pid)]))
+        rep['garments'][pid].update(body_crossing_pct=r['penetrates_pct'], body_in_view_cm2=looks.through(m, trimesh.Trimesh(b.vertices, b.faces, process=False)),
+                                    triangles=int(len(m.faces)), contour=contour(pid, m, B[pose(pid)]))
     if len(ids) == 38:
         b = trimesh.load(f'{work}/low-B.glb', process=False).to_geometry()
         rep['looks'] = looks.measure({p: parts(work, p) for p in ids}, b); v = np.array(list(rep['looks'].values()))
