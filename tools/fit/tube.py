@@ -27,6 +27,8 @@ usage: python3 tools/fit/tube.py DENSE_BODY.glb SHELL.glb GARMENT.glb SHELL_CUT_
        python3 tools/fit/tube.py --check [WORK]    (WORK: a folder engine.py already built; without it, builds one)
        python3 tools/fit/tube.py --record WORK     (rewrites tube.json from WORK/report.json)"""
 import sys, os, json, tempfile, numpy as np, trimesh
+from scipy import ndimage
+from PIL import Image
 from scipy.spatial import cKDTree, ConvexHull
 from scipy.sparse import coo_matrix
 from scipy.sparse.csgraph import connected_components
@@ -57,6 +59,7 @@ WAIST_RING = .03       # m under the waistband: the first of them
 SEAM_BAND = .06        # m below the weld where the kink is measured
 SHELL_REACH = .15      # m: how far a shell's texture ray looks for the garment from the body (shell.py: its clearance and 5 cm)
 MAX_SHIFT = .04        # m: the most a column's texture rays move to meet the shell's at the weld
+OUTER_REACH = .05      # m: how far behind a lining the outer face of the same fold is looked for
 RECORD = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tube.json')
 TOLERANCE = {          # what a measure may sit above its recorded value before the check fails: every tube of a top
     'wider_cm': .25,   # moves a little when any bottom changes (it passes outside all of them)
@@ -311,10 +314,35 @@ def build(dense_path, shell_path, garment_path, shell_out, tube_out, n, envelope
         dense, _ = trimesh.sample.sample_surface(trimesh.Trimesh(base, F, process=False), 40000, seed=1)
     trace = {}
     V2, N2, UV, F2, img, missing = S.bake(piece, cKDTree(dense), dense, V, base, N, F, .10, limbs=False, trace=trace)
+    img = outer_face(piece, trace, img)
     S.export(tube_out, V2, F2, lit[cKDTree(V).query(V2)[1]], UV, img)   # N2 are the texture rays, not the light's normals
     ident = identity.measure(trace, piece, S.Piece(GARMENTS + f'{pid}.glb'))
     return {'triangles': int(len(F2)), 'sides': k, 'rings': n, 'top': round(top, 3), 'hem': [round(float(hem.min()), 2), round(float(hem.max()), 2)],
             'texture_without_source_pct': round(100 * missing, 1), **measure(prof, ang, r_seam, V), 'tear_cm': ident['tear_cm'], 'distortion': round(abs(ident['distortion'] - 1), 3)}
+
+
+def outer_face(piece, trace, img):
+    """A texel of the tube must show the outer face of the cloth. Where the fold of a hem is thicker than shell.WALL
+    the bake stops at the lining, seen from behind, and the generated garment paints its inside brown: those texels
+    are read again from the first face further out that looks outwards, or, with none, take their neighbours' colour.
+    Returns the texture; trace follows the texels read again."""
+    d = trace['normal']; back = np.flatnonzero(np.einsum('ij,ij->i', piece.mesh.face_normals[trace['tri']], d) < 0)
+    if not len(back): return img
+    o = trace['old'][back]; valid = np.ones(len(d), bool); valid[back] = False
+    loc, ir, it = piece.ray.intersects_location(o, d[back], multiple_hits=True)
+    t = np.einsum('ij,ij->i', loc - o[ir], d[back][ir])
+    ok = (t > 1e-5) & (t < OUTER_REACH) & (np.einsum('ij,ij->i', piece.mesh.face_normals[it], d[back][ir]) > 0)
+    loc, ir, it, t = loc[ok], ir[ok], it[ok], t[ok]
+    if len(ir):
+        order = np.lexsort((t, ir)); ir, it, loc = ir[order], it[order], loc[order]; first = np.r_[0, np.flatnonzero(np.diff(ir)) + 1]
+        g = back[ir[first]]; trace['tri'][g] = it[first]; trace['old'][g] = loc[first]; valid[g] = True
+    W = trace['size']; SS = W // S.TEX; yy = W - 1 - trace['y']; xx = trace['x']
+    out = np.zeros((W, W, 3), np.float32); has = np.zeros((W, W), bool)
+    out[yy[valid], xx[valid]] = piece.color(trace['tri'][valid], trace['old'][valid]); has[yy[valid], xx[valid]] = True
+    n = has.reshape(S.TEX, SS, S.TEX, SS).sum((1, 3)).astype(np.float32)
+    out = out.reshape(S.TEX, SS, S.TEX, SS, 3).sum((1, 3)) / np.maximum(n, 1)[..., None]
+    i = ndimage.distance_transform_edt(n == 0, return_distances=False, return_indices=True)
+    return Image.fromarray(np.clip(out[i[0], i[1]], 0, 255).astype(np.uint8))
 
 
 def recorded():
