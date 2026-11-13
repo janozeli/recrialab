@@ -6,7 +6,7 @@
  "018": {"wider_cm": 5.56, "narrower_cm": 0.23, "hem_girth_pct": 9.2, "seam_cm": 0.75, "tear_cm": 8.5, "distortion": 0.067, "texture_without_source_pct": 0.3},
  "019": {"wider_cm": 4.54, "narrower_cm": 0.32, "hem_girth_pct": 4.1, "seam_cm": 1.39, "tear_cm": 59.0, "distortion": 0.016, "texture_without_source_pct": 0.1},
  "022": {"wider_cm": 6.15, "narrower_cm": 0.35, "hem_girth_pct": 10.4, "seam_cm": 0.91, "tear_cm": 54.9, "distortion": 0.067, "texture_without_source_pct": 0.1},
- "023": {"wider_cm": 4.62, "narrower_cm": 0.82, "hem_girth_pct": 6.7, "seam_cm": 1.04, "tear_cm": 46.0, "distortion": 0.029, "texture_without_source_pct": 0.3},
+ "023": {"wider_cm": 4.62, "narrower_cm": 0.82, "hem_girth_pct": 5.9, "seam_cm": 1.04, "tear_cm": 46.0, "distortion": 0.029, "texture_without_source_pct": 0.3},
  "025": {"wider_cm": 4.75, "narrower_cm": 0.0, "hem_girth_pct": 13.1, "seam_cm": 0.87, "tear_cm": 7.7, "distortion": 0.054, "texture_without_source_pct": 0.0},
  "026": {"wider_cm": 4.7, "narrower_cm": 0.26, "hem_girth_pct": 10.3, "seam_cm": 0.66, "tear_cm": 34.1, "distortion": 0.045, "texture_without_source_pct": 0.1},
  "027": {"wider_cm": 5.54, "narrower_cm": 0.0, "hem_girth_pct": 13.7, "seam_cm": 0.6, "tear_cm": 6.4, "distortion": 0.077, "texture_without_source_pct": 0.4},
