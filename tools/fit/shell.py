@@ -14,7 +14,6 @@ Two rules of the fit engine sit on top (engine.py):
 - top: it stays outside the set of ALL the bottoms (the envelope) plus RISE, not outside one of them, so any top
   layers over any bottom without a table per pair.
 What hangs loose (skirt below the hip, hem below it, hood) is not shell: tube.py and loose_hood.py.
-Origin: the PS1/PS2 look study, brought here as the engine's shell.
 usage: python3 tools/fit/shell.py bottom|top NNN GARMENT.glb DENSE_BODY.glb LOWPOLY.glb OUT_DIR
        (a bottom writes OUT_DIR/env/NNN.npy; a top reads every one of them)"""
 import sys, os, io, json, glob, struct, numpy as np, trimesh, xatlas

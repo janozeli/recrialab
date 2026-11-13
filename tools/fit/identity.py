@@ -20,6 +20,7 @@ on a level line gives a garment that fits and no longer looks like itself (a wai
 tail, a V neck). contour() reads each edge of the garment as a profile, the height of the edge around the body and
 the half-width of the silhouette along the height, on the published garment and on the rebuilt one, and compares
 the two with their means removed: a slide or a uniform change of size costs nothing, a curve made straight does.
+engine.py holds waistband, hem and silhouette under a limit and records the rest (a bottom's hem, a top's collar).
 The girth at the waist is read on both too: a rebuilt garment much thinner than the published one lost its volume.
 usage: from identity import measure; measure(trace, registered, published) with the trace shell.bake fills
        from identity import contour; contour(pid, published_points, rebuilt_points, body)"""
@@ -33,7 +34,6 @@ HIDDEN = .05                       # m: the shape itself this close in front of 
 SECTORS = 24                       # sectors around the body in which the height of an edge is read
 NECK_R = .13                       # m: the collar is the cloth this close to the neck's axis
 WAIST_Y, WAIST_UNDER = 1.06, .03   # m: height of a top's waist; a bottom's is read this far below its waistband
-RELIEF = .015                      # m: an edge with at least this much relief on the published garment has a shape to keep
 
 
 def measure(t, registered=None, published=None, where=None, above=None):
@@ -93,7 +93,7 @@ def profiles(pid, P, body):
         if pid in L.SKIRTS: out['hem'] = around(P, 2)
         else:
             legs = [around(P[(P[:, 0] * s > .02) & (P[:, 1] < np.percentile(P[:, 1], 40))], 2, SECTORS // 2) for s in (1, -1)]
-            out['hem'] = None if None in [type(x) if x is None else 0 for x in legs] else np.concatenate(legs)
+            out['hem'] = None if any(x is None for x in legs) else np.concatenate(legs)
         out['side'] = side(P)
     else:
         torso = P[~np.isin(near, (1, 2))]
