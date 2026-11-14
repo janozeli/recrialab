@@ -1,5 +1,5 @@
 // PS1/PS2 look of the stage: the default, with `?classico` as the way back to the light before it. Kept apart from
-// fabric.ts, which the selector thumbnails are rendered with: the thumbnails stay as they are.
+// fabric.ts; the selector thumbnails are rendered with the stage's default look (thumbnail-render.ts).
 import * as THREE from 'three';
 
 /**
@@ -32,7 +32,9 @@ export function ps1Material(material: THREE.MeshStandardMaterial): void {
   material.metalness = 0;
   material.flatShading = true;
   if (material.map) {
-    material.emissive.set('#ffffff');
+    // The self light carries the garment's colour gain (garment-tones.ts, already in material.color): with white it
+    // stayed the same for every garment, and the dark ones stayed below the photo with the gain at its ceiling.
+    material.emissive.copy(material.color);
     material.emissiveMap = material.map;
   } else {
     material.color.set(PS1_LOOK.body);
