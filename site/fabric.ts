@@ -2,7 +2,7 @@
 // (thumbnail-render.ts): a thumbnail drawn with other light would not look like the piece on the mannequin.
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { SATURATION, TONE } from './garment-tones';
+import { HUE, SATURATION, TONE } from './garment-tones';
 
 /** One roughness for every garment: matte fabric, without the plastic shine of the generated maps. */
 export const FABRIC_ROUGHNESS = 0.9;
@@ -20,27 +20,43 @@ export function matteFabric(model: THREE.Object3D, id: string): void {
       material.metalness = 0;
       // front brightness close to the thrift store photo: the 3D generator painted some textures darker, others lighter
       material.color.multiplyScalar(TONE[id] ?? 1);
-      saturate(material, SATURATION[id] ?? 1);
+      recolour(material, SATURATION[id] ?? 1, HUE[id] ?? 0);
     }
   });
 }
 
-const LUMA = 'vec3(.2126, .7152, .0722)';
+const LUMA = [.2126, .7152, .0722];
 /**
- * Colour saturation of the texture, lit and self-lit alike: the 3D generator painted some textures more saturated than
- * the photo (032 purple where the photo is maroon), and the gain that brings a dark garment to the photo's brightness
- * raises its chroma with it. 1 leaves the shader as it is.
+ * Colour matrix of the texture, lit and self-lit alike: hue turned by `hue` degrees around the grey axis, then the
+ * saturation mixed towards the luminance by `saturation`. The 3D generator painted some textures more saturated or
+ * off in hue against the photo (032 purple where the photo is maroon), and the gain that brings a dark garment to the
+ * photo's brightness raises its chroma with it. Hue 0 and saturation 1 leave the shader as it is.
  */
-function saturate(material: THREE.MeshStandardMaterial, amount: number): void {
-  if (Math.abs(amount - 1) < .005) return;
-  const k = amount.toFixed(3);
-  const mix = (v: string) => `${v} = mix(vec3(dot(${v}, ${LUMA})), ${v}, ${k});`;
+export function colourMatrix(saturation: number, hue: number): number[] {
+  const t = hue * Math.PI / 180, c = Math.cos(t), s = Math.sin(t), k = 1 / 3, q = Math.sqrt(k);
+  // rotation around the (1, 1, 1) axis (Rodrigues), row-major
+  const r = [
+    c + (1 - c) * k, (1 - c) * k - q * s, (1 - c) * k + q * s,
+    (1 - c) * k + q * s, c + (1 - c) * k, (1 - c) * k - q * s,
+    (1 - c) * k - q * s, (1 - c) * k + q * s, c + (1 - c) * k,
+  ];
+  // saturation: out = luma + saturation * (in - luma), row-major
+  const m = [0, 1, 2].flatMap(row => [0, 1, 2].map(col => (1 - saturation) * LUMA[col] + (row === col ? saturation : 0)));
+  return [0, 1, 2].flatMap(row => [0, 1, 2].map(col => [0, 1, 2].reduce((sum, x) => sum + m[row * 3 + x] * r[x * 3 + col], 0)));
+}
+
+function recolour(material: THREE.MeshStandardMaterial, saturation: number, hue: number): void {
+  if (Math.abs(saturation - 1) < .005 && Math.abs(hue) < .5) return;
+  const m = colourMatrix(saturation, hue);
+  // GLSL mat3 takes columns
+  const glsl = `mat3(${[0, 1, 2].flatMap(col => [0, 1, 2].map(row => m[row * 3 + col].toFixed(4))).join(', ')})`;
+  const apply = (v: string) => `${v} = ${glsl} * ${v};`;
   material.onBeforeCompile = shader => {
     shader.fragmentShader = shader.fragmentShader
-      .replace('#include <map_fragment>', `#include <map_fragment>\n${mix('diffuseColor.rgb')}`)
-      .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>\n${mix('totalEmissiveRadiance')}`);
+      .replace('#include <map_fragment>', `#include <map_fragment>\n${apply('diffuseColor.rgb')}`)
+      .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>\n${apply('totalEmissiveRadiance')}`);
   };
-  material.customProgramCacheKey = () => `saturation ${k}`;
+  material.customProgramCacheKey = () => `recolour ${glsl}`;
 }
 
 /** Light for the garments; returns the key light, which turns with the camera. */
