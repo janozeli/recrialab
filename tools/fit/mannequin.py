@@ -39,7 +39,8 @@ APPROVED = {
     'triangles': 1254,
 }
 
-CROTCH_Y = .745                 # m: the crotch, at the torso's underside
+CROTCH_Y = .78                 # m: the crotch, at the torso's underside
+LEG_TILT = .035                # m: how much higher the leg's ring under the hip stands on its inner side
 HIP_RING, LEG_RING = .82, .74   # m: the torso's lowest ring and the leg's ring below the hip, joined in joined_hip()
 
 
@@ -320,6 +321,14 @@ def joined_hip(low):
     V[front, 2] = V[near, 2].mean(); V[c, 1] = CROTCH_Y
     back = c[np.argmin(V[c, 2])]; nb = side[np.argsort(np.abs(V[side, 0]) - 10 * (V[side, 2] < 0))[:2]]
     leg = V[(np.abs(y - LEG_RING) < .004) & (np.abs(V[:, 0]) < .2), 2].min(); V[back, 2] = (V[nb, 2].mean() + leg) / 2
+    # the leg's ring under the hip was level, so the band from it to the crotch was a flat face sloping down between
+    # the thighs; the site shades faces flat, and every bottom built on it carried that face as a dark triangle under
+    # the crotch. The ring rises on its inner side, up to LEG_TILT at the vertex nearest the other leg, and the face
+    # turns into a narrow fold; the crotch itself stays where it was, so short legs keep their opening
+    ring = np.flatnonzero(np.abs(y - LEG_RING) < .004)
+    for s in (1, -1):
+        r = ring[V[ring, 0] * s > 0]; cx = V[r, 0].mean(); inner = np.clip((cx - V[r, 0]) * s / np.abs(V[r, 0] - cx).max(), 0, 1)
+        V[r, 1] += LEG_TILT * inner ** 1.5
     out = trimesh.Trimesh(V, F, process=False); out.visual = material()
     return out
 
