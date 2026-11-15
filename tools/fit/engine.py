@@ -118,6 +118,30 @@ def one_hood(a):
     return pid, loose_hood.build(f'{work}/dense-B.glb', f'{work}/reg/{pid}.glb', f'{work}/final/{pid}-hood.glb')
 
 
+_BODIES = {}
+
+
+def bodies(work):
+    """The dense bodies of both poses, read once in each process of the pool."""
+    if work not in _BODIES: _BODIES[work] = {p: shell.load_body(f'{work}/dense-{p}.glb') for p in 'BC'}
+    return _BODIES[work]
+
+
+def one_register(a):
+    # one garment at a time took 18 s of the CI's fit job, and the measures below 45 s: each garment is read on its own
+    work, pid = a; B = bodies(work)
+    return pid, R.register(pid, GARMENTS + f'{pid}.glb', f'{work}/reg/{pid}.glb', L.recorded(), L.arm_axis(B['B']), B[pose(pid)])
+
+
+def one_measure(a):
+    work, pid = a; m = parts(work, pid); b = trimesh.load(f'{work}/low-{pose(pid)}.glb', process=False).to_geometry(); out = {}
+    if int(pid) > 15: out['sleeve_uneven_cm'] = sleeves_uneven(f'{work}/final/{pid}-shell.glb')
+    r, _, _ = measure(m, trimesh.Trimesh(b.vertices, b.faces, process=False), legs=int(pid) <= 15, fold=(FOLD, L.recorded()['neck']))
+    out.update(body_crossing_pct=r['penetrates_pct'], body_in_view_cm2=looks.through(m, trimesh.Trimesh(b.vertices, b.faces, process=False)),
+               triangles=int(len(m.faces)), contour=contour(pid, m, bodies(work)[pose(pid)]))
+    return pid, out
+
+
 def parts(work, pid):
     out = []
     for f in sorted(glob.glob(f'{work}/final/{pid}-*.glb')):
@@ -134,11 +158,10 @@ def run(work, ids):
     for d in ('reg', 'shell', 'final'): shutil.rmtree(f'{work}/{d}', ignore_errors=True)   # nothing of an earlier run is read
     for d in ('reg', 'shell/env', 'final'): os.makedirs(f'{work}/{d}', exist_ok=True)
     built = {p: mannequin.build(p, f'{work}/dense-{p}.glb', f'{work}/low-{p}.glb')[1] for p in 'BC'}
-    B = {p: shell.load_body(f'{work}/dense-{p}.glb') for p in 'BC'}; mb = L.recorded(); axis = L.arm_axis(B['B'])
+    B = {p: shell.load_body(f'{work}/dense-{p}.glb') for p in 'BC'}; mb = L.recorded()
     rep = {'lines': R.lines(mb), 'garments': {}, 'mannequin': {p: {**mannequin.measures(shell.Low(f'{work}/low-{p}.glb'), B[p], p), 'shape_mm': built[p]} for p in 'BC'}}   # the shape as built, before the recorded vertices are written
-    for pid in ids:
-        before, after, how = R.register(pid, GARMENTS + f'{pid}.glb', f'{work}/reg/{pid}.glb', mb, axis, B[pose(pid)])
-        rep['garments'][pid] = {'before': before, 'registered': after, **how}
+    with Pool(min(6, os.cpu_count())) as pool:
+        for pid, (before, after, how) in pool.map(one_register, [(work, p) for p in ids]): rep['garments'][pid] = {'before': before, 'registered': after, **how}
     bottoms = [p for p in ids if int(p) <= 15]; tops = [p for p in ids if int(p) > 15]
     skirts = [p for p in bottoms if p in L.SKIRTS]
     tubed = lambda p: p in skirts or (int(p) > 15 and rep['garments'][p]['registered']['hem'] < LONG_HEM)   # ends in a tube below the seam
@@ -156,13 +179,8 @@ def run(work, ids):
         long_tops = [p for p in tops if tubed(p)]
         for pid, r in pool.map(one_tube, [(work, p, HEM_RINGS, f'{work}/envelope.npy' if bottoms else None) for p in long_tops]): rep['garments'][pid]['tube'] = r
         for pid, r in pool.map(one_hood, [(work, p) for p in tops if p in HOODS]): rep['garments'][pid]['hood'] = r
-    low = {p: trimesh.load(f'{work}/low-{p}.glb', process=False).to_geometry() for p in 'BC'}
-    for pid in ids:
-        m = parts(work, pid); b = low[pose(pid)]
-        if int(pid) > 15: rep['garments'][pid]['sleeve_uneven_cm'] = sleeves_uneven(f'{work}/final/{pid}-shell.glb')
-        r, _, _ = measure(m, trimesh.Trimesh(b.vertices, b.faces, process=False), legs=int(pid) <= 15, fold=(FOLD, L.recorded()['neck']))
-        rep['garments'][pid].update(body_crossing_pct=r['penetrates_pct'], body_in_view_cm2=looks.through(m, trimesh.Trimesh(b.vertices, b.faces, process=False)),
-                                    triangles=int(len(m.faces)), contour=contour(pid, m, B[pose(pid)]))
+    with Pool(min(6, os.cpu_count())) as pool:
+        for pid, r in pool.map(one_measure, [(work, p) for p in ids]): rep['garments'][pid].update(r)
     if len(ids) == 38:
         b = trimesh.load(f'{work}/low-B.glb', process=False).to_geometry()
         rep['looks'] = looks.measure({p: parts(work, p) for p in ids}, b); v = np.array(list(rep['looks'].values()))
