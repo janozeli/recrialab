@@ -8,6 +8,7 @@ a new check only enters if it fails the before of the defect that motivated it.
 usage: python3 tools/fit/calibration.py [--visual] [CASE ...]   (no cases: all; --visual: the cases measured in the site's
        pictures; exits with an error if a check does not separate)"""
 import os, shutil, subprocess, sys, tempfile
+from concurrent.futures import ThreadPoolExecutor
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 CORPUS = os.path.join(ROOT, 'tools/fit/reference/calibration')
@@ -153,8 +154,12 @@ if __name__ == '__main__':
     bad = []; args = [a for a in sys.argv[1:] if a != '--visual']
     cases = VISUAL_CASES if '--visual' in sys.argv else CASES
     print('| check | case | before | after |\n|---|---|---|---|')
+    # every case and state runs in its own copy of the repository, so they run side by side: one after the other
+    # they took 3.4 of the fit job's 15 min on the CI (3.0 to 1.9 min on 4 cores, the same table)
+    todo = [(case, state) for case in args or cases for state in ('before', 'after')]
+    with ThreadPoolExecutor(os.cpu_count()) as pool: codes = dict(zip(todo, pool.map(lambda t: run(*t, cases), todo)))
     for case in args or cases:
-        before, after = run(case, 'before', cases), run(case, 'after', cases)
+        before, after = codes[case, 'before'], codes[case, 'after']
         for c, b, a in zip(cases[case][1], before, after):
             print(f'| `{c}` | {case} | {"fails" if b else "passes"} | {"fails" if a else "passes"} |')
             if not b or a: bad.append(f'{case}: {c}')
