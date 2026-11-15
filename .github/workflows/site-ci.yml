@@ -64,7 +64,7 @@ jobs:
         run: python3 tools/fit/poke_through.py --max-pokes 50 --max-holes 7000 --max-bottom-pokes 30
       # layer_check.py keys each pair by the hash of what it reads: a run restores the latest results and only
       # measures the pairs whose garments, table or code changed (5 min for all 345)
-      - uses: actions/cache@v4
+      - uses: actions/cache@v5
         with:
           path: ~/.cache/recrialab/layer-check
           key: layer-check-${{ github.sha }}
