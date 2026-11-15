@@ -78,11 +78,27 @@ def measure(pair, hid=None):
     return pair, pokes, holes
 
 
-# Each pair's result is kept by the hash of everything it reads (both GLBs, the pair's line in the table and all the
-# code in tools/fit with requirements.txt): a change to one garment only redoes its pairs (about 20 s instead of 5 min
-# for all 345). The cache is content-addressed, so it can be shared between runs without stale values.
+# Each pair's result is kept by the hash of everything it reads (both GLBs, the pair's line in the table, the modules
+# of tools/fit this script imports, followed import by import, and requirements.txt): a change to one garment only
+# redoes its pairs (about 20 s instead of 5 min for all 345), and a change to a module this check never runs (the
+# engine, the calibration) redoes none. The cache is content-addressed, so it can be shared between runs (the CI keeps
+# it between them) without stale values.
 HERE = os.path.dirname(os.path.abspath(__file__))
-CODE = sorted(f for f in os.listdir(HERE) if f.endswith('.py') or f == 'requirements.txt')
+
+
+def imported(name='layer_check', seen=None):
+    """The modules of tools/fit that `name` imports, itself included, followed through each of them."""
+    import ast
+    seen = set() if seen is None else seen; f = os.path.join(HERE, name + '.py')
+    if name in seen or not os.path.exists(f): return seen
+    seen.add(name)
+    for n in ast.walk(ast.parse(open(f).read())):
+        if isinstance(n, ast.Import): [imported(a.name.split('.')[0], seen) for a in n.names]
+        elif isinstance(n, ast.ImportFrom) and n.module and not n.level: imported(n.module.split('.')[0], seen)
+    return seen
+
+
+CODE = sorted(m + '.py' for m in imported()) + ['requirements.txt']
 CACHE = os.environ.get('LAYER_CHECK_CACHE') or os.path.expanduser('~/.cache/recrialab/layer-check')
 
 

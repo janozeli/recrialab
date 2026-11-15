@@ -7,6 +7,7 @@ const workflows = readdirSync(DIR).filter(f => f.endsWith('.yml')).map(f => [f, 
 
 // First major of each action that runs on Node 24; older ones run on the deprecated Node 20 and warn on every job.
 const NODE24: Record<string, number> = {
+  'actions/cache': 5,
   'actions/checkout': 5,
   'actions/setup-node': 5,
   'actions/setup-python': 6,
