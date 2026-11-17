@@ -36,6 +36,7 @@ from paths import GARMENTS, piece_id
 import landmarks as L
 import shell as S
 import identity
+import cords
 
 SEAM = .90             # m: height of the weld between a top's shell and its tube
 CLEAR = .006           # m: the tube is never closer than this to the body
@@ -60,6 +61,14 @@ SEAM_BAND = .06        # m below the weld where the kink is measured
 SHELL_REACH = .15      # m: how far a shell's texture ray looks for the garment from the body (shell.py: its clearance and 5 cm)
 MAX_SHIFT = .04        # m: the most a column's texture rays move to meet the shell's at the weld
 OUTER_REACH = .05      # m: how far behind a lining the outer face of the same fold is looked for
+RAW_EDGE = .01         # m under a skirt's top edge: the generator paints the cut of the waistband pale (its inside)
+CORD_REACH = .012      # m around the cords the generator hung (cords.py): their paint is not cloth
+PALE = 40              # luminance (0-255) off a skirt's median colour that skirt_paint counts as not cloth
+PATCH = 400            # texels whose median colour paints over what is not cloth
+SKIRT_PAINT = {        # % of the zone, most a skirt's texture may show of what is not cloth (skirt_paint); 009 before the
+    'pale_edge_pct': 5.,    # repaint: 45.6 and 4.1; 007, light denim, 4.3
+    'cord_paint_pct': .5,
+}
 RECORD = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tube.json')
 TOLERANCE = {          # what a measure may sit above its recorded value before the check fails: every tube of a top
     'wider_cm': .25,   # moves a little when any bottom changes (it passes outside all of them)
@@ -314,31 +323,98 @@ def build(dense_path, shell_path, garment_path, shell_out, tube_out, n, envelope
         dense, _ = trimesh.sample.sample_surface(trimesh.Trimesh(base, F, process=False), 40000, seed=1)
     trace = {}
     V2, N2, UV, F2, img, missing = S.bake(piece, cKDTree(dense), dense, V, base, N, F, .10, limbs=False, trace=trace)
-    img = outer_face(piece, trace, img)
+    drop = None
+    if skirt:
+        raw_edge(piece, trace, cen)
+        drop = painted_cords(piece, trace, pid)
+        if drop is None: drop = np.zeros(len(trace['tri']), bool)   # the texels read again are drawn anew
+    img = outer_face(piece, trace, img, drop)
     S.export(tube_out, V2, F2, lit[cKDTree(V).query(V2)[1]], UV, img)   # N2 are the texture rays, not the light's normals
+    paint = skirt_paint(trace, pid, edge, cen, piece) if skirt else {}
     ident = identity.measure(trace, piece, S.Piece(GARMENTS + f'{pid}.glb'))
     return {'triangles': int(len(F2)), 'sides': k, 'rings': n, 'top': round(top, 3), 'hem': [round(float(hem.min()), 2), round(float(hem.max()), 2)],
-            'texture_without_source_pct': round(100 * missing, 1), **measure(prof, ang, r_seam, V), 'tear_cm': ident['tear_cm'], 'distortion': round(abs(ident['distortion'] - 1), 3)}
+            'texture_without_source_pct': round(100 * missing, 1), **measure(prof, ang, r_seam, V), 'tear_cm': ident['tear_cm'], 'distortion': round(abs(ident['distortion'] - 1), 3), **paint}
 
 
-def outer_face(piece, trace, img):
+def skirt_paint(trace, pid, edge, cen, piece):
+    """What a skirt's texture shows that is not cloth, in % of the texels of the zone (check holds SKIRT_PAINT):
+    - pale_edge_pct: within RAW_EDGE under the tube's top edge on the front (+z; the back of 009 has a leather label
+      at the edge), texels PALE lighter than the skirt's median colour;
+    - cord_paint_pct: within CORD_REACH of the cords the generator hung, texels PALE darker than it."""
+    c = trace['color']; ok = ~np.isnan(c[:, 0]); lum = c @ [.299, .587, .114]; med = np.median(lum[ok])
+    new = trace['new']; a = np.arctan2(new[:, 2] - cen[1], new[:, 0] - cen[0])
+    ea = np.arctan2(edge[:, 2] - cen[1], edge[:, 0] - cen[0]); o = np.argsort(ea)
+    top = np.interp(a, ea[o], edge[o, 1], period=2 * np.pi)
+    band = ok & (new[:, 1] > top - RAW_EDGE) & (new[:, 2] > cen[1])
+    out = {'pale_edge_pct': round(100 * float((lum[band] > med + PALE).mean()) if band.any() else 0., 1)}
+    near = painted_cords(piece, trace, pid)
+    if near is not None:
+        near &= ok; out['cord_paint_pct'] = round(100 * float((lum[near] < med - PALE).mean()) if near.any() else 0., 1)
+    return out
+
+
+def raw_edge(piece, trace, cen):
+    """A skirt's waistband shows cloth up to its top edge. The generator paints the last RAW_EDGE under the cut pale,
+    the inside of the waistband: a texel read closer than RAW_EDGE to the cut is read again RAW_EDGE under it,
+    straight below, from the nearest point of the outer face. The cut is the garment's open edge above the waist;
+    moving each texel by its own distance to it keeps neighbours together (no tear in the print)."""
+    V = piece.v; _, inv = np.unique(np.round(V, 4), axis=0, return_inverse=True); inv = inv.ravel(); F = inv[piece.f]
+    e = np.sort(np.vstack([F[:, [0, 1]], F[:, [1, 2]], F[:, [2, 0]]]), axis=1); u, c = np.unique(e, axis=0, return_counts=True)
+    P = np.zeros((inv.max() + 1, 3)); P[inv] = V; u = u[c == 1]
+    u = u[(P[u][:, :, 1] > SEAM + WAIST_OVER).all(1)]
+    if not len(u): return
+    t = np.linspace(0, 1, 6)[:, None, None]; cut = (P[u[:, 0]] * (1 - t) + P[u[:, 1]] * t).reshape(-1, 3)
+    old = trace['old']; d, _ = cKDTree(cut).query(old, distance_upper_bound=RAW_EDGE)
+    s = np.flatnonzero(d < RAW_EDGE)
+    if not len(s): return
+    q = old[s].copy(); q[:, 1] -= RAW_EDGE - d[s]
+    oa = np.arctan2(q[:, 2] - cen[1], q[:, 0] - cen[0]); radial = np.c_[np.cos(oa), np.zeros(len(s)), np.sin(oa)]
+    _, near = piece.sample_kd.query(q, k=8)
+    facing = np.einsum('ijk,ik->ij', piece.sample_n[near], radial) > .2
+    has = facing.any(1); first = near[np.arange(len(s)), facing.argmax(1)]
+    g = s[has]; trace['tri'][g] = piece.sample_f[first[has]]; trace['old'][g] = piece.sample_p[first[has]]
+
+
+def painted_cords(piece, trace, pid):
+    """Texels read within CORD_REACH of the cords the generator hung on the garment (cords.py flattened them, but
+    their dark paint stayed in the texture): they take the cloth around them. The cords are found on the Tripo
+    original, whose faces are the garment's; a texel's point is carried there by its barycentric coordinates."""
+    c = cords.painted(pid)
+    if c is None: return None
+    X, F, sel = c
+    b = trimesh.triangles.points_to_barycentric(piece.v[piece.f[trace['tri']]], trace['old'])
+    at = np.einsum('ij,ijk->ik', b, X[F[trace['tri']]])
+    cord, _ = trimesh.sample.sample_surface(trimesh.Trimesh(X, F[sel], process=False), 20000, seed=1)
+    return cKDTree(cord).query(at, distance_upper_bound=CORD_REACH)[0] < CORD_REACH
+
+
+def outer_face(piece, trace, img, drop=None):
     """A texel of the tube must show the outer face of the cloth. Where the fold of a hem is thicker than shell.WALL
     the bake stops at the lining, seen from behind, and the generated garment paints its inside brown: those texels
     are read again from the first face further out that looks outwards, or, with none, take their neighbours' colour.
     Returns the texture; trace follows the texels read again."""
     d = trace['normal']; back = np.flatnonzero(np.einsum('ij,ij->i', piece.mesh.face_normals[trace['tri']], d) < 0)
-    if not len(back): return img
-    o = trace['old'][back]; valid = np.ones(len(d), bool); valid[back] = False
-    loc, ir, it = piece.ray.intersects_location(o, d[back], multiple_hits=True)
+    valid = np.ones(len(d), bool) if drop is None else ~drop
+    if not len(back) and drop is None:
+        trace['color'] = piece.color(trace['tri'], trace['old']); return img
+    o = trace['old'][back]; valid[back] = False
+    loc, ir, it = piece.ray.intersects_location(o, d[back], multiple_hits=True) if len(back) else (np.zeros((0, 3)), np.zeros(0, int), np.zeros(0, int))
     t = np.einsum('ij,ij->i', loc - o[ir], d[back][ir])
     ok = (t > 1e-5) & (t < OUTER_REACH) & (np.einsum('ij,ij->i', piece.mesh.face_normals[it], d[back][ir]) > 0)
     loc, ir, it, t = loc[ok], ir[ok], it[ok], t[ok]
     if len(ir):
         order = np.lexsort((t, ir)); ir, it, loc = ir[order], it[order], loc[order]; first = np.r_[0, np.flatnonzero(np.diff(ir)) + 1]
-        g = back[ir[first]]; trace['tri'][g] = it[first]; trace['old'][g] = loc[first]; valid[g] = True
+        g = back[ir[first]]; trace['tri'][g] = it[first]; trace['old'][g] = loc[first]; valid[g] = True if drop is None else ~drop[g]
     W = trace['size']; SS = W // S.TEX; yy = W - 1 - trace['y']; xx = trace['x']
     out = np.zeros((W, W, 3), np.float32); has = np.zeros((W, W), bool)
-    out[yy[valid], xx[valid]] = piece.color(trace['tri'][valid], trace['old'][valid]); has[yy[valid], xx[valid]] = True
+    col = np.zeros((len(d), 3), np.float32); col[valid] = piece.color(trace['tri'][valid], trace['old'][valid])
+    if drop is not None and drop.any() and valid.sum() > PATCH:
+        # paint that is not cloth takes the cloth around it on the tube: the median of the nearest texels read
+        # (a texel beside it in the texture can lie across a seam of the atlas, or on the paint itself)
+        s = np.flatnonzero(valid); _, near = cKDTree(trace['new'][s]).query(trace['new'][drop], k=PATCH)
+        col[drop] = np.median(col[s][near], axis=1); valid = valid | drop
+    out[yy[valid], xx[valid]] = col[valid]; has[yy[valid], xx[valid]] = True
+    trace['color'] = np.where(valid[:, None], col, np.nan)
     n = has.reshape(S.TEX, SS, S.TEX, SS).sum((1, 3)).astype(np.float32)
     out = out.reshape(S.TEX, SS, S.TEX, SS, 3).sum((1, 3)) / np.maximum(n, 1)[..., None]
     i = ndimage.distance_transform_edt(n == 0, return_distances=False, return_indices=True)
@@ -355,6 +431,10 @@ def check(report):
     built = {p for p, g in rep.items() if 'tube' in g}
     for p in sorted(set(L.SKIRTS) & set(rep)):           # a skirt is one tube from the waistband: as a shell it is dressed leg by leg, as shorts
         if rep[p].get('tube', {}).get('sides') != SKIRT_SIDES: bad.append(f'{p}: a skirt of the catalog was not built as one tube')
+        for key, lim in SKIRT_PAINT.items():
+            v = rep[p].get('tube', {}).get(key)
+            if v is not None and v > lim: bad.append(f'{p} {key} {v} > {lim}: the texture shows what is not cloth')
+            if v is None and (key == 'pale_edge_pct' or p in cords.PAINTED): bad.append(f'{p} {key} not measured')
     if not L.SKIRTS: bad.append('no skirt read from the catalog')
     if len(rep) == 38 and built != set(base): bad.append(f'tubes built {sorted(built)} differ from the recorded {sorted(base)}')
     for p in sorted(built & set(base)):
