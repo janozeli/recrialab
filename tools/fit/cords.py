@@ -10,11 +10,17 @@ The belt loop stays up to the waistband seam (LOOP), as in the photo. Only posit
 texture stay the same.
 usage: python3 tools/fit/cords.py INPUT.glb OUTPUT.glb
        python3 tools/fit/cords.py --measure [--max CM2] [GLB]   (cord area on the front, in cm², the CI check; without GLB, the site's 009)"""
-import sys, numpy as np, trimesh
+import sys, os, numpy as np, trimesh
 from trimesh.ray.ray_pyembree import RayMeshIntersector
 from garment import Garment
 from fringe import weld
 from paths import GARMENTS
+
+ORIGINALS = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'reference', 'originals', 'tripo')
+# garments whose generated texture still paints the cords this file flattened (tube.py repaints them as cloth)
+PAINTED = (
+    '009',
+)
 
 
 CORD = .004          # fabric just behind the triangle (m): a tube stuck to the front
@@ -73,6 +79,14 @@ def remove(src, dst):
     d = np.linalg.norm(X - X0, axis=1)
     print(f'{src}: {(d > 1e-4).sum()} vertices, largest displacement {100 * d.max():.1f} cm')
     g.save(dst, X[inv], before=P0)
+
+
+def painted(pid):
+    """The cords of garment pid as the generator made them: (vertices, faces, cord face mask) of the Tripo original,
+    which has the published garment's faces in the same order; None for a garment without cords."""
+    if pid not in PAINTED: return None
+    g = Garment(os.path.join(ORIGINALS, f'{pid}.glb')); P = g.vertices(); X, _, F = weld(P, g.mesh(P).faces)
+    return X, F, cords(X, F)[0]
 
 
 def measure(glb):
